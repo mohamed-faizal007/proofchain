@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P0 (in progress)
-- Next task: P0-06
+- Phase: P0 (complete)
+- Next task: P1-01
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -68,3 +68,10 @@
 - Decisions: added routes /documents/:id/revisions/new and /verifications (now in 07 route table). No react-hook-form/zod/react-pdf/lucide yet (added when first used). Extra deps beyond the task list: eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, eslint-config-prettier, @testing-library/{dom,jest-dom,user-event}, jsdom, @types/node.
 - Issues: npm audit reports warnings (not addressed). Auth (AuthContext/ProtectedRoute) deferred to a later task.
 - Next: P0-06
+
+### 2026-09-19 � P0-06 Infra + CI
+- Done: infra/docker-compose.yml (minio healthcheck, minio-init waits on healthy, images pinned), .github/workflows/ci.yml (backend, core-windows placeholder, contracts, frontend), scripts/dev.ps1 (--wait, -Chain switch).
+- Tests: none (config). compose config valid; up --wait -> mongo+minio healthy; minio-init created proofchain-docs with versioning (verified via mc); actionlint clean; dev.ps1 parses. CI not yet run on GitHub.
+- Decisions: MinIO images moved to quay.io (minio/minio and minio/mc are gone from Docker Hub) with pinned release tags. pytest steps tolerate exit 5 until P1 adds core tests.
+- Issues: hardhat compose service (chain profile) not exercised; deferred to P4.
+- Next: P1-01
