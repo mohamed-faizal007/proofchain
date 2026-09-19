@@ -11,7 +11,7 @@ Deps: — · Refs: CLAUDE.md, 01 §2
 Do: create folder structure from 01 §2 (empty `__init__.py`s), `.vscode/extensions.json` (python, ruff, eslint, prettier, solidity), `scripts/dev.ps1` (starts infra).
 Accept: tree matches 01 §2; `git status` clean after commit.
 
-### [ ] P0-02 Backend project config
+### [x] P0-02 Backend project config
 Deps: P0-01 · Refs: 01 §2, 08 A
 Do: `backend/pyproject.toml` (setuptools, packages `app`, `proofchain_core`; deps: fastapi, uvicorn[standard], pydantic>=2, pydantic-settings, motor, boto3, web3>=6, pymupdf, python-multipart, passlib[bcrypt] or bcrypt, pyjwt, structlog; extras `dev`: pytest, pytest-asyncio, pytest-cov, hypothesis, httpx, moto[s3], mongomock-motor, reportlab, ruff, mypy; extras `nlp`: spacy, sentence-transformers, dateparser). Ruff + mypy + pytest config (markers, asyncio mode auto).
 Accept: `pip install -e ".[dev]"` works in a fresh venv on Windows; `python -m pytest` runs (0 tests OK); ruff & mypy pass.
