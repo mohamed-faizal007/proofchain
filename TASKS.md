@@ -26,7 +26,7 @@ Deps: P0-01 · Refs: 05
 Do: `contracts/` Hardhat TS project, toolbox, OpenZeppelin v5, `hardhat.config.ts` (solidity 0.8.24 optimizer on, networks localhost/sepolia from env, gasReporter), empty test passes.
 Accept: `npx hardhat compile` and `npx hardhat test` succeed.
 
-### [ ] P0-05 Frontend init
+### [x] P0-05 Frontend init
 Deps: P0-01 · Refs: 07
 Do: Vite React TS, Tailwind, router, TanStack Query, axios, eslint+prettier, vitest; placeholder routes from 07; package.json scripts `dev, build, lint, typecheck (tsc --noEmit), test`.
 Accept: `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run test` pass.

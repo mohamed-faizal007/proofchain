@@ -24,8 +24,10 @@ src/
 | `/` Dashboard | counts (documents, pending approvals, recent verifications), document table with search/filter |
 | `/documents/new` | upload PDF + title + type (ISSUER) |
 | `/documents/:id` | header, latest approved version, **VersionTimeline** (revisions with status + anchor tx), **ProvenanceTimeline**, "Submit new revision", diff between any two revisions |
+| `/documents/:id/revisions/new` | RevisionNew: upload a new revision PDF + change note (ISSUER) |
 | `/approvals` | pending revisions (APPROVER); approve/reject with comment; disabled for own submissions |
 | `/verify` | dropzone + optional document picker → report |
+| `/verifications` | VerificationHistory: list of past verifications |
 | `/verifications/:id` | **VerdictBanner**; **PipelineSteps** (file hash → text root → localization → authorization → chain → semantic); side-by-side PDF viewers (reference vs candidate) with bbox highlights coloured by region type; **ChangeList** grouped by page/section with category chips, severity, before/after token diff and explanation; clicking a change scrolls both viewers; chain proof panel with explorer link |
 
 ## Highlight overlay
