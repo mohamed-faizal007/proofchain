@@ -58,7 +58,7 @@ Deps: P1-02 · Refs: 02 §2
 Do: `extract.py` → list of pages of blocks (text, bbox, spans size/flags). Errors: InvalidPdf, EncryptedPdf, NoExtractableText.
 Accept: tests on all fixtures incl. error fixtures.
 
-### [ ] P1-05 Chunking
+### [x] P1-05 Chunking
 Deps: P1-04 · Refs: 02 §4
 Do: `chunking.py`. Accept: boundary tests (599/600/601 chars, long sentence hard split, ids stable).
 

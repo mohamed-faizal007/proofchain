@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-05
+- Next task: P1-06
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -25,6 +25,8 @@
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
+
+- Chunking hard-split risk (found in P1-05): a sentence over 600 chars with no space is cut at exactly 600 code points (`_hard_split` in chunking.py, 02 §4 "hard split if no space"), which could separate a combining mark from its base character. NFKC (§3 step 1) composes most base+mark pairs into single code points, which minimizes this, but it is not ruled out for v1 (e.g. marks with no precomposed form). The split is deterministic, so hashes stay stable; the cost is a chunk boundary in an odd place. Avoiding it would change §4, needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 ## History summary
 - (empty)
@@ -119,3 +121,10 @@
 - Decisions: core exceptions live in proofchain_core (core cannot import `app`); the P2 service layer maps them to the `app/errors.py` DomainError subclasses. The 20-char minimum is counted on `normalize_text(...).strip()` per block. Empty blocks are kept for chunking (P1-05) to drop.
 - Issues: **Encryption check is stricter than 02 §2 text.** Any PDF carrying an /Encrypt dictionary is rejected, not only ones that need a password. Example that is rejected: a PDF saved with an owner password and an *empty* user password (e.g. `doc.tobytes(encryption=PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw="")`, the common "anyone can open it, but printing/copying is restricted" report). It opens and extracts fine without any password, so the spec's "reject encrypted" could be read as allowing it; we reject it anyway because the file bytes (and hash) are of an encrypted container and permission-restricted PDFs are a routine output of Word/Acrobat "restrict editing", which users would otherwise submit expecting it to work. If that use case matters, relaxing it needs a spec edit/ADR. Detection note: PyMuPDF auto-authenticates the empty user password and then reports `is_encrypted=False`, so we also check `doc.metadata["encryption"]` (None when unencrypted).
 - Next: P1-05
+
+### 2026-09-19 — P1-05 Chunking
+- Done: proofchain_core/chunking.py (`MAX_CHUNK_CHARS`, `split_paragraph`, `chunk_pages`); exported from __init__.py. Blocks are canonicalized, empties dropped, split per §4, ids `p{page}-c{index}`, leaf_hash via `leaf_hash`.
+- Tests: tests/unit/core/test_chunking.py (19 tests: 599/600/601 boundaries, greedy packing, lowercase non-split, space and hard splits, tail packing within a block and not across blocks, stable ids, bbox inheritance, post-NFKC length, contract fixture determinism). pytest 189 passed; ruff, format, mypy clean.
+- Decisions: length measured on canonical text in code points; a long sentence's tail can pack with following sentences of the same block only (packing state is per `split_paragraph` call); a split cuts at the last space at index <= 600. No ADR needed.
+- Issues: hard split with no space may separate a combining mark from its base (see Follow-ups).
+- Next: P1-06

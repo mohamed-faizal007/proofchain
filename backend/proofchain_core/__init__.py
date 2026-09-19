@@ -1,6 +1,7 @@
 """Pure, deterministic integrity library. See docs/02_ALGORITHMS.md."""
 
 from proofchain_core.canonical import CANON_VERSION, normalize_text
+from proofchain_core.chunking import MAX_CHUNK_CHARS, chunk_pages
 from proofchain_core.errors import (
     EncryptedPdfError,
     InvalidPdfError,
@@ -25,11 +26,13 @@ __all__ = [
     "ExtractedBlock",
     "ExtractedPage",
     "InvalidPdfError",
+    "MAX_CHUNK_CHARS",
     "NoExtractableTextError",
     "ProofChainCoreError",
     "ProofStep",
     "SpanInfo",
     "changed_leaves_by_descent",
+    "chunk_pages",
     "extract_pages",
     "file_hash",
     "leaf_hash",
