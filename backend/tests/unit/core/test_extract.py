@@ -1,9 +1,11 @@
 """Tests for 02_ALGORITHMS.md §2 extraction. Reads committed fixture PDFs, never regenerates."""
 
+import io
 from pathlib import Path
 
 import pymupdf
 import pytest
+from reportlab.pdfgen.canvas import Canvas
 
 from proofchain_core import (
     EncryptedPdfError,
@@ -125,3 +127,24 @@ def test_not_a_pdf_rejected() -> None:
 def test_garbage_rejected(data: bytes) -> None:
     with pytest.raises(InvalidPdfError):
         extract_pages(data)
+
+
+def _bold_heading_with_trailing_space_pdf() -> bytes:
+    """Bold "Payment Terms" plus a non-bold trailing space, as Word-style producers emit."""
+    buf = io.BytesIO()
+    c = Canvas(buf)
+    c.setFont("Helvetica", 11)
+    c.drawString(72, 780, "Ordinary body text of the agreement goes here for length.")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(72, 700, "Payment Terms")
+    c.setFont("Helvetica", 11)
+    c.drawString(72 + c.stringWidth("Payment Terms", "Helvetica-Bold", 11), 700, " ")
+    c.save()
+    return buf.getvalue()
+
+
+def test_blank_flag_marks_whitespace_only_spans() -> None:
+    blocks = extract_pages(_bold_heading_with_trailing_space_pdf())[0].blocks
+    body, heading = blocks
+    assert [s.blank for s in body.spans] == [False]
+    assert [(s.bold, s.blank) for s in heading.spans] == [(True, False), (False, True)]

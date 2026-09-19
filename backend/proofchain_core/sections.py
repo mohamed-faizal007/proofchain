@@ -45,11 +45,14 @@ def _distinct_blocks(origins: Sequence[ChunkOrigin]) -> list[ExtractedBlock]:
 def body_size(origins: Sequence[ChunkOrigin]) -> float | None:
     """Most frequent span size (rounded to 0.5pt); ties take the smaller size (§8).
 
-    Blocks whose canonical text is empty are dropped before chunking and so do not count.
-    Returns None when no block has any span.
+    Blank spans (empty canonical text) and blocks whose canonical text is empty (dropped before
+    chunking) do not count. Returns None when no block has any non-blank span.
     """
     counts = Counter(
-        _round_half_point(span.size) for block in _distinct_blocks(origins) for span in block.spans
+        _round_half_point(span.size)
+        for block in _distinct_blocks(origins)
+        for span in block.spans
+        if not span.blank
     )
     if not counts:
         return None
@@ -60,12 +63,13 @@ def _is_heading(block: ExtractedBlock, body: float | None) -> bool:
     text = normalize_text(block.text)
     if not text or len(text) > HEADING_MAX_CHARS or text.endswith("."):
         return False
+    spans = [span for span in block.spans if not span.blank]
     larger = (
         body is not None
-        and bool(block.spans)
-        and max(span.size for span in block.spans) >= body * HEADING_SIZE_RATIO
+        and bool(spans)
+        and max(span.size for span in spans) >= body * HEADING_SIZE_RATIO
     )
-    all_bold = bool(block.spans) and all(span.bold for span in block.spans)
+    all_bold = bool(spans) and all(span.bold for span in spans)
     return larger or all_bold or _HEADING_PATTERN.search(text) is not None
 
 

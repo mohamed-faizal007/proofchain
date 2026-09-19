@@ -1,8 +1,10 @@
 """Tests for 02_ALGORITHMS.md §8 sections overlay."""
 
+import io
 from pathlib import Path
 
 import pytest
+from reportlab.pdfgen.canvas import Canvas
 
 from proofchain_core import (
     ExtractedBlock,
@@ -37,6 +39,20 @@ def _titles(*pages: list[ExtractedBlock]) -> list[str]:
 
 def _body(n: int = 1) -> list[ExtractedBlock]:
     return [_block(f"Ordinary body sentence number {i} of the agreement.") for i in range(n)]
+
+
+def _bold_heading_with_trailing_space_pdf() -> bytes:
+    """Bold "Payment Terms" plus a non-bold trailing space, as Word-style producers emit."""
+    buf = io.BytesIO()
+    c = Canvas(buf)
+    c.setFont("Helvetica", 11)
+    c.drawString(72, 780, "Ordinary body text of the agreement goes here for length.")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(72, 700, "Payment Terms")
+    c.setFont("Helvetica", 11)
+    c.drawString(72 + c.stringWidth("Payment Terms", "Helvetica-Bold", 11), 700, " ")
+    c.save()
+    return buf.getvalue()
 
 
 # --- fixture ---------------------------------------------------------------------------------
@@ -270,3 +286,47 @@ def test_numbered_prose_is_misclassified_as_heading_known_limitation() -> None:
 def test_numbered_prose_with_trailing_period_is_not_a_heading() -> None:
     """The edge of the limitation above: the same text ending in a period is excluded."""
     assert _titles([*_body(2), _block("5 apples were sold.")]) == ["Preamble"]
+
+
+# --- blank spans (whitespace-only, e.g. a non-bold trailing space) ---------------------------
+
+
+def _blank(size: float = 11.0, flags: int = 0) -> SpanInfo:
+    return SpanInfo(size=size, flags=flags, blank=True)
+
+
+def test_blank_span_does_not_defeat_all_bold_rule() -> None:
+    heading = ExtractedBlock(
+        text="Payment Terms ", bbox=BOX, spans=(SpanInfo(11.0, BOLD), _blank(11.0, 0))
+    )
+    assert _titles([*_body(3), heading]) == ["Preamble", "Payment Terms"]
+
+
+def test_blank_span_does_not_defeat_all_bold_rule_on_extracted_pdf() -> None:
+    pdf = _bold_heading_with_trailing_space_pdf()
+    sections = build_sections(chunk_blocks(extract_pages(pdf)))
+    assert [s.title for s in sections] == ["Preamble", "Payment Terms"]
+
+
+def test_blank_span_does_not_trigger_size_rule() -> None:
+    block = ExtractedBlock(
+        text="Payment terms ", bbox=BOX, spans=(SpanInfo(11.0, 0), _blank(20.0, 0))
+    )
+    assert _titles([*_body(3), block]) == ["Preamble"]
+
+
+def test_block_with_only_blank_spans_yields_no_section() -> None:
+    block = ExtractedBlock(text="   ", bbox=BOX, spans=(_blank(),))
+    assert _sections([block]) == ()
+    assert _titles([*_body(1), block]) == ["Preamble"]
+
+
+def test_body_size_ignores_blank_spans() -> None:
+    padded = ExtractedBlock(
+        text="Real text", bbox=BOX, spans=(SpanInfo(11.0, 0), _blank(9.0), _blank(9.0), _blank(9.0))
+    )
+    assert body_size(_origins(padded)) == 11.0
+
+
+def test_body_size_none_when_every_span_is_blank() -> None:
+    assert body_size(_origins(ExtractedBlock(text="text", bbox=BOX, spans=(_blank(),)))) is None

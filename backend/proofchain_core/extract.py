@@ -23,6 +23,9 @@ BOLD_FLAG = 16  # 02 §2: bold = flags & 16
 class SpanInfo:
     size: float
     flags: int
+    # True when the span's canonical text is empty (spaces, NBSP, zero-width). Producers often emit
+    # such spans in a different font from the text they trail, so §8 heading rules skip them.
+    blank: bool = False
 
     @property
     def bold(self) -> bool:
@@ -64,7 +67,10 @@ def _extract_block(block: dict[str, Any]) -> ExtractedBlock:
     spans: list[SpanInfo] = []
     for line in block["lines"]:
         line_texts.append("".join(span["text"] for span in line["spans"]))
-        spans.extend(SpanInfo(float(s["size"]), int(s["flags"])) for s in line["spans"])
+        spans.extend(
+            SpanInfo(float(s["size"]), int(s["flags"]), not normalize_text(s["text"]))
+            for s in line["spans"]
+        )
     x0, y0, x1, y1 = block["bbox"]
     return ExtractedBlock(
         text=" ".join(line_texts),
