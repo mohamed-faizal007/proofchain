@@ -38,6 +38,7 @@ Each of backend/, contracts/, frontend/ has its own CLAUDE.md with area-specific
 
 ## Environment (developer machine = Windows + PowerShell + Python venv + Docker Desktop)
 - Python 3.11, Node 20 LTS.
+- Create the venv with `py -3.11 -m venv .venv` (from backend/), not plain `python -m venv .venv`, so the right Python version is used.
 - Use PowerShell syntax in commands. Activate venv: `.\.venv\Scripts\Activate.ps1` (from backend/).
 - Prefer `python -m pytest`, `python -m ruff`, `python -m mypy` over bare tool names.
 - Use `pathlib` everywhere in Python; never hard-code `/` or `\` separators.
