@@ -3,10 +3,8 @@
 Run ``python tests/fixtures/make_fixtures.py`` to regenerate ``tests/fixtures/pdfs/``.
 Regenerate only intentionally: tests that need exact hashes read the committed PDFs.
 
-Determinism: every canvas uses ``invariant=1`` (fixed dates and document ID) and
-compression is left at reportlab's default. Only the built-in base-14 fonts are used,
-except ``unicode_variants.pdf``, which embeds reportlab's bundled Vera font because
-the standard fonts cannot encode ligatures. reportlab is pinned exactly in
+Determinism: every canvas uses ``invariant=1`` (fixed dates and document ID). Only the
+built-in base-14 fonts are used (nothing is embedded). reportlab is pinned exactly in
 pyproject.toml so this output only changes when the pin does.
 Byte-identity has been checked on one machine only; it is not claimed across OSes.
 """
@@ -16,12 +14,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import reportlab
 from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.pdfencrypt import StandardEncryption
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
 OUT_DIR = Path(__file__).resolve().parent / "pdfs"
@@ -113,12 +109,17 @@ def _contract(path: Path) -> None:
 
 
 def _unicode_variants(path: Path) -> None:
-    font_path = Path(reportlab.__file__).parent / "fonts" / "Vera.ttf"
-    pdfmetrics.registerFont(TTFont("Vera", str(font_path)))
+    # Base-14 Helvetica only. WinAnsi (the reportlab default) has NBSP and smart quotes but no
+    # fi/fl ligatures; StandardEncoding has the ligatures, so those lines use a second font alias.
+    pdfmetrics.registerFont(pdfmetrics.Font("HelvStandard", "Helvetica", "StandardEncoding"))
     c = _canvas(path)
-    c.setFont("Vera", 11)
     y = PAGE_H - MARGIN
-    for line in (NBSP_LINE, QUOTE_LINE, LIGATURE_LINE):
+    for font, line in (
+        ("Helvetica", NBSP_LINE),
+        ("Helvetica", QUOTE_LINE),
+        ("HelvStandard", LIGATURE_LINE),
+    ):
+        c.setFont(font, 11)
         c.drawString(MARGIN, y, line)
         y -= 28
     c.save()
