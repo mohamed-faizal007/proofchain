@@ -62,7 +62,7 @@ Accept: tests on all fixtures incl. error fixtures.
 Deps: P1-04 · Refs: 02 §4
 Do: `chunking.py`. Accept: boundary tests (599/600/601 chars, long sentence hard split, ids stable).
 
-### [ ] P1-06 Sections overlay
+### [x] P1-06 Sections overlay
 Deps: P1-05 · Refs: 02 §8
 Do: `sections.py`. Accept: 3-page contract fixture yields the expected section titles; preamble section; cross-page section.
 

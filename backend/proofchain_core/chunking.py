@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from proofchain_core.canonical import normalize_text
-from proofchain_core.extract import ExtractedPage
+from proofchain_core.extract import ExtractedBlock, ExtractedPage
 from proofchain_core.hashing import leaf_hash
 from proofchain_core.types import Chunk
 
@@ -55,9 +56,21 @@ def split_paragraph(text: str) -> list[str]:
     return out
 
 
-def chunk_pages(pages: Sequence[ExtractedPage]) -> list[Chunk]:
+@dataclass(frozen=True)
+class ChunkOrigin:
+    """A chunk paired with the extracted block it was split from.
+
+    Never serialized: the section overlay (§8) needs block styling that `Chunk` does not carry.
+    Chunks split from one block share the same `block` object.
+    """
+
+    chunk: Chunk
+    block: ExtractedBlock
+
+
+def chunk_blocks(pages: Sequence[ExtractedPage]) -> list[ChunkOrigin]:
     """Canonicalize each block, drop empties, split, and id chunks `p{page}-c{index}` (§4)."""
-    chunks: list[Chunk] = []
+    origins: list[ChunkOrigin] = []
     for page in pages:
         index = 0
         for block in page.blocks:
@@ -65,15 +78,19 @@ def chunk_pages(pages: Sequence[ExtractedPage]) -> list[Chunk]:
             if not text:
                 continue
             for piece in split_paragraph(text):
-                chunks.append(
-                    Chunk(
-                        id=f"p{page.index}-c{index}",
-                        page=page.index,
-                        index=index,
-                        text=piece,
-                        bbox=block.bbox,
-                        leaf_hash=leaf_hash(piece),
-                    )
+                chunk = Chunk(
+                    id=f"p{page.index}-c{index}",
+                    page=page.index,
+                    index=index,
+                    text=piece,
+                    bbox=block.bbox,
+                    leaf_hash=leaf_hash(piece),
                 )
+                origins.append(ChunkOrigin(chunk=chunk, block=block))
                 index += 1
-    return chunks
+    return origins
+
+
+def chunk_pages(pages: Sequence[ExtractedPage]) -> list[Chunk]:
+    """The chunks of `chunk_blocks`, without their source blocks (§4)."""
+    return [origin.chunk for origin in chunk_blocks(pages)]

@@ -1,7 +1,7 @@
 """Pure, deterministic integrity library. See docs/02_ALGORITHMS.md."""
 
 from proofchain_core.canonical import CANON_VERSION, normalize_text
-from proofchain_core.chunking import MAX_CHUNK_CHARS, chunk_pages
+from proofchain_core.chunking import MAX_CHUNK_CHARS, ChunkOrigin, chunk_blocks, chunk_pages
 from proofchain_core.errors import (
     EncryptedPdfError,
     InvalidPdfError,
@@ -18,9 +18,11 @@ from proofchain_core.merkle import (
     merkle_root,
     verify_proof,
 )
+from proofchain_core.sections import build_sections
 
 __all__ = [
     "CANON_VERSION",
+    "ChunkOrigin",
     "EMPTY_PAGE_ROOT",
     "EncryptedPdfError",
     "ExtractedBlock",
@@ -31,7 +33,9 @@ __all__ = [
     "ProofChainCoreError",
     "ProofStep",
     "SpanInfo",
+    "build_sections",
     "changed_leaves_by_descent",
+    "chunk_blocks",
     "chunk_pages",
     "extract_pages",
     "file_hash",

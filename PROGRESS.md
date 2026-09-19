@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-06
+- Next task: P1-07
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -21,6 +21,8 @@
   hardhat.config.ts does not validate DEPLOYER_PRIVATE_KEY; compose hardhat service npm install clobbers host node_modules;
   dev.ps1 lacks exit-code checks; .env.example inline comments + VITE_EXPLORER_TX_URL not synced; 07 spec route rows added in P0-05 without ADR note; frontend API base URL hard-coded fallback.
 - PyMuPDF has no type stubs, so extract.py's dict-key access (blocks/lines/spans/bbox/size/flags/text) is unchecked by mypy and relies entirely on the fixture tests to catch drift if the library's output shape changes in a future version.
+
+- Section heading rule (c) (02 §8) misclassifies numbered prose with no trailing period (e.g. "5 apples were sold") as a heading. Spec-compliant, reporting-only (sections are outside `text_root`); pinned by `test_numbered_prose_is_misclassified_as_heading_known_limitation` and listed in 02 §13. Changing the rule needs an ADR.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
@@ -128,3 +130,10 @@
 - Decisions: length measured on canonical text in code points; a long sentence's tail can pack with following sentences of the same block only (packing state is per `split_paragraph` call); a split cuts at the last space at index <= 600. No ADR needed.
 - Issues: hard split with no space may separate a combining mark from its base (see Follow-ups).
 - Next: P1-06
+
+### 2026-09-19 — P1-06 Sections overlay
+- Done: proofchain_core/sections.py (`build_sections`, `body_size`); chunking.py gains `ChunkOrigin(chunk, block)` and `chunk_blocks`, with `chunk_pages` now a thin wrapper (output unchanged). Exported `build_sections`, `chunk_blocks`, `ChunkOrigin`. `Chunk`/types.py untouched (origin is never serialized). One additive bullet in 02 §13 (known limitation); §8 normative rules unchanged.
+- Tests: test_sections.py (fixture titles S1-S3, cross-page section, S0 preamble, each heading rule alone, exclusions, body_size rounding/tie/split-block, hash = merkle_root, determinism, known-limitation pair) and 3 additions to test_chunking.py. pytest 234 passed; ruff, format, mypy clean.
+- Decisions: rule (c) keywords are case-insensitive via a scoped `(?i:...)`, so roman numerals stay case-sensitive as §8 says "for words". Half-up rounding to 0.5pt (not banker's). body_size ties take the smaller size. Blocks with empty canonical text are dropped before chunking, so their spans do not count toward body_size. Heading length/period/regex tests use the block's canonical text. Headings numbered S1.. (S0 reserved for Preamble). No ADR needed.
+- Issues: `SpanInfo` has no text, so whitespace-only spans cannot be ignored in the all-bold/max-size checks (the earlier plan default); all spans count. Tests were written alongside the code in one pass, not strictly red-first. Numbered-prose heading limitation logged under Known issues.
+- Next: P1-07

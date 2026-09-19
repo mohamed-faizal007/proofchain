@@ -136,3 +136,6 @@ Document association when `document_id` is not supplied: lookup by `file_hash`, 
   but caught by `file_hash`; that is why CONTENT_EQUIVALENT is a separate verdict with a warning and is
   never reported as AUTHENTIC (ADR-004).
 - Scanned PDFs out of scope.
+- Section headings (§8) are a heuristic used only for reporting. Rule (c) can misclassify ordinary numbered
+  prose that has no trailing period (e.g. "5 apples were sold") as a heading, which splits a section in the
+  report. `text_root`, localization and every verdict are unaffected, because sections are not hashed into it.

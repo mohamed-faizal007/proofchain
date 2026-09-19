@@ -7,6 +7,7 @@ from proofchain_core import (
     ExtractedBlock,
     ExtractedPage,
     SpanInfo,
+    chunk_blocks,
     chunk_pages,
     extract_pages,
     leaf_hash,
@@ -174,3 +175,25 @@ def test_contract_fixture_is_deterministic_and_bounded() -> None:
     assert first
     assert all(0 < len(c.text) <= MAX_CHUNK_CHARS for c in first)
     assert {c.page for c in first} == {0, 1, 2}
+
+
+def test_chunk_pages_is_the_chunks_of_chunk_blocks() -> None:
+    pages = extract_pages((PDFS / "contract_3page.pdf").read_bytes())
+    assert chunk_pages(pages) == [o.chunk for o in chunk_blocks(pages)]
+
+
+def test_chunks_split_from_one_block_share_that_block_object() -> None:
+    long_block = _block("A" * 1300)
+    page = ExtractedPage(index=0, blocks=(_block("Lead"), long_block, _block("Tail")))
+    origins = chunk_blocks([page])
+    assert [o.chunk.text for o in origins] == ["Lead", "A" * 600, "A" * 600, "A" * 100, "Tail"]
+    assert [o.block is long_block for o in origins] == [False, True, True, True, False]
+
+
+def test_chunk_blocks_skips_empty_blocks_and_keeps_the_right_block() -> None:
+    kept = _block("Real text")
+    page = ExtractedPage(index=0, blocks=(_block("   "), kept, _block("​­")))
+    origins = chunk_blocks([page])
+    assert len(origins) == 1
+    assert origins[0].block is kept
+    assert origins[0].chunk.id == "p0-c0"
