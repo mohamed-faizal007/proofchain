@@ -25,7 +25,7 @@ Indexes: `owner_id`, `chain_doc_id` unique, text index on `title`.
 { "_id": "uuid", "document_id": "uuid", "revision_no": 4,          // sequential per document, all revisions
   "parent_revision_id": "uuid|null", "change_note": "Updated rent clause",
   "status": "PENDING|APPROVED|REJECTED|REVOKED",
-  "version_no": 3,                                                 // set only when APPROVED+anchored (= on-chain index+1)
+  "version_no": 3,                                                 // set only when APPROVED+anchored (= the on-chain versionNo returned by anchorVersion / the VersionAnchored event, used directly (no +1))
   "submitted_by": "uuid", "submitted_at": "…",
   "reviewed_by": "uuid|null", "reviewed_at": "…|null", "review_comment": "…|null",
   "file": { "s3_key": "documents/{doc}/revisions/{rev}.pdf", "s3_version_id": "…", "size_bytes": 123,

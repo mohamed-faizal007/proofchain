@@ -45,3 +45,5 @@ anchors remain verifiable after algorithm changes (verify with the stored versio
 
 **ADR-015 — PyMuPDF for extraction.** Accepted. Fast, gives bboxes and font info needed for sections and highlights.
 Note AGPL licence — acceptable for academic use; mention in report.
+
+**ADR-016 — version_no is 1-based end-to-end.** Accepted. Mongo `version_no`, API responses, and the on-chain `versionNo` (contract array index 0 = version 1) all use the same 1-based value; the backend never adds or subtracts 1 when moving between layers.
