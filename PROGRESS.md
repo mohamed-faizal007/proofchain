@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P0 (not started)
-- Next task: P0-01
+- Phase: P0 (in progress)
+- Next task: P0-02
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -32,3 +32,10 @@
 ```
 
 ## Log
+
+### 2026-09-19 — P0-01 Repo skeleton
+- Done: backend/app and backend/proofchain_core packages (docstring-only stubs), tests tree, .vscode/extensions.json, scripts/dev.ps1, .gitkeep in contracts/frontend/eval.
+- Tests: none (scaffolding); extensions.json parses, dev.ps1 parses.
+- Decisions: app/ has packages only (module files come in P0-03+); no CANON_VERSION yet (P1-02).
+- Issues: none. info.md left untracked (out of scope).
+- Next: P0-02

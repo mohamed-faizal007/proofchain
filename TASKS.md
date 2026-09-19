@@ -6,7 +6,7 @@ Every task's implicit acceptance: tests/lint/types for the touched area pass, PR
 
 ---
 ## P0 — Scaffold & tooling
-### [ ] P0-01 Repo skeleton
+### [x] P0-01 Repo skeleton
 Deps: — · Refs: CLAUDE.md, 01 §2
 Do: create folder structure from 01 §2 (empty `__init__.py`s), `.vscode/extensions.json` (python, ruff, eslint, prettier, solidity), `scripts/dev.ps1` (starts infra).
 Accept: tree matches 01 §2; `git status` clean after commit.
