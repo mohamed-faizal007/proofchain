@@ -20,6 +20,7 @@
   `app = create_app()` at import time; app-shell tests thin (error-code mapping, request-id, env-independent settings);
   hardhat.config.ts does not validate DEPLOYER_PRIVATE_KEY; compose hardhat service npm install clobbers host node_modules;
   dev.ps1 lacks exit-code checks; .env.example inline comments + VITE_EXPLORER_TX_URL not synced; 07 spec route rows added in P0-05 without ADR note; frontend API base URL hard-coded fallback.
+- PyMuPDF has no type stubs, so extract.py's dict-key access (blocks/lines/spans/bbox/size/flags/text) is unchecked by mypy and relies entirely on the fixture tests to catch drift if the library's output shape changes in a future version.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.

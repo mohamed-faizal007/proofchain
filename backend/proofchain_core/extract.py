@@ -7,6 +7,7 @@ chunking happen later; the only canonical use here is the minimum-text check.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import pymupdf
 
@@ -58,7 +59,7 @@ def _open(pdf_bytes: bytes) -> pymupdf.Document:
     return doc
 
 
-def _extract_block(block: dict) -> ExtractedBlock:  # type: ignore[type-arg]
+def _extract_block(block: dict[str, Any]) -> ExtractedBlock:
     line_texts: list[str] = []
     spans: list[SpanInfo] = []
     for line in block["lines"]:
