@@ -29,3 +29,6 @@ eval/results/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Local notes
+info.md
