@@ -16,7 +16,7 @@ Deps: P0-01 · Refs: 01 §2, 08 A
 Do: `backend/pyproject.toml` (setuptools, packages `app`, `proofchain_core`; deps: fastapi, uvicorn[standard], pydantic>=2, pydantic-settings, motor, boto3, web3>=6, pymupdf, python-multipart, passlib[bcrypt] or bcrypt, pyjwt, structlog; extras `dev`: pytest, pytest-asyncio, pytest-cov, hypothesis, httpx, moto[s3], mongomock-motor, reportlab, ruff, mypy; extras `nlp`: spacy, sentence-transformers, dateparser). Ruff + mypy + pytest config (markers, asyncio mode auto).
 Accept: `pip install -e ".[dev]"` works in a fresh venv on Windows; `python -m pytest` runs (0 tests OK); ruff & mypy pass.
 
-### [ ] P0-03 FastAPI app shell
+### [x] P0-03 FastAPI app shell
 Deps: P0-02 · Refs: 01 §5-6, 04 System
 Do: `app/main.py` (app factory, CORS, request-id middleware, error envelope handlers), `app/config.py` (Settings from `.env.example`), `app/errors.py`, `app/logging.py`, `/api/v1/health` returning static ok for now.
 Accept: `uvicorn app.main:app` serves `/api/v1/health` and `/docs`; test for health + error envelope.
