@@ -1,0 +1,7 @@
+# Normalize text to LF so hashes/tests behave identically on Windows and Linux
+* text=auto eol=lf
+*.ps1 text eol=crlf
+# Binary fixtures must never be touched by line-ending conversion
+*.pdf binary
+*.png binary
+*.jpg binary

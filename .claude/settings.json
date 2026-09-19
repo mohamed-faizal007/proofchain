@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest:*)",
+      "Bash(python -m ruff:*)",
+      "Bash(python -m mypy:*)",
+      "Bash(python -m proofchain_core:*)",
+      "Bash(pip install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(npx hardhat compile:*)",
+      "Bash(npx hardhat test:*)",
+      "Bash(docker compose:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "ask": [
+      "Bash(npx hardhat run:*)",
+      "Bash(git checkout:*)",
+      "Bash(git reset:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./**/.env)",
+      "Bash(git push:*)",
+      "Bash(rm -rf:*)",
+      "Bash(Remove-Item -Recurse:*)"
+    ]
+  }
+}

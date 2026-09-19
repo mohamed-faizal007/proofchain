@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+# Node
+node_modules/
+dist/
+coverage/
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+# Env / secrets
+.env
+.env.*
+!.env.example
+# Eval outputs
+eval/data/
+eval/results/
+!eval/results/.gitkeep
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
