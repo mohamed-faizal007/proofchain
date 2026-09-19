@@ -3,7 +3,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.errors import NotFoundError
+from app.errors import NoContentChangeError, NotFoundError
 from app.main import create_app
 
 PREFIX = "/api/v1"
@@ -16,6 +16,10 @@ def _make_app() -> FastAPI:
     @router.get("/_boom_domain")
     async def boom_domain() -> None:
         raise NotFoundError("Document not found", details={"document_id": "abc"})
+
+    @router.get("/_boom_no_change")
+    async def boom_no_change() -> None:
+        raise NoContentChangeError("Revision text is identical to its parent")
 
     @router.get("/_boom_unhandled")
     async def boom_unhandled() -> None:
@@ -63,6 +67,13 @@ def test_domain_error_envelope(client: TestClient) -> None:
         }
     }
     assert "x-request-id" in r.headers
+
+
+def test_no_content_change_is_422(client: TestClient) -> None:
+    # 04_API_SPEC.md: 422 if text_root equals parent (no change)
+    r = client.get(f"{PREFIX}/_boom_no_change")
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "NO_CONTENT_CHANGE"
 
 
 def test_validation_error_envelope(client: TestClient) -> None:

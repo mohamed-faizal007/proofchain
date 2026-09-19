@@ -12,11 +12,9 @@
 
 ## Known issues / tech debt
 - P0 review (2026-09-19), no HIGH findings. MEDIUM:
-  - errors.py NoContentChangeError is 409 but 04 API spec + TASKS P5-02 say 422 (spec wins; fix before P5-02).
   - /health returns only {status}; spec shows mongo/s3/chain/nlp/canon_version (planned P2-04).
   - config.py default jwt_secret / empty anchor_private_key not rejected when app_env=prod (add validator, P3-01).
-  - compose publishes mongo/minio/hardhat on all interfaces with default creds; bind to 127.0.0.1.
-  - Deps use >= with no lock; pin PyMuPDF exactly or add constraints file (also in Follow-ups).
+  - Other deps still use >= with no lockfile (only PyMuPDF is pinned).
 - P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` and tolerates pytest exit 5 (remove at P1 start);
   X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (strip before auth exists); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
   `app = create_app()` at import time; app-shell tests thin (error-code mapping, request-id, env-independent settings);
@@ -24,7 +22,7 @@
   dev.ps1 lacks exit-code checks; .env.example inline comments + VITE_EXPLORER_TX_URL not synced; 07 spec route rows added in P0-05 without ADR note; frontend API base URL hard-coded fallback.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
-- Pin or record the PyMuPDF version in CI (extraction determinism depends on it).
+- CI records the PyMuPDF version; consider a CI check that it matches the pin.
 
 ## History summary
 - (empty)
@@ -72,16 +70,22 @@
 - Issues: Placeholder.sol and smoke.test.ts are temporary; delete in P4-01. npm audit reports warnings (not addressed).
 - Next: P0-05
 
-### 2026-09-19 � P0-05 Frontend init
+### 2026-09-19 — P0-05 Frontend init
 - Done: frontend/ Vite 6 + React 18 + TS strict, Tailwind v3 (darkMode class), Router v6, TanStack Query v5, axios, eslint 9 + prettier, vitest. Placeholder routes (src/pages/placeholders.tsx, src/App.tsx), src/api/{client,types}.ts (ApiError from error envelope, request id from X-Request-ID, getToken hook stub), src/routerFuture.ts (v7 flags opted in).
 - Tests: App.test.tsx (10 routes + NotFound), api/client.test.ts (envelope parsing, fallback, bearer header). lint, typecheck, test (15), build green; dev server serves 200.
 - Decisions: added routes /documents/:id/revisions/new and /verifications (now in 07 route table). No react-hook-form/zod/react-pdf/lucide yet (added when first used). Extra deps beyond the task list: eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, eslint-config-prettier, @testing-library/{dom,jest-dom,user-event}, jsdom, @types/node.
 - Issues: npm audit reports warnings (not addressed). Auth (AuthContext/ProtectedRoute) deferred to a later task.
 - Next: P0-06
 
-### 2026-09-19 � P0-06 Infra + CI
+### 2026-09-19 — P0-06 Infra + CI
 - Done: infra/docker-compose.yml (minio healthcheck, minio-init waits on healthy, images pinned), .github/workflows/ci.yml (backend, core-windows placeholder, contracts, frontend), scripts/dev.ps1 (--wait, -Chain switch).
 - Tests: none (config). compose config valid; up --wait -> mongo+minio healthy; minio-init created proofchain-docs with versioning (verified via mc); actionlint clean; dev.ps1 parses. CI not yet run on GitHub.
 - Decisions: MinIO images moved to quay.io (minio/minio and minio/mc are gone from Docker Hub) with pinned release tags. pytest steps tolerate exit 5 until P1 adds core tests.
 - Issues: hardhat compose service (chain profile) not exercised; deferred to P4.
+- Next: P1-01
+
+### 2026-09-19 — P0-review MEDIUM fixes
+- Done: NoContentChangeError 409 -> 422 (matches 04 spec; test_no_content_change_is_422 added). Compose ports for mongo/minio/hardhat bound to 127.0.0.1. PyMuPDF pinned `==1.28.2` in backend/pyproject.toml.
+- Tests: pytest 11 passed; ruff, format, mypy clean; compose config valid.
+- Decisions: PyMuPDF is pinned exactly because text extraction feeds canonicalization and hashing; an upgrade can change extracted text and therefore hashes, so bumping it needs a deliberate change (re-run fixtures, consider CANON_VERSION/ADR). Other deps stay lower-bound only.
 - Next: P1-01

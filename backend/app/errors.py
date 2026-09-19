@@ -65,7 +65,7 @@ class PendingRevisionExistsError(DomainError):
 
 class NoContentChangeError(DomainError):
     code = "NO_CONTENT_CHANGE"
-    status_code = 409
+    status_code = 422
 
 
 class AnchorFailedError(DomainError):
