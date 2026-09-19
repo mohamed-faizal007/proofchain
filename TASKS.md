@@ -66,7 +66,7 @@ Do: `chunking.py`. Accept: boundary tests (599/600/601 chars, long sentence hard
 Deps: P1-05 · Refs: 02 §8
 Do: `sections.py`. Accept: 3-page contract fixture yields the expected section titles; preamble section; cross-page section.
 
-### [ ] P1-07 build_integrity_tree
+### [x] P1-07 build_integrity_tree
 Deps: P1-03, P1-05, P1-06 · Refs: 02 §7
 Do: `tree.py`, public API in `__init__.py` (`CANON_VERSION`, `build_integrity_tree`, `localize`).
 Accept: determinism test (twice + JSON round-trip); empty page handled; CLI `python -m proofchain_core.tree file.pdf` prints roots.

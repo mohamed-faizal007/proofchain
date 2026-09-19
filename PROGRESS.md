@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-07
+- Next task: P1-08
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -137,3 +137,10 @@
 - Decisions: rule (c) keywords are case-insensitive via a scoped `(?i:...)`, so roman numerals stay case-sensitive as §8 says "for words". Half-up rounding to 0.5pt (not banker's). body_size ties take the smaller size. Blocks with empty canonical text are dropped before chunking, so their spans do not count toward body_size. Heading length/period/regex tests use the block's canonical text. Headings numbered S1.. (S0 reserved for Preamble). No ADR needed.
 - Issues: Follow-up commit added `SpanInfo.blank` (set at extraction: span's canonical text is empty) and made `_is_heading` and `body_size` skip blank spans; without it a bold heading with a non-bold trailing space was missed by rule (b). Ignoring blank spans is a judgment reading, not stated in §8. Tests were written alongside the code in one pass, not strictly red-first. Numbered-prose heading limitation logged under Known issues.
 - Next: P1-07
+
+### 2026-09-19 — P1-07 build_integrity_tree
+- Done: proofchain_core/tree.py (`build_integrity_tree` per 02 §7, `main()` CLI printing roots as JSON), `__main__.py` (`python -m proofchain_core file.pdf`); `build_integrity_tree` exported from __init__.py.
+- Tests: tests/unit/core/test_tree.py (determinism, JSON round-trip, roots recomputed independently, blank page first/middle/last uses EMPTY_PAGE_ROOT, metadata-only change keeps text_root, error fixtures, CLI incl. subprocess entry point). pytest 258 passed; ruff, format, mypy clean.
+- Decisions: `extract_pages` keeps blank pages (zero blocks, indices unshifted), so they get `EMPTY_PAGE_ROOT` in place. `localize` export deferred to P1-08 (not implemented yet). Added `__main__.py` as a warning-free CLI entry; no ADR needed.
+- Issues: `python -m proofchain_core.tree` (the command named in the task) prints a cosmetic runpy RuntimeWarning because the package imports `tree` eagerly; use `python -m proofchain_core` to avoid it.
+- Next: P1-08

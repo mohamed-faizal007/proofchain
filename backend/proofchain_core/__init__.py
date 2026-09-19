@@ -19,6 +19,7 @@ from proofchain_core.merkle import (
     verify_proof,
 )
 from proofchain_core.sections import build_sections
+from proofchain_core.tree import build_integrity_tree
 
 __all__ = [
     "CANON_VERSION",
@@ -33,6 +34,7 @@ __all__ = [
     "ProofChainCoreError",
     "ProofStep",
     "SpanInfo",
+    "build_integrity_tree",
     "build_sections",
     "changed_leaves_by_descent",
     "chunk_blocks",
