@@ -71,7 +71,7 @@ Deps: P1-03, P1-05, P1-06 · Refs: 02 §7
 Do: `tree.py`, public API in `__init__.py` (`CANON_VERSION`, `build_integrity_tree`, `localize`).
 Accept: determinism test (twice + JSON round-trip); empty page handled; CLI `python -m proofchain_core.tree file.pdf` prints roots.
 
-### [ ] P1-08 Localization
+### [x] P1-08 Localization
 Deps: P1-07 · Refs: 02 §9
 Do: `localize.py` fast path + alignment + replace pairing.
 Accept: tests: identical, content-equivalent (metadata change via PyMuPDF), single modify, insert at start (no cascade), delete, multi-page edits, page-count change, spill-over to next page; hypothesis random single mutation → exactly one region.

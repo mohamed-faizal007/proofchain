@@ -139,3 +139,6 @@ Document association when `document_id` is not supplied: lookup by `file_hash`, 
 - Section headings (§8) are a heuristic used only for reporting. Rule (c) can misclassify ordinary numbered
   prose that has no trailing period (e.g. "5 apples were sold") as a heading, which splits a section in the
   report. `text_root`, localization and every verdict are unaffected, because sections are not hashed into it.
+- Localization (§9) diffs chunk text only. A chunk whose text is unchanged but that moves across a page
+  boundary changes the page roots and `text_root` (status CHANGED) yet yields no regions, so the UI has
+  nothing to highlight. The verdict is unaffected.

@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-08
+- Next task: P1-09
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -29,6 +29,8 @@
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 - Chunking hard-split risk (found in P1-05): a sentence over 600 chars with no space is cut at exactly 600 code points (`_hard_split` in chunking.py, 02 §4 "hard split if no space"), which could separate a combining mark from its base character. NFKC (§3 step 1) composes most base+mark pairs into single code points, which minimizes this, but it is not ruled out for v1 (e.g. marks with no precomposed form). The split is deterministic, so hashes stay stable; the cost is a chunk boundary in an odd place. Avoiding it would change §4, needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
+
+- Localization (P1-08): a chunk moved across a page boundary with unchanged text gives CHANGED with zero regions (§9 diffs chunk text only). Pinned by `test_moved_chunk_without_text_change_has_no_regions`; listed in 02 §13. Fixing needs an ADR.
 
 ## History summary
 - (empty)
@@ -144,3 +146,10 @@
 - Decisions: `extract_pages` keeps blank pages (zero blocks, indices unshifted), so they get `EMPTY_PAGE_ROOT` in place. `localize` export deferred to P1-08 (not implemented yet). Added `__main__.py` as a warning-free CLI entry; no ADR needed.
 - Issues: `python -m proofchain_core.tree` (the command named in the task) prints a cosmetic runpy RuntimeWarning because the package imports `tree` eagerly; use `python -m proofchain_core` to avoid it.
 - Next: P1-08
+
+### 2026-09-19 — P1-08 Localization
+- Done: proofchain_core/localize.py (`localize`, `PAIR_THRESHOLD`); exported from __init__.py. Merkle page-root fast path with per-page alignment; whole-document alignment on page-count change or spill-over. One additive bullet in 02 §13.
+- Tests: tests/unit/core/test_localize.py (18: identical, metadata-only, modify, insert middle/start, spill-over, moved chunk, delete, multi-page, page-count change, replace pairing/tie, repeated chunks, sections, round-trip, real PDF, Hypothesis single mutation). pytest 276 passed; ruff, format, mypy clean; localize.py coverage 100%.
+- Decisions: spill-over = mismatched page with changed chunk count and a mismatched neighbour. `hash_comparisons` = page-root comparisons (if counts equal) + leaves aligned. Region ids `r1..` in opcode order (replace: MODIFIED, DELETED, INSERTED). Section fields from cand, or ref for DELETED. Leaf-level matcher uses autojunk=False; ratio pairing keeps the default (literal §9.4). No ADR needed.
+- Issues: code was written before the tests (not red-first). Page-move-only case has no regions (see Known issues).
+- Next: P1-09

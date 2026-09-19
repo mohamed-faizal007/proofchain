@@ -10,6 +10,7 @@ from proofchain_core.errors import (
 )
 from proofchain_core.extract import ExtractedBlock, ExtractedPage, SpanInfo, extract_pages
 from proofchain_core.hashing import EMPTY_PAGE_ROOT, file_hash, leaf_hash, node_hash, sha256_hex
+from proofchain_core.localize import localize
 from proofchain_core.merkle import (
     ProofStep,
     changed_leaves_by_descent,
@@ -42,6 +43,7 @@ __all__ = [
     "extract_pages",
     "file_hash",
     "leaf_hash",
+    "localize",
     "merkle_levels",
     "merkle_proof",
     "merkle_root",
