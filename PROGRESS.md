@@ -15,7 +15,7 @@
   - /health returns only {status}; spec shows mongo/s3/chain/nlp/canon_version (planned P2-04).
   - config.py default jwt_secret / empty anchor_private_key not rejected when app_env=prod (add validator, P3-01).
   - Other deps still use >= with no lockfile (only PyMuPDF is pinned).
-- P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` and tolerates pytest exit 5 (remove at P1 start);
+- P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` (pytest exit-5 tolerance removed after P1-02);
   X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (strip before auth exists); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
   `app = create_app()` at import time; app-shell tests thin (error-code mapping, request-id, env-independent settings);
   hardhat.config.ts does not validate DEPLOYER_PRIVATE_KEY; compose hardhat service npm install clobbers host node_modules;

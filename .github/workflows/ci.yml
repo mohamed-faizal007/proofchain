@@ -28,9 +28,7 @@ jobs:
       - run: python -m ruff check .
       - run: python -m ruff format --check .
       - run: python -m mypy proofchain_core app
-      # exit code 5 = no tests collected; tolerated until tests exist
-      - run: python -m pytest -q --cov=proofchain_core --cov=app || [ $? -eq 5 ]
-        shell: bash
+      - run: python -m pytest -q --cov=proofchain_core --cov=app
 
   core-windows:
     # Determinism across OS: core tests must pass identically on Windows.
@@ -46,9 +44,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/pyproject.toml
       - run: pip install -e ".[dev]"
-      # placeholder: no core tests until P1; exit code 5 tolerated
-      - run: python -m pytest tests/unit/core -q || [ $? -eq 5 ]
-        shell: bash
+      - run: python -m pytest tests/unit/core -q
 
   contracts:
     runs-on: ubuntu-latest
