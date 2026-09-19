@@ -11,7 +11,17 @@
 - Deployed contract (sepolia): —
 
 ## Known issues / tech debt
-- (none yet)
+- P0 review (2026-09-19), no HIGH findings. MEDIUM:
+  - errors.py NoContentChangeError is 409 but 04 API spec + TASKS P5-02 say 422 (spec wins; fix before P5-02).
+  - /health returns only {status}; spec shows mongo/s3/chain/nlp/canon_version (planned P2-04).
+  - config.py default jwt_secret / empty anchor_private_key not rejected when app_env=prod (add validator, P3-01).
+  - compose publishes mongo/minio/hardhat on all interfaces with default creds; bind to 127.0.0.1.
+  - Deps use >= with no lock; pin PyMuPDF exactly or add constraints file (also in Follow-ups).
+- P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` and tolerates pytest exit 5 (remove at P1 start);
+  X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (strip before auth exists); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
+  `app = create_app()` at import time; app-shell tests thin (error-code mapping, request-id, env-independent settings);
+  hardhat.config.ts does not validate DEPLOYER_PRIVATE_KEY; compose hardhat service npm install clobbers host node_modules;
+  dev.ps1 lacks exit-code checks; .env.example inline comments + VITE_EXPLORER_TX_URL not synced; 07 spec route rows added in P0-05 without ADR note; frontend API base URL hard-coded fallback.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - Pin or record the PyMuPDF version in CI (extraction determinism depends on it).
