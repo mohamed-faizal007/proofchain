@@ -38,7 +38,7 @@ Accept: `docker compose -f infra/docker-compose.yml up -d` healthy; CI YAML vali
 
 ---
 ## P1 — Integrity core (`proofchain_core`) — THE HEART, TEST-FIRST
-### [ ] P1-01 Types & fixtures generator
+### [x] P1-01 Types & fixtures generator
 Deps: P0-02 · Refs: 02 §7-9, 08 A
 Do: `types.py` dataclasses (frozen, `to_dict/from_dict`); `tests/fixtures/make_fixtures.py` with reportlab producing fixture PDFs listed in 08 A; commit generated PDFs.
 Accept: fixtures script is deterministic (same bytes twice) or documented if reportlab embeds timestamps (use `invariant=1`).

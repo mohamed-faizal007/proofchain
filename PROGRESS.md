@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P0 (complete)
-- Next task: P1-01
+- Next task: P1-02
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -89,3 +89,10 @@
 - Tests: pytest 11 passed; ruff, format, mypy clean; compose config valid.
 - Decisions: PyMuPDF is pinned exactly because text extraction feeds canonicalization and hashing; an upgrade can change extracted text and therefore hashes, so bumping it needs a deliberate change (re-run fixtures, consider CANON_VERSION/ADR). Other deps stay lower-bound only.
 - Next: P1-01
+
+### 2026-09-19 — P1-01 Types & fixtures generator
+- Done: proofchain_core/types.py (frozen dataclasses BBox, Chunk, Page, Section, IntegrityTree, ChangeRegion, LocalizationResult + StrEnums; to_dict/from_dict, tuples for sequences, BBox as [x0,y0,x1,y1]). tests/fixtures/make_fixtures.py + committed tests/fixtures/pdfs/ (one_page, contract_3page, unicode_variants, image_only, encrypted, not_a_pdf). reportlab pinned `==5.0.1`.
+- Tests: test_types.py (round trip incl. JSON, frozen, key order, optionals, tuples) and test_fixtures.py (determinism, committed-match, per-file properties). pytest 35 passed; ruff, format, mypy clean.
+- Decisions: only base-14 fonts, except unicode_variants.pdf embeds reportlab's bundled Vera (base-14 cannot encode ligatures). Fixtures use invariant=1; encrypted.pdf was also byte-stable across two runs.
+- Issues: byte-identity verified on this Windows machine only (two runs here). Cross-OS regeneration is UNVERIFIED; first Linux CI run is the evidence. If test_fixtures_committed_match fails there, replace the byte comparison with the property tests. Tests needing exact hashes must read the committed PDFs, never regenerate. Observation: MuPDF extraction normalises NBSP (U+00A0) to a plain space, so NBSP never reaches canonicalization via extract; P1-02 still maps it per spec. Vera lacks U+FB03 (ffi), so that ligature is not in the fixture.
+- Next: P1-02
