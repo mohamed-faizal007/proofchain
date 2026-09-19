@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-04
+- Next task: P1-05
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -111,3 +111,10 @@
 - Decisions: `changed_leaves_by_descent(ref_levels, cand_levels)` takes stored levels and returns sorted leaf indices; raises ValueError on differing leaf counts (page-count changes are P1-08's job). `side` is where the sibling sits ("left"/"right"). node_hash rejects anything but 64 lowercase hex chars. No ADR needed.
 - Issues: none.
 - Next: P1-04
+
+### 2026-09-19 — P1-04 Extraction
+- Done: proofchain_core/extract.py (`extract_pages` -> `ExtractedPage`/`ExtractedBlock`/`SpanInfo`; raw block text, block bbox, per-span size/flags) and proofchain_core/errors.py (`InvalidPdfError`, `EncryptedPdfError`, `NoExtractableTextError`, base `ProofChainCoreError`); exported from __init__.py.
+- Tests: tests/unit/core/test_extract.py (16 tests: fixtures one_page/contract_3page/unicode_variants, all three error fixtures, owner-only encryption, canonical-char threshold, garbage bytes, determinism). pytest 170 passed; ruff, format, mypy clean.
+- Decisions: core exceptions live in proofchain_core (core cannot import `app`); the P2 service layer maps them to the `app/errors.py` DomainError subclasses. The 20-char minimum is counted on `normalize_text(...).strip()` per block. Empty blocks are kept for chunking (P1-05) to drop.
+- Issues: **Encryption check is stricter than 02 §2 text.** Any PDF carrying an /Encrypt dictionary is rejected, not only ones that need a password. Example that is rejected: a PDF saved with an owner password and an *empty* user password (e.g. `doc.tobytes(encryption=PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw="")`, the common "anyone can open it, but printing/copying is restricted" report). It opens and extracts fine without any password, so the spec's "reject encrypted" could be read as allowing it; we reject it anyway because the file bytes (and hash) are of an encrypted container and permission-restricted PDFs are a routine output of Word/Acrobat "restrict editing", which users would otherwise submit expecting it to work. If that use case matters, relaxing it needs a spec edit/ADR. Detection note: PyMuPDF auto-authenticates the empty user password and then reports `is_encrypted=False`, so we also check `doc.metadata["encryption"]` (None when unencrypted).
+- Next: P1-05

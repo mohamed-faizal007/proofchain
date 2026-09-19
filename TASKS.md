@@ -53,7 +53,7 @@ Deps: P1-01 · Refs: 02 §5-6
 Do: `hashing.py`, `merkle.py` (root, levels, proof, verify, changed_leaves_by_descent).
 Accept: known-answer tests for n=1,2,3,4,5 computed by hand in test; property tests from 08 A; leaf vs node domain separation test.
 
-### [ ] P1-04 Extraction
+### [x] P1-04 Extraction
 Deps: P1-02 · Refs: 02 §2
 Do: `extract.py` → list of pages of blocks (text, bbox, spans size/flags). Errors: InvalidPdf, EncryptedPdf, NoExtractableText.
 Accept: tests on all fixtures incl. error fixtures.
