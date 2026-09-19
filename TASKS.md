@@ -48,7 +48,7 @@ Deps: P1-01 · Refs: 02 §3
 Do: `normalize_text` + table-driven tests for every rule (ligatures, NBSP, soft hyphen, quotes, dashes, whitespace, case preserved, ₹ preserved).
 Accept: ≥ 20 test cases; hypothesis: idempotent (`f(f(x)) == f(x)`).
 
-### [ ] P1-03 Hashing & Merkle
+### [x] P1-03 Hashing & Merkle
 Deps: P1-01 · Refs: 02 §5-6
 Do: `hashing.py`, `merkle.py` (root, levels, proof, verify, changed_leaves_by_descent).
 Accept: known-answer tests for n=1,2,3,4,5 computed by hand in test; property tests from 08 A; leaf vs node domain separation test.

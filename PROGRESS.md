@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-03
+- Next task: P1-04
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -104,3 +104,10 @@
 - Decisions: implemented literally in spec order; no ADR needed.
 - Issues: ″ (U+2033) canonicalizes to `''`, not `"` (NFKC runs before quote mapping); spec-compliant, logged under Follow-ups. Fixing needs ADR + CANON_VERSION bump.
 - Next: P1-03
+
+### 2026-09-19 — P1-03 Hashing & Merkle
+- Done: proofchain_core/hashing.py (sha256_hex, leaf_hash, node_hash, file_hash, EMPTY_PAGE_ROOT) and merkle.py (merkle_levels/root/proof, verify_proof, changed_leaves_by_descent, frozen ProofStep with to_dict/from_dict); exported from __init__.py.
+- Tests: test_hashing.py (known answers, leaf/node/plain domain separation, forged-leaf test, hex64 validation) and test_merkle.py (hand-built roots n=1..5, CVE-2012-2459 promotion, proofs n=1..33, tamper cases, hypothesis properties, descent vs naive). pytest 154 passed; ruff, format, mypy clean.
+- Decisions: `changed_leaves_by_descent(ref_levels, cand_levels)` takes stored levels and returns sorted leaf indices; raises ValueError on differing leaf counts (page-count changes are P1-08's job). `side` is where the sibling sits ("left"/"right"). node_hash rejects anything but 64 lowercase hex chars. No ADR needed.
+- Issues: none.
+- Next: P1-04
