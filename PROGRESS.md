@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P0 (complete)
-- Next task: P1-02
+- Phase: P1 (in progress)
+- Next task: P1-03
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -23,6 +23,7 @@
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
+- Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 ## History summary
 - (empty)
@@ -96,3 +97,10 @@
 - Decisions: base-14 fonts only, no font embedded in any fixture. Ligatures (fi/fl) come from Helvetica registered with StandardEncoding (WinAnsi, reportlab's default, lacks them); NBSP and smart quotes use default WinAnsi Helvetica. An earlier draft embedded Vera TTF, which broke the base-14-only rule; that was unnecessary and was reverted. Fixtures use invariant=1; encrypted.pdf was also byte-stable across two runs.
 - Issues: CI update (run 35430923152, commit b211498, push to main): all four jobs green, including `backend` (ubuntu-latest) and `core-windows`. Regeneration of all six fixtures matched the committed bytes on Linux as well as Windows, for this reportlab pin (5.0.1) and PyMuPDF pin. Caveat on evidence: per-test output is not visible without authentication (logs API returned 403, gh not installed), so this is inferred from the backend job's pytest step succeeding; that step tolerates exit code 5 (no tests collected), which cannot apply since 35 tests exist. Still only one Linux run; a reportlab/zlib change could break byte-identity, in which case fall back to the property tests. Tests needing exact hashes must read the committed PDFs, never regenerate. Observation: MuPDF extraction normalises NBSP (U+00A0) to a plain space, so NBSP never reaches canonicalization via extract; P1-02 still maps it per spec. The fixture has only fi/fl ligatures (no ffi/ffl). Verified on Windows and on the GitHub ubuntu-latest runner (one run) for all fixtures including the StandardEncoding line.
 - Next: P1-02
+
+### 2026-09-19 — P1-02 Canonicalization
+- Done: proofchain_core/canonical.py (`CANON_VERSION = 1`, `normalize_text` per 02 §3 steps 1-5), exported from proofchain_core/__init__.py.
+- Tests: tests/unit/core/test_canonical.py (33 table cases + hypothesis idempotence and output-shape + version). pytest 71 passed; ruff, format, mypy clean.
+- Decisions: implemented literally in spec order; no ADR needed.
+- Issues: ″ (U+2033) canonicalizes to `''`, not `"` (NFKC runs before quote mapping); spec-compliant, logged under Follow-ups. Fixing needs ADR + CANON_VERSION bump.
+- Next: P1-03

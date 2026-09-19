@@ -43,7 +43,7 @@ Deps: P0-02 · Refs: 02 §7-9, 08 A
 Do: `types.py` dataclasses (frozen, `to_dict/from_dict`); `tests/fixtures/make_fixtures.py` with reportlab producing fixture PDFs listed in 08 A; commit generated PDFs.
 Accept: fixtures script is deterministic (same bytes twice) or documented if reportlab embeds timestamps (use `invariant=1`).
 
-### [ ] P1-02 Canonicalization
+### [x] P1-02 Canonicalization
 Deps: P1-01 · Refs: 02 §3
 Do: `normalize_text` + table-driven tests for every rule (ligatures, NBSP, soft hyphen, quotes, dashes, whitespace, case preserved, ₹ preserved).
 Accept: ≥ 20 test cases; hypothesis: idempotent (`f(f(x)) == f(x)`).
