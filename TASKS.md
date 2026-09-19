@@ -21,7 +21,7 @@ Deps: P0-02 · Refs: 01 §5-6, 04 System
 Do: `app/main.py` (app factory, CORS, request-id middleware, error envelope handlers), `app/config.py` (Settings from `.env.example`), `app/errors.py`, `app/logging.py`, `/api/v1/health` returning static ok for now.
 Accept: `uvicorn app.main:app` serves `/api/v1/health` and `/docs`; test for health + error envelope.
 
-### [ ] P0-04 Contracts project init
+### [x] P0-04 Contracts project init
 Deps: P0-01 · Refs: 05
 Do: `contracts/` Hardhat TS project, toolbox, OpenZeppelin v5, `hardhat.config.ts` (solidity 0.8.24 optimizer on, networks localhost/sepolia from env, gasReporter), empty test passes.
 Accept: `npx hardhat compile` and `npx hardhat test` succeed.
