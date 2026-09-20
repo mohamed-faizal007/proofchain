@@ -68,7 +68,7 @@ anchors exist, ADR-013 governs: `CANON_VERSION` is stored with every revision an
 older anchors verifiable under their stored version's rules. From `CANON_VERSION = 2` onward, everything anchored
 is covered by that mechanism.
 
-**ADR-018 — Spec clarifications from the P1-09 audit (no hash or output change; `CANON_VERSION` stays 2).** Accepted.
+**ADR-018 — Spec clarifications from the P1-09 audit, findings 2 and 7 (documentation and explicit defaults only; no hash or output change; `CANON_VERSION` stays 2 as set by ADR-017).** Accepted.
 Code behaviour that the spec left ambiguous is now normative, and pinned by tests:
 (1) §4 a sentence > 600 chars is cut at the last space at index ≤ 600 (piece length ≤ 600), else hard-cut at 600;
 (2) §8 `body_size` ties take the smaller size; (3) §9 `hash_comparisons` = page-root comparisons (`page_count`, when
