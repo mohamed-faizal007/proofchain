@@ -52,13 +52,17 @@ def _open(pdf_bytes: bytes) -> pymupdf.Document:
         doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")  # type: ignore[no-untyped-call]
     except Exception as exc:  # pymupdf raises several types for malformed input
         raise InvalidPdfError("not a readable PDF") from exc
-    if not doc.is_pdf:
-        raise InvalidPdfError("not a PDF")
-    # Stricter than "needs a password": owner-only encryption also lands here (see PROGRESS.md).
-    # PyMuPDF auto-authenticates an empty user password and then reports is_encrypted=False,
-    # so the reliable signal is the "encryption" metadata entry (None for unencrypted files).
-    if doc.needs_pass or doc.is_encrypted or (doc.metadata or {}).get("encryption"):
-        raise EncryptedPdfError("PDF is encrypted")
+    try:
+        if not doc.is_pdf:
+            raise InvalidPdfError("not a PDF")
+        # Stricter than "needs a password": owner-only encryption also lands here (see PROGRESS.md).
+        # PyMuPDF auto-authenticates an empty user password and then reports is_encrypted=False,
+        # so the reliable signal is the "encryption" metadata entry (None for unencrypted files).
+        if doc.needs_pass or doc.is_encrypted or (doc.metadata or {}).get("encryption"):
+            raise EncryptedPdfError("PDF is encrypted")
+    except BaseException:
+        doc.close()  # type: ignore[no-untyped-call]  # never leak the native handle on rejection
+        raise
     return doc
 
 

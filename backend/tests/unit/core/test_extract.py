@@ -148,3 +148,44 @@ def test_blank_flag_marks_whitespace_only_spans() -> None:
     body, heading = blocks
     assert [s.blank for s in body.spans] == [False]
     assert [(s.bold, s.blank) for s in heading.spans] == [(True, False), (False, True)]
+
+
+def _owner_only_pdf() -> bytes:
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "This text is readable without any password.")
+    return bytes(doc.tobytes(encryption=pymupdf.PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw=""))
+
+
+@pytest.mark.parametrize(
+    ("data", "error"),
+    [
+        (_read("encrypted.pdf"), EncryptedPdfError),
+        (_owner_only_pdf(), EncryptedPdfError),
+        (_read("image_only.pdf"), NoExtractableTextError),
+        (_read("one_page.pdf"), None),
+    ],
+    ids=["encrypted", "owner-only", "image-only", "success"],
+)
+def test_document_is_closed_on_every_exit_path(
+    monkeypatch: pytest.MonkeyPatch, data: bytes, error: type[Exception] | None
+) -> None:
+    """P1 review: the PyMuPDF handle must be closed on rejection as well as on success.
+
+    Inputs that make `pymupdf.open` itself raise (garbage bytes) never create a handle.
+    """
+    opened: list[pymupdf.Document] = []
+    real_open = pymupdf.open
+
+    def spy(*args: object, **kwargs: object) -> pymupdf.Document:
+        doc = real_open(*args, **kwargs)
+        opened.append(doc)
+        return doc
+
+    monkeypatch.setattr(pymupdf, "open", spy)
+    if error is None:
+        extract_pages(data)
+    else:
+        with pytest.raises(error):
+            extract_pages(data)
+    assert opened, "extract_pages never opened a document"
+    assert all(doc.is_closed for doc in opened)

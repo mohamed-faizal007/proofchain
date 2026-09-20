@@ -32,12 +32,10 @@
 
 - Localization (P1-08): a chunk moved across a page boundary with unchanged text gives CHANGED with zero regions (§9 diffs chunk text only). Pinned by `test_moved_chunk_without_text_change_has_no_regions`; listed in 02 §13. Fixing needs an ADR.
 
-- P1 phase review (2026-09-20), no HIGH findings. Suites: backend 299 passed (core coverage 98%), ruff/mypy clean, contracts 1 passed, frontend 15 passed + lint clean. MEDIUM:
-  - No golden vectors: no test pins a literal `leaf_hash`, `EMPTY_PAGE_ROOT`, `page_node_hash`, `merkle_root`, or a fixture PDF's `file_hash`/`text_root` (only `sha256_hex(b"")` is literal); tests recompute expectations with the same functions, so a prefix/order/extraction change would pass silently. Add committed expected roots per fixture (e.g. `expected_roots.json`), read from the committed PDFs (see P1-01 note). Do before P2 persists anything.
+- P1 phase review (2026-09-20), no HIGH findings. Suites: backend 299 passed (core coverage 98%), ruff/mypy clean, contracts 1 passed, frontend 15 passed + lint clean. MEDIUM (golden vectors and the `_open` leak were fixed afterwards, see the P1-review entry in the Log):
   - `text_root` depends on the Python Unicode database (NFKC, `\s`) and PyMuPDF; only PyMuPDF is pinned. CI pins Python 3.11; the runtime does not (`requires-python>=3.11`). Pin the runtime minor (Docker image) and consider recording `unicodedata.unidata_version` with each tree/ADR-013 canon version.
   - No resource limits on untrusted PDFs (page count, total chars, chunk count; all pages' `get_text("dict")` held in memory). Add `MAX_PAGES`/`MAX_TOTAL_CHARS` (raise `InvalidPdfError`) with a size limit at upload; pairs with the P6 replace-pairing guard.
 - P1 phase review LOW:
-  - `extract._open` does not close the PyMuPDF document when it raises InvalidPdfError/EncryptedPdfError (native handle leak per rejected upload); use try/finally.
   - `ProofStep.from_dict` does not type-check `sibling`; `verify_proof` catches only ValueError, so untrusted JSON with a null/int sibling can raise TypeError (500 instead of False). Validate in from_dict, catch (ValueError, TypeError).
   - `chunking._hard_split` re-slices the remaining string each iteration (O(N^2/600) copying on one huge unspaced paragraph); use an offset. `merkle_proof` rebuilds all levels per call (O(C^2) for all leaves); accept precomputed levels.
   - `types.from_dict` methods do no validation (bbox length/finite, hash format, `page_count == len(pages)`, root consistency), and `localize` trusts stored `file_hash`/`text_root` for IDENTICAL/CONTENT_EQUIVALENT. Contract: the service must recompute the candidate tree from bytes and verify stored trees (consider a core `verify_tree`) before use.
@@ -191,4 +189,11 @@
 - Spec-guardian on §5-§7 after ADR-017: MATCH (hashing prefixes, page-level root, tree, CANON_VERSION 2 across code/docs/tests).
 - Decisions: ADR-017, ADR-018. v1 is not kept verifiable (pre-launch exception, no anchors exist).
 - Issues: __main__.py shows 0% because pytest-cov does not see the subprocess run; behaviour is tested. Tests for finding 2 pin a limitation, they do not fix it.
+- Next: P2-01
+
+### 2026-09-20 — P1-review follow-up fixes
+- Done: `tests/unit/core/test_golden.py` pins literal hashes (leaf, node, page node, EMPTY_PAGE_ROOT, merkle roots incl. odd promotion, and `file_hash`/page roots/`text_root`/section hashes of contract_3page.pdf), cross-checked against an independent hashlib-only implementation. `extract._open` now closes the PyMuPDF document on every rejection path (try/except BaseException, close, re-raise).
+- Tests: `test_document_is_closed_on_every_exit_path` (encrypted, owner-only, image-only, success; fails on the old code for encrypted and owner-only). pytest 307 passed; ruff, format, mypy clean; core coverage 98%.
+- Decisions: garbage bytes are not covered by the leak test because `pymupdf.open` raises before a handle exists. Golden fixture roots also pin extraction, so a PyMuPDF change will fail them by design.
+- Issues: none new. Remaining P1 review items stay under Known issues.
 - Next: P2-01
