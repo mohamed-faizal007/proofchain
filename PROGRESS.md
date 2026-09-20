@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P2 (in progress)
-- Next task: P2-02
+- Next task: P2-03
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -28,6 +28,7 @@
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
+- Event append concurrency (P2-02, ADR-019): `EventRepository.append` retries once on a lost race. That is enough for the maker/checker pattern (at most 2 concurrent writers per document; pinned by `test_two_concurrent_appends_both_succeed_and_chain_stays_linear`), and higher contention fails safely with `ConflictError` (409) and never forks (`test_many_concurrent_appends_never_fork`, both in `tests/integration/test_events_real_mongo.py`). If a future usage pattern needs more concurrent writers per document, the retry count in `events.py` (or adding backoff/jitter) is the tuning knob.
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 - Chunking hard-split risk (found in P1-05): a sentence over 600 chars with no space is cut at exactly 600 code points (`_hard_split` in chunking.py, 02 §4 "hard split if no space"), which could separate a combining mark from its base character. NFKC (§3 step 1) composes most base+mark pairs into single code points, which minimizes this, but it is not ruled out for v1 (e.g. marks with no precomposed form). The split is deterministic, so hashes stay stable; the cost is a chunk boundary in an odd place. Avoiding it would change §4, needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
@@ -206,3 +207,10 @@
 - Decisions: `tz_aware=True` on the client (stored datetimes come back aware UTC; BSON truncates to ms, so round-trip equality tests zero microseconds). `CONFLICT` code is not in 04; added without an ADR.
 - Issues: mongomock lacks `$text` queries (index creation works); title search in P5-05 needs a real-Mongo test or regex fallback. Text-index behavior verified on real Mongo only.
 - Next: P2-02
+
+### 2026-09-20 — P2-02 Repositories
+- Done: Pydantic models (`app/models/`) and repositories for users, documents, revisions (PENDING-guarded `set_review`, `set_anchor`), trees (upsert), verifications, and append-only hash-chained events (`events.py`, `event_hash.py`); repo getters in `deps.py`; unique index `(document_id, prev_event_hash)` in `db.py`.
+- Tests: unit per repo, golden vector for the event hash (`test_event_hash.py`), chain-verify mutation cases; real-Mongo `test_events_real_mongo.py` (index, retry-on-conflict, concurrency). Fast 375 passed, `-m mongo` 12 passed; ruff/format/mypy clean.
+- Decisions: ADR-019 (canonical JSON + chain format, off-chain, `CANON_VERSION` unchanged). Append retries once; higher contention gives ConflictError, never a fork (see Follow-ups).
+- Issues: tail truncation of the event chain is undetectable off-chain (documented in ADR-019 and pinned by a test). `_tip` walks all of a document's events per append (O(n)).
+- Next: P2-03

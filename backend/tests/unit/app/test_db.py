@@ -17,7 +17,7 @@ EXPECTED: dict[str, set[str]] = {
         "document_id_1_status_1",
         "anchor.status_1",
     },
-    "provenance_events": {"document_id_1_at_1"},
+    "provenance_events": {"document_id_1_at_1", "document_id_1_prev_event_hash_1"},
     "verifications": {"document_id_1_at_1", "requested_by_1"},
 }
 

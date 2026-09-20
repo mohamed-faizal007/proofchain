@@ -39,6 +39,10 @@ async def ensure_indexes(db: MongoDatabase) -> None:
     await db.revisions.create_index([("anchor.status", ASCENDING)])
 
     await db.provenance_events.create_index([("document_id", ASCENDING), ("at", ASCENDING)])
+    # One genesis event per document, at most one successor per event: no chain forks (ADR-019).
+    await db.provenance_events.create_index(
+        [("document_id", ASCENDING), ("prev_event_hash", ASCENDING)], unique=True
+    )
 
     await db.verifications.create_index([("document_id", ASCENDING), ("at", ASCENDING)])
     await db.verifications.create_index([("requested_by", ASCENDING)])

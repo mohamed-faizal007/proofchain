@@ -5,12 +5,9 @@ Uses MONGO_URI (default mongodb://localhost:27017) and a throwaway database.
 """
 
 import hashlib
-import os
-import uuid
-from collections.abc import AsyncIterator
 
 import pytest
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
 from app.db import ensure_indexes
@@ -25,25 +22,6 @@ def _chain_doc_id(document_id: str) -> str:
 
 def _doc(document_id: str, title: str) -> dict[str, str]:
     return {"_id": document_id, "title": title, "chain_doc_id": _chain_doc_id(document_id)}
-
-
-@pytest.fixture
-async def real_db() -> AsyncIterator[AsyncIOMotorDatabase]:
-    uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
-    client: AsyncIOMotorClient = AsyncIOMotorClient(
-        uri, tz_aware=True, serverSelectionTimeoutMS=3000
-    )
-    name = f"proofchain_it_{uuid.uuid4().hex[:8]}"
-    try:
-        await client.admin.command("ping")
-    except Exception as exc:  # noqa: BLE001
-        client.close()
-        pytest.fail(f"MongoDB not reachable at {uri}: {exc}")
-    try:
-        yield client[name]
-    finally:
-        await client.drop_database(name)
-        client.close()
 
 
 async def test_title_text_index_created_and_queryable(real_db: AsyncIOMotorDatabase) -> None:

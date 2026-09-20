@@ -86,7 +86,7 @@ Accept: coverage report attached to PROGRESS entry; tag `v0.1-core`.
 ### [x] P2-01 Mongo connection & repositories base
 Deps: P0-03 · Refs: 03
 Do: Motor client lifecycle in app lifespan, index creation at startup, generic repo helpers, test setup with mongomock-motor.
-### [ ] P2-02 Repositories
+### [x] P2-02 Repositories
 Deps: P2-01 · Refs: 03 · Do: users, documents, revisions, trees, events (hash-chained append), verifications.
 Accept: unit tests per repo incl. unique indexes and event hash chain validation.
 ### [ ] P2-03 S3 storage client
