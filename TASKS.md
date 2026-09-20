@@ -96,7 +96,7 @@ Deps: P2-01, P2-03 · Do: mongo ping, S3 head bucket, chain placeholder.
 
 ---
 ## P3 — Auth & users
-### [ ] P3-01 Passwords & JWT
+### [x] P3-01 Passwords & JWT
 Deps: P0-03 · Refs: 04 Auth, ADR-014
 ### [ ] P3-02 Auth routes, dependencies, role guard
 Deps: P3-01, P2-02 · Accept: tests for login, me, role 403s.
@@ -111,6 +111,7 @@ Deps: P0-04 · Refs: 05 · Accept: all tests in 05 pass; gas report printed; run
 Deps: P4-01 · Refs: 05 Deployment · Accept: local deploy writes deployments/localhost.json and backend ABI.
 ### [ ] P4-03 RegistryClient (Fake + Web3)
 Deps: P4-02, P0-03 · Refs: 05 Backend client · Accept: fake unit-tested; `@pytest.mark.chain` test anchors & reads on local node.
+Carried over from P0 review (split in P3-01): `config.py` must also reject an empty `anchor_private_key` when `app_env=prod` (validator + test). P3-01 closed only the `jwt_secret` half. See PROGRESS.md Known issues.
 
 ---
 ## P5 — Documents, revisions, maker–checker, anchoring

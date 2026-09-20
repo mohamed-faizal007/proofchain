@@ -5,14 +5,16 @@
 
 ## Current status
 - Phase: P3 (P2 complete; phase review pending)
-- Next task: P3-01
+- Next task: P3-02
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
 
 ## Known issues / tech debt
 - P0 review (2026-09-19), no HIGH findings. MEDIUM:
-  - config.py default jwt_secret / empty anchor_private_key not rejected when app_env=prod (add validator, P3-01).
+  - config.py prod validation was one finding with two halves, now split:
+    - DONE (P3-01): default or <32-char `jwt_secret` rejected when app_env=prod.
+    - OPEN, re-assigned to P4-03: empty `anchor_private_key` is still NOT rejected when app_env=prod (pinned by `test_prod_does_not_yet_check_anchor_key`; flip that test when fixing).
   - Other deps still use >= with no lockfile (only PyMuPDF is pinned).
 - P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` (pytest exit-5 tolerance removed after P1-02);
   X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (strip before auth exists); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
@@ -241,3 +243,10 @@
 - Decisions: degraded is HTTP 200 with `status: "degraded"`; 503 question deferred to P10 (Follow-ups). `chain`/`nlp` report `not_configured` until P4/P7. No ADR.
 - Issues: none.
 - Next: P3-01
+
+### 2026-09-20 — P3-01 Passwords & JWT
+- Done: `app/security/passwords.py` (bcrypt hash/verify, sync), `app/security/jwt.py` (HS256 create/decode, `TokenClaims`, injectable clock), `UnauthorizedError` (401), prod validator in `config.py` for `jwt_secret`.
+- Tests: `test_passwords.py`, `test_jwt.py` (round trip, expiry, wrong secret, tampered payload, alg none / HS512, missing and invalid claims, garbage), `test_config.py`. 431 passed, ruff/mypy clean.
+- Decisions: passwords over 72 bytes are rejected (bcrypt would truncate); `verify_password` returns False for them and for malformed hashes. No iss/aud claims (04 lists only sub, roles, exp). No ADR.
+- Issues: the P0 prod-config finding is only HALF closed: `jwt_secret` done; `anchor_private_key` re-assigned to P4-03 (see Known issues and TASKS.md P4-03).
+- Next: P3-02

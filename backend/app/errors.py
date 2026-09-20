@@ -86,3 +86,8 @@ class ChainUnavailableError(DomainError):
 class StorageError(DomainError):
     code = "STORAGE_ERROR"
     status_code = 502
+
+
+class UnauthorizedError(DomainError):
+    code = "UNAUTHORIZED"
+    status_code = 401

@@ -3,7 +3,11 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_JWT_SECRET = "change-me-to-a-long-random-string"
+MIN_PROD_JWT_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
@@ -15,7 +19,7 @@ class Settings(BaseSettings):
     max_upload_mb: int = 25
     public_verify: bool = True
 
-    jwt_secret: str = "change-me-to-a-long-random-string"
+    jwt_secret: str = DEFAULT_JWT_SECRET
     jwt_expire_minutes: int = 120
 
     mongo_uri: str = "mongodb://localhost:27017"
@@ -42,6 +46,17 @@ class Settings(BaseSettings):
     nlp_llm_explanations: bool = False
     anthropic_api_key: str = ""
     nlp_llm_model: str = ""
+
+    @model_validator(mode="after")
+    def _reject_insecure_prod(self) -> "Settings":
+        # anchor_private_key is checked in P4-03, not here (see TASKS.md).
+        if self.app_env == "prod" and (
+            self.jwt_secret == DEFAULT_JWT_SECRET or len(self.jwt_secret) < MIN_PROD_JWT_SECRET_LEN
+        ):
+            raise ValueError(
+                f"JWT_SECRET must be a random value of >= {MIN_PROD_JWT_SECRET_LEN} chars in prod"
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:
