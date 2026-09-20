@@ -16,6 +16,12 @@ from app.errors import StorageError
 
 T = TypeVar("T")
 
+# The worker thread behind a call cannot be cancelled, so botocore's own timeouts are what bound it
+# (asyncio.wait_for in /health only abandons the await). Connect stays under /health's 2s budget.
+CONNECT_TIMEOUT_SECONDS = 1.0
+READ_TIMEOUT_SECONDS = 5.0
+TOTAL_MAX_ATTEMPTS = 2
+
 _NOT_FOUND_CODES = {"404", "NoSuchKey", "NoSuchVersion", "NotFound"}
 
 
@@ -47,7 +53,9 @@ class S3Storage:
             config=Config(
                 signature_version="s3v4",
                 s3={"addressing_style": "path"},
-                retries={"max_attempts": 3},
+                connect_timeout=CONNECT_TIMEOUT_SECONDS,
+                read_timeout=READ_TIMEOUT_SECONDS,
+                retries={"total_max_attempts": TOTAL_MAX_ATTEMPTS},
             ),
         )
         return cls(client, settings.s3_bucket, settings.s3_presign_expiry_seconds)

@@ -1,5 +1,7 @@
 """S3Storage against moto (versioned bucket)."""
 
+import socket
+import time
 from collections.abc import Iterator
 from urllib.parse import parse_qs, urlparse
 
@@ -10,6 +12,7 @@ from moto import mock_aws
 from app.config import Settings
 from app.errors import StorageError
 from app.storage import S3Storage, revision_key
+from app.storage import s3 as s3_module
 
 BUCKET = "proofchain-test"
 
@@ -101,3 +104,31 @@ async def test_head_bucket_ok(storage: S3Storage) -> None:
 async def test_head_bucket_missing_returns_false(settings: Settings) -> None:
     with mock_aws():
         assert await S3Storage.from_settings(settings).head_bucket() is False
+
+
+def test_client_has_bounded_timeouts_and_attempts(settings: Settings) -> None:
+    cfg = S3Storage.from_settings(settings)._client.meta.config
+    assert cfg.connect_timeout == s3_module.CONNECT_TIMEOUT_SECONDS <= 2
+    assert cfg.read_timeout == s3_module.READ_TIMEOUT_SECONDS <= 5
+    assert cfg.retries["total_max_attempts"] == s3_module.TOTAL_MAX_ATTEMPTS <= 2
+
+
+async def test_hanging_s3_call_is_bounded_by_botocore_timeout(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A server that accepts connections but never replies. No asyncio.wait_for around the call,
+    # so only botocore's read timeout can end it (default would be 60s x 3 attempts).
+    monkeypatch.setattr(s3_module, "READ_TIMEOUT_SECONDS", 0.3)
+    monkeypatch.setattr(s3_module, "CONNECT_TIMEOUT_SECONDS", 0.3)
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen(8)
+        hung = settings.model_copy(
+            update={"s3_endpoint_url": f"http://127.0.0.1:{server.getsockname()[1]}"}
+        )
+        storage = S3Storage.from_settings(hung)
+        started = time.monotonic()
+        assert await storage.head_bucket() is False
+        elapsed = time.monotonic() - started
+    # 2 attempts x 0.3s plus retry backoff; far below the 60s botocore default.
+    assert elapsed < 5
