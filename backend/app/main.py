@@ -18,6 +18,7 @@ from app.config import Settings, get_settings
 from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
 from app.logging import configure_logging, request_id_var
+from app.storage import S3Storage
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,12 @@ async def _http_error_handler(_: Request, exc: Exception) -> Response:
     return _with_request_id(_envelope(exc.status_code, code, str(exc.detail)))
 
 
-def create_app(settings: Settings | None = None, db: MongoDatabase | None = None) -> FastAPI:
-    """Build the app. `db` injects a database (tests); otherwise the lifespan connects to Mongo."""
+def create_app(
+    settings: Settings | None = None,
+    db: MongoDatabase | None = None,
+    storage: S3Storage | None = None,
+) -> FastAPI:
+    """Build the app. `db`/`storage` inject test doubles; otherwise the lifespan builds them."""
     settings = settings or get_settings()
     configure_logging()
 
@@ -71,6 +76,7 @@ def create_app(settings: Settings | None = None, db: MongoDatabase | None = None
             app.state.db = get_database(client, settings)
         else:
             app.state.db = db
+        app.state.storage = storage or S3Storage.from_settings(settings)
         try:
             await ensure_indexes(app.state.db)
             yield

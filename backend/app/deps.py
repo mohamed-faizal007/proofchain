@@ -9,6 +9,7 @@ from app.repositories.revisions import RevisionRepository
 from app.repositories.trees import TreeRepository
 from app.repositories.users import UserRepository
 from app.repositories.verifications import VerificationRepository
+from app.storage import S3Storage
 
 
 def get_db(request: Request) -> MongoDatabase:
@@ -38,3 +39,8 @@ def get_event_repo(request: Request) -> EventRepository:
 
 def get_verification_repo(request: Request) -> VerificationRepository:
     return VerificationRepository(get_db(request))
+
+
+def get_storage(request: Request) -> S3Storage:
+    storage: S3Storage = request.app.state.storage
+    return storage

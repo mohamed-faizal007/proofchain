@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P2 (in progress)
-- Next task: P2-03
+- Next task: P2-04
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -28,6 +28,7 @@
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
+- **Presigned URL host (P2-03):** `S3Storage.presign_get` signs against the internal `S3_ENDPOINT_URL`. That host is only browser-reachable when the backend runs on the host next to MinIO (`http://localhost:9000`). Once the backend runs in Docker (`app` compose profile, P10-03) the endpoint is `http://minio:9000`, which a browser cannot resolve. The host is part of the SigV4 signature, so it cannot be rewritten after signing. **Must be resolved by P8-03 (revision file download in the frontend) together with the compose networking in P10-03, before either is called done.** Options: a separate `S3_PUBLIC_ENDPOINT_URL` used only for presigning (needs an `.env.example` entry and a second boto client), or a backend proxy download route. No P2-03 test covers this: moto and the host-local MinIO check use one hostname.
 - Event append concurrency (P2-02, ADR-019): `EventRepository.append` retries once on a lost race. That is enough for the maker/checker pattern (at most 2 concurrent writers per document; pinned by `test_two_concurrent_appends_both_succeed_and_chain_stays_linear`), and higher contention fails safely with `ConflictError` (409) and never forks (`test_many_concurrent_appends_never_fork`, both in `tests/integration/test_events_real_mongo.py`). If a future usage pattern needs more concurrent writers per document, the retry count in `events.py` (or adding backoff/jitter) is the tuning knob.
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
@@ -214,3 +215,10 @@
 - Decisions: ADR-019 (canonical JSON + chain format, off-chain, `CANON_VERSION` unchanged). Append retries once; higher contention gives ConflictError, never a fork (see Follow-ups).
 - Issues: tail truncation of the event chain is undetectable off-chain (documented in ADR-019 and pinned by a test). `_tip` walks all of a document's events per append (O(n)).
 - Next: P2-03
+
+### 2026-09-20 — P2-03 S3 storage client
+- Done: `app/storage/s3.py` (`S3Storage`: put/get/head/presign_get/head_bucket, sync boto3 via `anyio.to_thread`, path-style + SigV4, `StoredObject` with version id), `keys.py` (`revision_key`), `StorageError` (502 STORAGE_ERROR) in errors.py, `get_storage` dep, storage built in the lifespan (`create_app(..., storage=None)` injects a double), `minio` pytest marker (excluded by default).
+- Tests: `tests/unit/app/test_storage.py` on moto (versioning, old version readable, missing -> None/StorageError, presign pins versionId + expiry, head_bucket). `tests/integration/test_storage_real_minio.py` passes against Docker MinIO incl. a real presigned GET. Fast suite 385 passed; `-m minio` 1 passed; ruff/format/mypy clean.
+- Decisions: client never creates the bucket (compose `minio-init` / infra does). `STORAGE_ERROR` code is not in 04; added without an ADR, like `CONFLICT`.
+- Issues: presigned URL host limitation, see Follow-ups ("Presigned URL host"), owned by P8-03 / P10-03.
+- Next: P2-04

@@ -47,9 +47,10 @@ include = ["app*", "proofchain_core*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = '-m "not nlp and not chain and not slow and not mongo"'
+addopts = '-m "not nlp and not chain and not slow and not mongo and not minio"'
 markers = [
     "mongo: needs a real MongoDB (docker compose up -d mongo)",
+    "minio: needs MinIO (docker compose up -d minio minio-init)",
     "nlp: needs NLP models installed",
     "chain: needs a running Hardhat node and deployed contract",
     "slow: slow tests",

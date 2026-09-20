@@ -89,7 +89,7 @@ Do: Motor client lifecycle in app lifespan, index creation at startup, generic r
 ### [x] P2-02 Repositories
 Deps: P2-01 · Refs: 03 · Do: users, documents, revisions, trees, events (hash-chained append), verifications.
 Accept: unit tests per repo incl. unique indexes and event hash chain validation.
-### [ ] P2-03 S3 storage client
+### [x] P2-03 S3 storage client
 Deps: P0-03 · Refs: 01 §4, ADR-002 · Do: put/get/presign/head with version id; moto tests; MinIO manual check.
 ### [ ] P2-04 Health endpoint real checks
 Deps: P2-01, P2-03 · Do: mongo ping, S3 head bucket, chain placeholder.
@@ -157,6 +157,7 @@ Deps: P0-05, P3-02 · Refs: 07
 Deps: P8-01, P5-01
 ### [ ] P8-03 Document detail: version timeline, provenance timeline, submit revision
 Deps: P8-02, P5-05
+Note: revision file download must resolve the presigned-URL host problem (PROGRESS.md Follow-ups, "Presigned URL host").
 ### [ ] P8-04 Approvals queue
 Deps: P8-03
 ### [ ] P8-05 PdfViewerWithHighlights (+ bbox tests)
@@ -187,6 +188,7 @@ Deps: P6-04, P8-06
 Deps: P4-02
 ### [ ] P10-03 Dockerfiles for backend/frontend, full compose profile `app`
 Deps: P8-07
+Note: in-container backend uses http://minio:9000; presigned URLs must still be browser-reachable (PROGRESS.md Follow-ups, "Presigned URL host").
 ### [ ] P10-04 End-to-end demo script (`scripts/demo.ps1`) + seeded demo data (original, approved v2, tampered copies)
 Deps: P10-03
 ### [ ] P10-05 Final docs: README, architecture diagrams export, API examples, user guide; tag v1.0

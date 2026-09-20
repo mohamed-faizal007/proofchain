@@ -81,3 +81,8 @@ class AnchorFailedError(DomainError):
 class ChainUnavailableError(DomainError):
     code = "CHAIN_UNAVAILABLE"
     status_code = 503
+
+
+class StorageError(DomainError):
+    code = "STORAGE_ERROR"
+    status_code = 502
