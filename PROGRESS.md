@@ -4,15 +4,14 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P2 (in progress)
-- Next task: P2-04
+- Phase: P3 (P2 complete; phase review pending)
+- Next task: P3-01
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
 
 ## Known issues / tech debt
 - P0 review (2026-09-19), no HIGH findings. MEDIUM:
-  - /health returns only {status}; spec shows mongo/s3/chain/nlp/canon_version (planned P2-04).
   - config.py default jwt_secret / empty anchor_private_key not rejected when app_env=prod (add validator, P3-01).
   - Other deps still use >= with no lockfile (only PyMuPDF is pinned).
 - P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` (pytest exit-5 tolerance removed after P1-02);
@@ -29,6 +28,7 @@
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
 - **Presigned URL host (P2-03):** `S3Storage.presign_get` signs against the internal `S3_ENDPOINT_URL`. That host is only browser-reachable when the backend runs on the host next to MinIO (`http://localhost:9000`). Once the backend runs in Docker (`app` compose profile, P10-03) the endpoint is `http://minio:9000`, which a browser cannot resolve. The host is part of the SigV4 signature, so it cannot be rewritten after signing. **Must be resolved by P8-03 (revision file download in the frontend) together with the compose networking in P10-03, before either is called done.** Options: a separate `S3_PUBLIC_ENDPOINT_URL` used only for presigning (needs an `.env.example` entry and a second boto client), or a backend proxy download route. No P2-03 test covers this: moto and the host-local MinIO check use one hostname.
+- **/health degraded status code (P2-04):** `/health` returns HTTP 200 with `status: "degraded"` in the body when mongo or S3 is down. Whether it should return 503 instead is undecided; decide in P10 when real deployment/orchestration is set up (Docker healthchecks, any future load balancer), since that is when it matters operationally. Do not change before then.
 - Event append concurrency (P2-02, ADR-019): `EventRepository.append` retries once on a lost race. That is enough for the maker/checker pattern (at most 2 concurrent writers per document; pinned by `test_two_concurrent_appends_both_succeed_and_chain_stays_linear`), and higher contention fails safely with `ConflictError` (409) and never forks (`test_many_concurrent_appends_never_fork`, both in `tests/integration/test_events_real_mongo.py`). If a future usage pattern needs more concurrent writers per document, the retry count in `events.py` (or adding backoff/jitter) is the tuning knob.
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
@@ -222,3 +222,10 @@
 - Decisions: client never creates the bucket (compose `minio-init` / infra does). `STORAGE_ERROR` code is not in 04; added without an ADR, like `CONFLICT`.
 - Issues: presigned URL host limitation, see Follow-ups ("Presigned URL host"), owned by P8-03 / P10-03.
 - Next: P2-04
+
+### 2026-09-20 — P2-04 Health endpoint real checks
+- Done: `app/services/health.py` (`check_health`: mongo ping + S3 head_bucket concurrently, 2s timeout each, no exception text leaked), thin `api/v1/health.py`, 04 §System note (values, integer `canon_version`).
+- Tests: `tests/unit/app/test_health.py` (ok, mongo down, bucket missing, S3 raising, no leak, hung dep timeout, no-lifespan); shell test updated. 392 passed, ruff/mypy clean.
+- Decisions: degraded is HTTP 200 with `status: "degraded"`; 503 question deferred to P10 (Follow-ups). `chain`/`nlp` report `not_configured` until P4/P7. No ADR.
+- Issues: none.
+- Next: P3-01

@@ -91,7 +91,7 @@ Deps: P2-01 · Refs: 03 · Do: users, documents, revisions, trees, events (hash-
 Accept: unit tests per repo incl. unique indexes and event hash chain validation.
 ### [x] P2-03 S3 storage client
 Deps: P0-03 · Refs: 01 §4, ADR-002 · Do: put/get/presign/head with version id; moto tests; MinIO manual check.
-### [ ] P2-04 Health endpoint real checks
+### [x] P2-04 Health endpoint real checks
 Deps: P2-01, P2-03 · Do: mongo ping, S3 head bucket, chain placeholder.
 
 ---

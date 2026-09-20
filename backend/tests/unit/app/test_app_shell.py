@@ -38,10 +38,11 @@ def client() -> TestClient:
     return TestClient(_make_app(), raise_server_exceptions=False)
 
 
-def test_health_ok(client: TestClient) -> None:
+def test_health_reachable(client: TestClient) -> None:
+    # No lifespan here, so dependencies are absent; full checks live in test_health.py.
     r = client.get(f"{PREFIX}/health")
     assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+    assert r.json()["status"] == "degraded"
 
 
 def test_docs_served(client: TestClient) -> None:
