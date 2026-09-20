@@ -122,6 +122,7 @@ Deps: P5-01 · Accept: 409 when pending exists; 422 NO_CONTENT_CHANGE.
 Deps: P5-02 · Accept: self-approval 403; state machine tests.
 ### [ ] P5-04 Anchoring service (background + reconcile + retry)
 Deps: P5-03, P4-03 · Refs: 01 §3.2, ADR-012 · Accept: FAILED → retry → ANCHORED with fake client; idempotency test.
+Accept (invariant): anchoring service raises a domain error for any revision whose status is not APPROVED (retry endpoint, reconciler, direct call); tests for PENDING and REJECTED.
 ### [ ] P5-05 Revoke, list/detail, tree, presigned file, provenance endpoints
 Deps: P5-04 · Refs: 04
 ### [ ] P5-06 Revision diff endpoint

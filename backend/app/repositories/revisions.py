@@ -58,4 +58,7 @@ class RevisionRepository(BaseRepository[Revision]):
         fields: dict[str, object] = {"anchor": anchor.model_dump()}
         if version_no is not None:
             fields["version_no"] = version_no
-        return await self.update_one(id_, {"$set": fields})
+        # Backstop for "only APPROVED revisions are anchored" (CLAUDE.md); the service enforces it
+        # first (P5-04). matched_count so an identical retry still reads as True.
+        result = await self._col.update_one({"_id": id_, "status": "APPROVED"}, {"$set": fields})
+        return result.matched_count > 0

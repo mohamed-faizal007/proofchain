@@ -100,6 +100,24 @@ async def test_set_anchor_and_version_no(revs: RevisionRepository) -> None:
     assert (await revs.get(r.id)).version_no == 1  # type: ignore[union-attr]
 
 
+@pytest.mark.parametrize("status", ["PENDING", "REJECTED", "REVOKED"])
+async def test_set_anchor_refuses_non_approved_revision(
+    revs: RevisionRepository, status: str
+) -> None:
+    # Persistence backstop for "only APPROVED is anchored"; the service check is P5-04.
+    r = await revs.insert(make_revision(status=status))  # type: ignore[arg-type]
+    anchor = Anchor(status="ANCHORED", tx_hash="0xab", block_number=5, attempts=1)
+    assert await revs.set_anchor(r.id, anchor, version_no=1) is False
+    got = await revs.get(r.id)
+    assert got.anchor.status == "NOT_REQUESTED"  # type: ignore[union-attr]
+    assert got.version_no is None  # type: ignore[union-attr]
+
+
+async def test_set_anchor_missing_revision_returns_false(revs: RevisionRepository) -> None:
+    anchor = Anchor(status="FAILED", error="x", attempts=1)
+    assert await revs.set_anchor("nope", anchor) is False
+
+
 def _tree(rev_id: str, text: str = "hello") -> IntegrityTreeDoc:
     chunk = TreeChunk(
         id="p0-c0", index=0, text=text, leaf_hash="a" * 64, bbox=[0, 1, 2.5, 3], section_id="S1"
