@@ -47,6 +47,8 @@ async def _domain_error_handler(_: Request, exc: Exception) -> Response:
 async def _validation_error_handler(_: Request, exc: Exception) -> Response:
     assert isinstance(exc, RequestValidationError)
     errors = jsonable_encoder(exc.errors(), custom_encoder={Exception: str})
+    for err in errors:
+        err.pop("input", None)  # would echo submitted values, e.g. passwords
     return _with_request_id(
         _envelope(422, "VALIDATION_ERROR", "Request validation failed", {"errors": errors})
     )
@@ -85,6 +87,7 @@ def create_app(
                 client.close()
 
     app = FastAPI(title="ProofChain API", version="0.1.0", lifespan=lifespan)
+    app.state.settings = settings
 
     app.add_exception_handler(DomainError, _domain_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)

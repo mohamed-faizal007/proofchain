@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P3 (P2 complete; phase review pending)
-- Next task: P3-02
+- Next task: P3-03
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -17,7 +17,7 @@
     - OPEN, re-assigned to P4-03: empty `anchor_private_key` is still NOT rejected when app_env=prod (pinned by `test_prod_does_not_yet_check_anchor_key`; flip that test when fixing).
   - Other deps still use >= with no lockfile (only PyMuPDF is pinned).
 - P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` (pytest exit-5 tolerance removed after P1-02);
-  X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (strip before auth exists); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
+  X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (FIXED in P3-02); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
   `app = create_app()` at import time; app-shell tests thin (error-code mapping, request-id, env-independent settings);
   hardhat.config.ts does not validate DEPLOYER_PRIVATE_KEY; compose hardhat service npm install clobbers host node_modules;
   dev.ps1 lacks exit-code checks; .env.example inline comments + VITE_EXPLORER_TX_URL not synced; 07 spec route rows added in P0-05 without ADR note; frontend API base URL hard-coded fallback.
@@ -44,6 +44,11 @@
 - **Presigned URL host (P2-03):** `S3Storage.presign_get` signs against the internal `S3_ENDPOINT_URL`. That host is only browser-reachable when the backend runs on the host next to MinIO (`http://localhost:9000`). Once the backend runs in Docker (`app` compose profile, P10-03) the endpoint is `http://minio:9000`, which a browser cannot resolve. The host is part of the SigV4 signature, so it cannot be rewritten after signing. **Must be resolved by P8-03 (revision file download in the frontend) together with the compose networking in P10-03, before either is called done.** Options: a separate `S3_PUBLIC_ENDPOINT_URL` used only for presigning (needs an `.env.example` entry and a second boto client), or a backend proxy download route. No P2-03 test covers this: moto and the host-local MinIO check use one hostname.
 - **/health degraded status code (P2-04):** `/health` returns HTTP 200 with `status: "degraded"` in the body when mongo or S3 is down. Whether it should return 503 instead is undecided; decide in P10 when real deployment/orchestration is set up (Docker healthchecks, any future load balancer), since that is when it matters operationally. Do not change before then.
 - Event append concurrency (P2-02, ADR-019): `EventRepository.append` retries once on a lost race. That is enough for the maker/checker pattern (at most 2 concurrent writers per document; pinned by `test_two_concurrent_appends_both_succeed_and_chain_stays_linear`), and higher contention fails safely with `ConflictError` (409) and never forks (`test_many_concurrent_appends_never_fork`, both in `tests/integration/test_events_real_mongo.py`). If a future usage pattern needs more concurrent writers per document, the retry count in `events.py` (or adding backoff/jitter) is the tuning knob.
+- **Auth roles read fresh from DB (P3-02, deliberate):** `get_current_user` / `require_roles` load the user from Mongo on every authenticated request and check `is_active` and `roles` from that document, NOT from the JWT `roles` claim. The claim is still issued (04 requires it) but is not trusted for authorization. Tradeoff: performance vs immediate revocation. Costs one indexed `_id` lookup per request; in return, role changes (`PATCH /users/{id}/roles`) and deactivation take effect at once instead of waiting up to `jwt_expire_minutes` for the token to expire (there are no refresh tokens or revocation list, ADR-014). If request volume ever makes that lookup a bottleneck, options are a short-TTL in-process user cache (bounds revocation delay to the TTL) or trusting the claim with a short expiry; either weakens immediate revocation, so decide deliberately and record an ADR.
+- **Last-admin guard (P3-02):** `AuthService.set_roles` refuses (409 CONFLICT) to remove ADMIN from an active user when no other *active* ADMIN exists. Known limits:
+  - **Race window:** it is check-then-write, not atomic. Two admins demoting each other at the same instant can both pass the check and leave zero active admins. Narrow for a small system; closing it needs a Mongo transaction or a post-write recount with rollback.
+  - **Future deactivate-user endpoint:** the same guard MUST apply there (deactivating the last active ADMIN is the same lockout). No such endpoint exists yet; whoever adds one must reuse `count_active_with_role` and add the matching test.
+  - Direct DB edits bypass it; recovery from a lockout is `db.users.updateOne({email: "..."}, {$set: {roles: ["ADMIN"], is_active: true}})` in mongosh, or a future seed/admin-reset script (consider making P3-03's seed restore an existing demo admin's roles).
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 - Chunking hard-split risk (found in P1-05): a sentence over 600 chars with no space is cut at exactly 600 code points (`_hard_split` in chunking.py, 02 §4 "hard split if no space"), which could separate a combining mark from its base character. NFKC (§3 step 1) composes most base+mark pairs into single code points, which minimizes this, but it is not ruled out for v1 (e.g. marks with no precomposed form). The split is deterministic, so hashes stay stable; the cost is a chunk boundary in an odd place. Avoiding it would change §4, needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
@@ -250,3 +255,10 @@
 - Decisions: passwords over 72 bytes are rejected (bcrypt would truncate); `verify_password` returns False for them and for malformed hashes. No iss/aud claims (04 lists only sub, roles, exp). No ADR.
 - Issues: the P0 prod-config finding is only HALF closed: `jwt_secret` done; `anchor_private_key` re-assigned to P4-03 (see Known issues and TASKS.md P4-03).
 - Next: P3-02
+
+### 2026-09-20 — P3-02 Auth routes, dependencies, role guard
+- Done: `POST /auth/register|login`, `GET /auth/me`, `PATCH /users/{id}/roles` (ADMIN); `AuthService` (services/auth.py), DTOs (schemas/auth.py), `get_current_user` / `require_roles` / `require_register_access` in deps.py; settings on `app.state`.
+- Tests: `test_auth.py` (register, login, me, bad tokens, role 403s, roles-from-DB, prod register, last-admin guard). 461 passed, ruff/mypy clean.
+- Decisions: roles read from DB per request, not the JWT claim; login always does one real bcrypt verify (dummy hash for unknown email); register is ADMIN-only in prod; emails normalised; 422 handler strips `input`; ruff treats `Depends` as immutable; last-admin guard (409). No ADR.
+- Issues: last-admin guard is check-then-write (race), and must be reused by any future deactivate endpoint (see Follow-ups); `anchor_private_key` prod check still P4-03.
+- Next: P3-03

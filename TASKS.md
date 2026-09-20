@@ -98,7 +98,7 @@ Deps: P2-01, P2-03 · Do: mongo ping, S3 head bucket, chain placeholder.
 ## P3 — Auth & users
 ### [x] P3-01 Passwords & JWT
 Deps: P0-03 · Refs: 04 Auth, ADR-014
-### [ ] P3-02 Auth routes, dependencies, role guard
+### [x] P3-02 Auth routes, dependencies, role guard
 Deps: P3-01, P2-02 · Accept: tests for login, me, role 403s.
 ### [ ] P3-03 Seed script
 Deps: P3-02 · Do: `python -m app.scripts.seed` creates demo users (idempotent).

@@ -64,6 +64,9 @@ extend-exclude = [".venv"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.security.HTTPBearer"]
+
 [tool.mypy]
 python_version = "3.11"
 warn_unused_configs = true
