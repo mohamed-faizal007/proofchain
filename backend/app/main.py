@@ -2,7 +2,8 @@
 
 import logging
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
@@ -14,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import router as v1_router
 from app.config import Settings, get_settings
+from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
 from app.logging import configure_logging, request_id_var
 
@@ -56,10 +58,27 @@ async def _http_error_handler(_: Request, exc: Exception) -> Response:
     return _with_request_id(_envelope(exc.status_code, code, str(exc.detail)))
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, db: MongoDatabase | None = None) -> FastAPI:
+    """Build the app. `db` injects a database (tests); otherwise the lifespan connects to Mongo."""
     settings = settings or get_settings()
     configure_logging()
-    app = FastAPI(title="ProofChain API", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        client = None
+        if db is None:
+            client = create_client(settings)
+            app.state.db = get_database(client, settings)
+        else:
+            app.state.db = db
+        try:
+            await ensure_indexes(app.state.db)
+            yield
+        finally:
+            if client is not None:
+                client.close()
+
+    app = FastAPI(title="ProofChain API", version="0.1.0", lifespan=lifespan)
 
     app.add_exception_handler(DomainError, _domain_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)

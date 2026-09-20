@@ -83,7 +83,7 @@ Accept: coverage report attached to PROGRESS entry; tag `v0.1-core`.
 
 ---
 ## P2 — Persistence & storage
-### [ ] P2-01 Mongo connection & repositories base
+### [x] P2-01 Mongo connection & repositories base
 Deps: P0-03 · Refs: 03
 Do: Motor client lifecycle in app lifespan, index creation at startup, generic repo helpers, test setup with mongomock-motor.
 ### [ ] P2-02 Repositories

@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P1 (in progress)
-- Next task: P2-01
+- Phase: P2 (in progress)
+- Next task: P2-02
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -23,6 +23,8 @@
 - PyMuPDF has no type stubs, so extract.py's dict-key access (blocks/lines/spans/bbox/size/flags/text) is unchecked by mypy and relies entirely on the fixture tests to catch drift if the library's output shape changes in a future version.
 
 - Section heading rule (c) (02 §8) misclassifies numbered prose with no trailing period (e.g. "5 apples were sold") as a heading. Spec-compliant, reporting-only (sections are outside `text_root`); pinned by `test_numbered_prose_is_misclassified_as_heading_known_limitation` and listed in 02 §13. Changing the rule needs an ADR.
+- Datetimes (P2-01, RESOLVED): the client is built with `tz_aware=True`, so stored datetimes come back as aware UTC on real Mongo (verified on mongo:7) and mongomock; BSON truncates to milliseconds, so round-trip equality tests must zero microseconds. Repositories/services compare against `datetime.now(UTC)`; never naive datetimes.
+- Unique-index nulls (P2-01 check, mongomock 4.3 vs mongo:7): both treat a missing field and an explicit null as the same key, so two documents without `chain_doc_id` (or `email`) raise DuplicateKeyError in the fast suite too; pinned by `test_unique_index_treats_missing_field_as_null` in test_db.py, so no blind spot for this class of bug. Sparse/partial unique indexes were not compared.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
@@ -197,3 +199,10 @@
 - Decisions: garbage bytes are not covered by the leak test because `pymupdf.open` raises before a handle exists. Golden fixture roots also pin extraction, so a PyMuPDF change will fail them by design.
 - Issues: none new. Remaining P1 review items stay under Known issues.
 - Next: P2-01
+
+### 2026-09-20 — P2-01 Mongo connection & repositories base
+- Done: `app/db.py` (Motor client `tz_aware=True`, idempotent `ensure_indexes` per 03, Mongo type aliases), `app/repositories/base.py` (generic `BaseRepository`, duplicate key -> `ConflictError`), `app/deps.py` `get_db`, lifespan in `create_app(settings, db=None)`, `ConflictError` (409 CONFLICT) in errors.py, `mongo` pytest marker (excluded by default).
+- Tests: unit (index set/idempotency, unique + null-collision, `$text` limitation, tz-aware round trip, repo, lifespan) + `tests/integration/test_indexes_real_mongo.py`. Fast suite 328 passed; `-m mongo` 4 passed against Docker mongo:7; ruff/format/mypy clean.
+- Decisions: `tz_aware=True` on the client (stored datetimes come back aware UTC; BSON truncates to ms, so round-trip equality tests zero microseconds). `CONFLICT` code is not in 04; added without an ADR.
+- Issues: mongomock lacks `$text` queries (index creation works); title search in P5-05 needs a real-Mongo test or regex fallback. Text-index behavior verified on real Mongo only.
+- Next: P2-02

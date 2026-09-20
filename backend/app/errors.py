@@ -53,6 +53,11 @@ class SelfApprovalForbiddenError(DomainError):
     status_code = 403
 
 
+class ConflictError(DomainError):
+    code = "CONFLICT"
+    status_code = 409
+
+
 class RevisionNotPendingError(DomainError):
     code = "REVISION_NOT_PENDING"
     status_code = 409
