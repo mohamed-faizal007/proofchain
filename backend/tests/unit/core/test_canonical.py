@@ -56,7 +56,7 @@ def test_normalize_text(raw: str, expected: str) -> None:
 
 
 def test_canon_version() -> None:
-    assert CANON_VERSION == 1
+    assert CANON_VERSION == 2
 
 
 def test_case_is_preserved() -> None:
@@ -75,3 +75,17 @@ def test_output_shape(s: str) -> None:
     assert out == out.strip(" ")
     assert "  " not in out
     assert not set(out) & set("­​‌‍﻿\t\n\r ")
+
+
+def test_not_idempotent_zwj_between_base_and_mark_known_limitation() -> None:
+    """P1-09 finding 4: NFKC (step 1) cannot compose across a ZWJ; step 2 then removes it.
+
+    The result is a decomposed 'é'; a second pass composes it. Spec-compliant and
+    deterministic (same input, same output), but normalize_text is not idempotent here.
+    Callers must never re-normalize stored canonical text.
+    """
+    raw = "e\u200d\u0301"
+    once = normalize_text(raw)
+    assert once == "e\u0301"
+    assert normalize_text(once) == "\u00e9"
+    assert normalize_text(raw) == once

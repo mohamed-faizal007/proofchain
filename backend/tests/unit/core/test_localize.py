@@ -1,5 +1,6 @@
 """Tests for 02_ALGORITHMS.md §9 localization."""
 
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import pymupdf
@@ -13,6 +14,7 @@ from proofchain_core import (
     leaf_hash,
     localize,
     merkle_root,
+    page_merkle_root,
     sha256_hex,
 )
 from proofchain_core.types import (
@@ -44,7 +46,7 @@ def _tree(pages: list[list[str]], sections: tuple[Section, ...] = ()) -> Integri
     return IntegrityTree(
         canon_version=CANON_VERSION,
         file_hash=sha256_hex("|".join("/".join(t) for t in pages).encode()),
-        text_root=merkle_root([p.root for p in built]),
+        text_root=page_merkle_root([p.root for p in built]),
         page_count=len(built),
         pages=tuple(built),
         sections=sections,
@@ -272,3 +274,40 @@ def test_random_single_mutation_yields_exactly_one_region(
     result = localize(_tree(ref_pages), _tree(cand_pages))
     assert result.status is LocalizationStatus.CHANGED
     assert [r.type for r in result.regions] == [expected]
+
+
+def _autojunk_pair() -> tuple[str, str]:
+    """590-char chunk and a copy with its first 20 chars rewritten; every char is 'popular'."""
+    words = ["alpha", "beta", "gamma", "delta", "mama", "data"]
+    base = " ".join(words[(i * i + i) % len(words)] for i in range(200))[:590]
+    return base, "delta alpha beta gam" + base[20:]
+
+
+def test_replace_pairing_uses_autojunk_default_known_limitation() -> None:
+    """P1-09 finding 2 / ADR-018: the §9.4 text ratio keeps difflib's autojunk=True.
+
+    On a long chunk made only of frequent characters every character is 'junk', so the
+    ratio collapses to 0.0 and a MODIFIED chunk is reported as DELETED + INSERTED.
+    """
+    base, edited = _autojunk_pair()
+    assert len(base) == 590 and base[20:] == edited[20:] and base[:20] != edited[:20]
+    assert SequenceMatcher(None, base, edited).ratio() == 0.0
+    assert SequenceMatcher(None, base, edited, autojunk=False).ratio() > 0.9
+    result = localize(_tree([[base]]), _tree([[edited]]))
+    assert _kinds(result) == [
+        (RegionType.DELETED, "p0-c0", None),
+        (RegionType.INSERTED, None, "p0-c0"),
+    ]
+
+
+def test_equal_count_swap_between_adjacent_pages_stays_on_fast_path() -> None:
+    """P1-09 finding 6: chunk counts unchanged, so no spill-over is detected (§9.3 wording)."""
+    ref = _tree([[_para(1), _para(2)], [_para(3), _para(4)]])
+    cand = _tree([[_para(3), _para(2)], [_para(1), _para(4)]])
+    result = localize(ref, cand)
+    assert result.status is LocalizationStatus.CHANGED
+    assert result.method is LocalizationMethod.MERKLE_FAST_PATH
+    assert _kinds(result) == [
+        (RegionType.MODIFIED, "p0-c0", "p0-c0"),
+        (RegionType.MODIFIED, "p1-c0", "p1-c0"),
+    ]

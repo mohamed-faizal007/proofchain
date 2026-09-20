@@ -1,7 +1,7 @@
 # 02 — Algorithms (NORMATIVE)
 
 > This file is the contract for `proofchain_core`. Any change requires an ADR in `09_DECISIONS.md`
-> and, if hashes could change, a bump of `CANON_VERSION`. Current: **`CANON_VERSION = 1`**.
+> and, if hashes could change, a bump of `CANON_VERSION`. Current: **`CANON_VERSION = 2`** (v2: page-level Merkle prefix, ADR-017).
 
 ## 1. Pipeline overview
 ```
@@ -34,7 +34,8 @@ Blocks whose canonical text is empty are dropped. No header/footer removal in v1
 - Each surviving block is one paragraph. If `len(text) <= 600` → one chunk.
 - Otherwise split into sentences with regex `(?<=[.!?;:])\s+(?=[A-Z0-9("'\[])` and greedily pack
   consecutive sentences while the packed length (joined by single spaces) ≤ 600. A single sentence > 600
-  is split at the last space before position 600 (hard split if no space).
+  is split at the last space at index ≤ 600 (so each piece is ≤ 600 chars; hard split at exactly 600 if no
+  space; ADR-018).
 - Chunk id: `p{page}-c{index}` where `index` is 0-based within the page, in reading order.
 - Chunk fields: `id, page, index, text, bbox, leaf_hash`. Split chunks inherit the block bbox.
 
@@ -42,11 +43,13 @@ Blocks whose canonical text is empty are dropped. No header/footer removal in v1
 ```
 H(x)            = SHA-256(x)                               (lowercase hex in Python)
 leaf(chunk)     = H(0x00 || utf8(chunk.text))
-node(l, r)      = H(0x01 || bytes(l) || bytes(r))
+node(l, r)      = H(0x01 || bytes(l) || bytes(r))          (chunk-level tree)
 EMPTY_PAGE_ROOT = H(0x02 || b"PROOFCHAIN_EMPTY_PAGE")
+page_node(l, r) = H(0x03 || bytes(l) || bytes(r))          (page-level tree, text_root only)
 file_hash       = H(raw pdf bytes)
 ```
-Domain separation prevents leaf/node confusion (second-preimage) attacks.
+Domain separation prevents leaf/node confusion (second-preimage) attacks, and (ADR-017) keeps a
+page-level combination from ever equalling a chunk-level one at the same tree position.
 
 ## 6. Merkle tree (`merkle.py`)
 - `merkle_root(hashes: list[str]) -> str`: build levels bottom-up; pair adjacent nodes left→right with `node(l, r)`;
@@ -56,18 +59,23 @@ Domain separation prevents leaf/node confusion (second-preimage) attacks.
 - `merkle_levels(hashes) -> list[list[str]]` (level 0 = leaves) for storage and proofs.
 - `merkle_proof(hashes, i) -> list[ProofStep(sibling, side)]` and `verify_proof(leaf, proof, root) -> bool`.
   Promoted nodes contribute no step at that level.
+- Every function takes a keyword `node` (default `node_hash`, i.e. chunk level). The page-level tree passes
+  `page_node_hash`; `page_merkle_root(page_roots)` is `merkle_root(page_roots, node=page_node_hash)`.
+  A proof must be verified with the same `node` it was built with.
 
 ## 7. Integrity tree (`tree.py`) — `build_integrity_tree(pdf_bytes) -> IntegrityTree`
 ```
 page_root[p] = merkle_root([c.leaf_hash for c in chunks of page p])  or EMPTY_PAGE_ROOT
-text_root    = merkle_root(page_root[0..n-1])
+text_root    = page_merkle_root(page_root[0..n-1])      # combines with page_node (0x03), not node (0x01)
 ```
+A single-page document has `text_root == page_root[0]`. For n ≥ 2 the page-level prefix guarantees that
+pagination is bound into `text_root`: pages `[a,b],[c,d]` and one page `[a,b,c,d]` yield different roots.
 `IntegrityTree = { canon_version, file_hash, text_root, page_count, pages[{index, root, chunks[]}], sections[] }`.
 Determinism test: building twice, and after JSON round-trip, yields identical dicts.
 
 ## 8. Sections overlay (`sections.py`)
 Sections are for *reporting* ("Section 4 – Payment Terms changed"); they are **not** part of `text_root`.
-- `body_size` = most frequent span size (rounded to 0.5pt) across the document.
+- `body_size` = most frequent span size (rounded to 0.5pt) across the document; ties take the smaller size (ADR-018).
 - A block is a **heading** if canonical text length ≤ 120, it does not end with `.`, and any of:
   (a) max span size ≥ `body_size × 1.15`; (b) all spans bold; (c) matches
   `^(ARTICLE|SECTION|CLAUSE|SCHEDULE|ANNEXURE)\b|^(\d+(\.\d+)*[.)]?|[IVXLC]+[.)])\s+\S` (case-insensitive for words).
@@ -80,7 +88,8 @@ Order of checks:
 1. `file_hash` equal → `IDENTICAL`, no regions.
 2. `text_root` equal → `CONTENT_EQUIVALENT`, no regions.
 3. **Merkle fast path** (only when `page_count` equal): compare `page_root[p]` pairwise; collect mismatched pages
-   `M`. Record `hash_comparisons` performed (for evaluation). If every mismatch stays within its page
+   `M`. Record `hash_comparisons` performed (for evaluation): the page-root comparisons (`page_count`, only when
+   page counts are equal) plus the leaf hashes fed to the alignment of the scope actually diffed (ADR-018). If every mismatch stays within its page
    (the chunk counts of the neighbouring pages are unchanged) localize inside each page in `M` with step 4
    restricted to that page.
 4. **Alignment** (always used when page counts differ, or when step 3 detects spill-over between pages):
@@ -91,6 +100,8 @@ Order of checks:
    - `insert` → one `INSERTED` region per cand chunk.
    - `replace` (i1:i2 vs j1:j2): pair chunks greedily by highest `SequenceMatcher(None, a.text, b.text).ratio()`
      (ties → lower index); pairs with ratio ≥ 0.30 become `MODIFIED`; leftovers become `DELETED` / `INSERTED`.
+     The text ratio keeps difflib's default `autojunk=True`, stated explicitly in code (ADR-018); the leaf-hash
+     alignment above uses `autojunk=False`.
    This handles insertions that shift every later chunk (a pure positional comparison would flag the rest
    of the document) — this is a key point for the report.
 5. Group adjacent regions of the same type on the same page into one region only for UI display;
@@ -126,7 +137,8 @@ Document association when `document_id` is not supplied: lookup by `file_hash`, 
 - Build: O(C) hashing for C chunks, O(C) Merkle nodes.
 - Fast path with k changed pages out of n: O(n) page-root comparisons, then O(chunks in k pages).
   (Descending a stored page-level Merkle tree gives O(k log n); implement `changed_leaves_by_descent()`
-  over `merkle_levels` and report both counts.)
+  over `merkle_levels` and report both counts. Page-level levels must be built with `node=page_node_hash`
+  (ADR-017); chunk-level levels use the default `node_hash`.)
 - Alignment fallback: SequenceMatcher on hashes, worst case O(C²), typically near-linear.
 
 ## 13. Known limitations (state honestly in the report)
@@ -139,6 +151,23 @@ Document association when `document_id` is not supplied: lookup by `file_hash`, 
 - Section headings (§8) are a heuristic used only for reporting. Rule (c) can misclassify ordinary numbered
   prose that has no trailing period (e.g. "5 apples were sold") as a heading, which splits a section in the
   report. `text_root`, localization and every verdict are unaffected, because sections are not hashed into it.
+- Replace pairing (§9.4) uses difflib's default `autojunk=True` on the text ratio. On a long chunk (≥ 200 chars)
+  made of frequent characters most characters count as junk, so a lightly edited chunk can score below 0.30 and be
+  reported as DELETED + INSERTED instead of MODIFIED (measured: 590 chars, first 20 rewritten, ratio 0.0 vs 0.99
+  with `autojunk=False`). Pinned by `test_replace_pairing_uses_autojunk_default_known_limitation`; verdicts are
+  unaffected. Switching to `autojunk=False` changes localization output and needs an ADR.
+- `normalize_text` is not idempotent for inputs such as `e` + ZWJ + U+0301: NFKC cannot compose across the ZWJ,
+  step 2 then removes it, leaving a decomposed é that a second pass would compose. Deterministic and
+  spec-compliant; canonical text must never be re-normalized. Pinned by
+  `test_not_idempotent_zwj_between_base_and_mark_known_limitation`.
+- Extraction (§2) uses PyMuPDF's default `get_text` flags. Text outside the page box, annotations, form-field
+  values and hidden layers are not extracted, so they are absent from `text_root` and localization. `file_hash`
+  still detects any such change, which surfaces as CONTENT_EQUIVALENT (with warning), never AUTHENTIC.
+- Ambiguities in §4, §8 and §9 were resolved in code and are now stated in the spec text (ADR-018): hard-split cut
+  index, `body_size` tie-break, `hash_comparisons` counting. No hash or output changed.
+- Pagination is part of `text_root` (ADR-017, since `CANON_VERSION` 2): a re-paginated copy with the same chunk
+  sequence is CHANGED, not CONTENT_EQUIVALENT. Together with the next bullet this can yield CHANGED with no regions.
+  `page_count` itself is not stored on-chain; it is bound only through the page-level Merkle root.
 - Localization (§9) diffs chunk text only. A chunk whose text is unchanged but that moves across a page
   boundary changes the page roots and `text_root` (status CHANGED) yet yields no regions, so the UI has
   nothing to highlight. The verdict is unaffected.

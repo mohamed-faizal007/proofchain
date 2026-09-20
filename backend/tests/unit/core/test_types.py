@@ -36,7 +36,7 @@ def make_chunk(index: int = 0) -> Chunk:
 def make_tree() -> IntegrityTree:
     chunk = make_chunk()
     return IntegrityTree(
-        canon_version=1,
+        canon_version=2,
         file_hash=H1,
         text_root=H2,
         page_count=1,

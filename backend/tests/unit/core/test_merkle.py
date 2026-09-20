@@ -4,13 +4,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from proofchain_core.hashing import leaf_hash, node_hash
+from proofchain_core.hashing import leaf_hash, node_hash, page_node_hash
 from proofchain_core.merkle import (
     ProofStep,
     changed_leaves_by_descent,
     merkle_levels,
     merkle_proof,
     merkle_root,
+    page_merkle_root,
     verify_proof,
 )
 
@@ -188,3 +189,66 @@ def test_property_descent_matches_naive(n: int, positions: set[int]) -> None:
 def test_descent_length_mismatch_raises() -> None:
     with pytest.raises(ValueError):
         changed_leaves_by_descent(merkle_levels(leaves(3)), merkle_levels(leaves(4)))
+
+
+# --- ADR-017: page-level tree uses its own domain prefix (0x03) ---
+
+
+def test_page_merkle_root_known_answers() -> None:
+    a, b, c = leaves(3)
+    assert page_merkle_root([a]) == a
+    assert page_merkle_root([a, b]) == page_node_hash(a, b)
+    assert page_merkle_root([a, b, c]) == page_node_hash(page_node_hash(a, b), c)
+
+
+def test_page_merkle_root_empty_is_error() -> None:
+    with pytest.raises(ValueError):
+        page_merkle_root([])
+
+
+def test_pagination_is_bound_into_the_root() -> None:
+    # ADR-017 regression: pages [a,b],[c,d] must not equal one page [a,b,c,d].
+    a, b, c, d = leaves(4)
+    two_pages = page_merkle_root([merkle_root([a, b]), merkle_root([c, d])])
+    one_page = page_merkle_root([merkle_root([a, b, c, d])])
+    assert two_pages != one_page
+    assert two_pages != merkle_root([a, b, c, d])
+
+
+def test_pagination_is_bound_into_the_root_odd_split() -> None:
+    a, b, c = leaves(3)
+    assert page_merkle_root([merkle_root([a, b]), c]) != merkle_root([a, b, c])
+
+
+def test_chunk_node_is_not_accepted_as_page_root_proof() -> None:
+    # The attack from the audit: an internal chunk node must not verify as a
+    # page-level leaf against a page-level root (and vice versa).
+    a, b, c, d = leaves(4)
+    p0, p1 = merkle_root([a, b]), merkle_root([c, d])
+    root = page_merkle_root([p0, p1])
+    proof = merkle_proof([p0, p1], 0)  # built with the chunk node; wrong domain
+    assert not verify_proof(p0, proof, root)
+    assert verify_proof(p0, proof, root, node=page_node_hash)
+    # The audit's forgery: a chunk-level internal-node proof must not verify against
+    # the page-level root, and the page-level root must differ from the flat chunk root.
+    flat = merkle_root([a, b, c, d])
+    tail = merkle_proof([a, b, c, d], 0)[1:]
+    assert verify_proof(node_hash(a, b), tail, flat)  # sound within the chunk tree
+    assert not verify_proof(node_hash(a, b), tail, root)
+    assert root != flat
+
+
+def test_page_level_proofs_round_trip() -> None:
+    hs = leaves(7)
+    root = page_merkle_root(hs)
+    for i, h in enumerate(hs):
+        proof = merkle_proof(hs, i, node=page_node_hash)
+        assert verify_proof(h, proof, root, node=page_node_hash)
+        assert not verify_proof(h, proof, root)
+
+
+def test_page_level_levels_use_page_node() -> None:
+    hs = leaves(4)
+    levels = merkle_levels(hs, node=page_node_hash)
+    assert levels[1] == [page_node_hash(hs[0], hs[1]), page_node_hash(hs[2], hs[3])]
+    assert levels[-1] == [page_merkle_root(hs)]

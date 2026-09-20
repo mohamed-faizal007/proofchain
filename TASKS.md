@@ -76,7 +76,7 @@ Deps: P1-07 · Refs: 02 §9
 Do: `localize.py` fast path + alignment + replace pairing.
 Accept: tests: identical, content-equivalent (metadata change via PyMuPDF), single modify, insert at start (no cascade), delete, multi-page edits, page-count change, spill-over to next page; hypothesis random single mutation → exactly one region.
 
-### [ ] P1-09 Core hardening review
+### [x] P1-09 Core hardening review
 Deps: P1-08 · Refs: 02 all
 Do: run `spec-guardian` subagent; fix findings; coverage ≥ 90 %; mypy strict on core.
 Accept: coverage report attached to PROGRESS entry; tag `v0.1-core`.

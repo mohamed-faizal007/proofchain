@@ -47,3 +47,34 @@ anchors remain verifiable after algorithm changes (verify with the stored versio
 Note AGPL licence — acceptable for academic use; mention in report.
 
 **ADR-016 — version_no is 1-based end-to-end.** Accepted. Mongo `version_no`, API responses, and the on-chain `versionNo` (contract array index 0 = version 1) all use the same 1-based value; the backend never adds or subtracts 1 when moving between layers.
+
+**ADR-017 — Page-level Merkle prefix (0x03); `CANON_VERSION` 1 → 2.** Accepted (P1-09 audit, finding 1).
+*Problem:* in v1, `text_root` combined page roots with the same `node()` (prefix 0x01) used inside a page, so a
+tree over pages was indistinguishable from a tree over chunks. Verified: pages `[a,b],[c,d]` and one page
+`[a,b,c,d]` gave the same `text_root`; `[a,b],[c]` equalled `[a,b,c]`; and
+`verify_proof(node_hash(a,b), proof[1:], root)` returned True, i.e. an internal node was accepted as a leaf.
+A re-paginated document with the same chunk sequence therefore reported CONTENT_EQUIVALENT although `page_count`
+(not stored on-chain) differed. No content forgery was possible without a SHA-256 collision, but it contradicted
+ADR-005's aim of preventing leaf/node confusion.
+*Decision:* page roots are combined with `page_node(l, r) = H(0x03 || l || r)` (0x00 leaf, 0x01 chunk node,
+0x02 empty page are taken). `merkle_*` functions take a `node` keyword; `page_merkle_root` is the page-level entry
+point; chunk-level trees and section hashes are unchanged. `CANON_VERSION` = 2.
+*Consequences:* every multi-page `text_root` changes; single-page roots, page roots, leaf hashes and `file_hash` do
+not. Committed fixture PDFs and their hashes are unaffected; only tests recomputing `text_root` were updated.
+*Pre-launch exception, not a precedent:* this is a pre-launch version bump. No v1 anchors or stored revisions
+exist (nothing is persisted before P2), so v1 is deliberately not kept as a verifiable version and no
+backward-compatibility path is built. This carries no obligation and sets no precedent for later bumps. Once real
+anchors exist, ADR-013 governs: `CANON_VERSION` is stored with every revision and on-chain, and a bump must keep
+older anchors verifiable under their stored version's rules. From `CANON_VERSION = 2` onward, everything anchored
+is covered by that mechanism.
+
+**ADR-018 — Spec clarifications from the P1-09 audit (no hash or output change; `CANON_VERSION` stays 2).** Accepted.
+Code behaviour that the spec left ambiguous is now normative, and pinned by tests:
+(1) §4 a sentence > 600 chars is cut at the last space at index ≤ 600 (piece length ≤ 600), else hard-cut at 600;
+(2) §8 `body_size` ties take the smaller size; (3) §9 `hash_comparisons` = page-root comparisons (`page_count`, when
+page counts are equal) + leaf hashes fed to the alignment of the scope diffed; (4) §9.4 the replace-pair text ratio
+uses `SequenceMatcher(..., autojunk=True)`, passed explicitly. (4) has a known cost: on long chunks made of
+frequent characters the ratio can collapse (590 chars, first 20 rewritten: 0.0 vs 0.99 with `autojunk=False`), so a
+MODIFIED can surface as DELETED + INSERTED. Switching to `autojunk=False` would change localization output and
+requires a new ADR; verdicts are unaffected either way. Related deferrals (P6 service-layer guards for quadratic
+replace pairing and canon_version mismatch) are recorded in PROGRESS Follow-ups.

@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-CANON_VERSION = 1
+CANON_VERSION = 2
 
 _REMOVED = dict.fromkeys(map(ord, "­​‌‍﻿"))
 _PUNCT = str.maketrans(

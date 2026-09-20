@@ -9,7 +9,14 @@ from proofchain_core.errors import (
     ProofChainCoreError,
 )
 from proofchain_core.extract import ExtractedBlock, ExtractedPage, SpanInfo, extract_pages
-from proofchain_core.hashing import EMPTY_PAGE_ROOT, file_hash, leaf_hash, node_hash, sha256_hex
+from proofchain_core.hashing import (
+    EMPTY_PAGE_ROOT,
+    file_hash,
+    leaf_hash,
+    node_hash,
+    page_node_hash,
+    sha256_hex,
+)
 from proofchain_core.localize import localize
 from proofchain_core.merkle import (
     ProofStep,
@@ -17,6 +24,7 @@ from proofchain_core.merkle import (
     merkle_levels,
     merkle_proof,
     merkle_root,
+    page_merkle_root,
     verify_proof,
 )
 from proofchain_core.sections import build_sections
@@ -49,6 +57,8 @@ __all__ = [
     "merkle_root",
     "node_hash",
     "normalize_text",
+    "page_merkle_root",
+    "page_node_hash",
     "sha256_hex",
     "verify_proof",
 ]

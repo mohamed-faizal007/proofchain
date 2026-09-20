@@ -5,7 +5,14 @@ import re
 
 import pytest
 
-from proofchain_core.hashing import EMPTY_PAGE_ROOT, file_hash, leaf_hash, node_hash, sha256_hex
+from proofchain_core.hashing import (
+    EMPTY_PAGE_ROOT,
+    file_hash,
+    leaf_hash,
+    node_hash,
+    page_node_hash,
+    sha256_hex,
+)
 
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
@@ -44,7 +51,14 @@ def test_file_hash_has_no_prefix() -> None:
 
 def test_outputs_are_lowercase_hex64() -> None:
     a, b = leaf_hash("a"), leaf_hash("b")
-    for value in (a, node_hash(a, b), EMPTY_PAGE_ROOT, file_hash(b"x"), sha256_hex(b"")):
+    for value in (
+        a,
+        node_hash(a, b),
+        page_node_hash(a, b),
+        EMPTY_PAGE_ROOT,
+        file_hash(b"x"),
+        sha256_hex(b""),
+    ):
         assert HEX64.fullmatch(value)
 
 
@@ -72,3 +86,38 @@ def test_node_hash_rejects_non_hex64(bad: str) -> None:
         node_hash(bad, good)
     with pytest.raises(ValueError):
         node_hash(good, bad)
+
+
+def test_page_node_hash_is_prefixed_concat_of_bytes() -> None:
+    left, right = leaf_hash("a"), leaf_hash("b")
+    assert page_node_hash(left, right) == _h(b"\x03" + bytes.fromhex(left) + bytes.fromhex(right))
+
+
+def test_page_node_hash_is_order_sensitive() -> None:
+    left, right = leaf_hash("a"), leaf_hash("b")
+    assert page_node_hash(left, right) != page_node_hash(right, left)
+
+
+def test_page_node_hash_is_domain_separated_from_chunk_node() -> None:
+    # ADR-017: same children, different tree level, different digest.
+    left, right = leaf_hash("a"), leaf_hash("b")
+    assert page_node_hash(left, right) != node_hash(left, right)
+
+
+@pytest.mark.parametrize("bad", ["", "abc", "A" * 64, "g" * 64, "a" * 63, "a" * 65])
+def test_page_node_hash_rejects_non_hex64(bad: str) -> None:
+    good = leaf_hash("a")
+    with pytest.raises(ValueError):
+        page_node_hash(bad, good)
+    with pytest.raises(ValueError):
+        page_node_hash(good, bad)
+
+
+def test_lone_surrogate_raises_unicode_encode_error_known_limitation() -> None:
+    """P1-09 finding 5: leaf_hash UTF-8 encodes text, so a lone surrogate raises a raw error.
+
+    Not mapped to a ProofChainCoreError. No PDF is known to produce one; the P2 service
+    layer must treat UnicodeEncodeError from the core as an invalid document.
+    """
+    with pytest.raises(UnicodeEncodeError):
+        leaf_hash("\ud800")

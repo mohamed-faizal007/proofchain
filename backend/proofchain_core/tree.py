@@ -10,7 +10,7 @@ from proofchain_core.chunking import chunk_blocks
 from proofchain_core.errors import ProofChainCoreError
 from proofchain_core.extract import extract_pages
 from proofchain_core.hashing import EMPTY_PAGE_ROOT, file_hash
-from proofchain_core.merkle import merkle_root
+from proofchain_core.merkle import merkle_root, page_merkle_root
 from proofchain_core.sections import build_sections
 from proofchain_core.types import Chunk, IntegrityTree, Page
 
@@ -19,7 +19,8 @@ def build_integrity_tree(pdf_bytes: bytes) -> IntegrityTree:
     """Build the text Merkle tree of a PDF (§7).
 
     page_root[p] = merkle_root(leaf hashes of page p) or EMPTY_PAGE_ROOT;
-    text_root    = merkle_root(page roots). Sections are reporting-only (§8).
+    text_root    = page_merkle_root(page roots), page prefix 0x03 (ADR-017).
+    Sections are reporting-only (§8).
     Raises InvalidPdfError, EncryptedPdfError, NoExtractableTextError.
     """
     extracted = extract_pages(pdf_bytes)
@@ -44,7 +45,7 @@ def build_integrity_tree(pdf_bytes: bytes) -> IntegrityTree:
     return IntegrityTree(
         canon_version=CANON_VERSION,
         file_hash=file_hash(pdf_bytes),
-        text_root=merkle_root([p.root for p in pages]),
+        text_root=page_merkle_root([p.root for p in pages]),
         page_count=len(pages),
         pages=pages,
         sections=build_sections(origins),

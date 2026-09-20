@@ -30,7 +30,7 @@ Indexes: `owner_id`, `chain_doc_id` unique, text index on `title`.
   "reviewed_by": "uuid|null", "reviewed_at": "…|null", "review_comment": "…|null",
   "file": { "s3_key": "documents/{doc}/revisions/{rev}.pdf", "s3_version_id": "…", "size_bytes": 123,
             "original_filename": "lease.pdf", "content_type": "application/pdf" },
-  "file_hash": "hex", "text_root": "hex", "canon_version": 1, "page_count": 7, "chunk_count": 88,
+  "file_hash": "hex", "text_root": "hex", "canon_version": 2, "page_count": 7, "chunk_count": 88,
   "anchor": { "status": "NOT_REQUESTED|ANCHORING|ANCHORED|FAILED", "tx_hash": "0x…", "block_number": 123,
               "chain_id": 31337, "contract": "0x…", "anchored_at": "…", "error": "…|null", "attempts": 1 } }
 ```
@@ -38,7 +38,7 @@ Indexes: `(document_id, revision_no)` unique, `file_hash`, `text_root`, `(docume
 
 ## integrity_trees  (one per revision; kept separate to keep revisions small)
 ```jsonc
-{ "_id": "revision uuid", "document_id": "uuid", "canon_version": 1, "file_hash": "hex", "text_root": "hex",
+{ "_id": "revision uuid", "document_id": "uuid", "canon_version": 2, "file_hash": "hex", "text_root": "hex",
   "page_count": 7,
   "pages": [ { "index": 0, "root": "hex",
                "chunks": [ { "id": "p0-c0", "index": 0, "text": "…", "leaf_hash": "hex",

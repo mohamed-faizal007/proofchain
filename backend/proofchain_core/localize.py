@@ -26,7 +26,8 @@ class _Pair:
 def _pair_replace(ref: list[Chunk], cand: list[Chunk]) -> list[_Pair]:
     """Pair the chunks of a `replace` opcode greedily by text ratio (§9.4)."""
     scores = {
-        (i, j): SequenceMatcher(None, a.text, b.text).ratio()
+        # autojunk=True is the difflib default, kept explicitly: it is normative (ADR-018)
+        (i, j): SequenceMatcher(None, a.text, b.text, autojunk=True).ratio()
         for i, a in enumerate(ref)
         for j, b in enumerate(cand)
     }

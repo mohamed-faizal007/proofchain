@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P1 (in progress)
-- Next task: P1-09
+- Next task: P2-01
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -31,6 +31,12 @@
 - Chunking hard-split risk (found in P1-05): a sentence over 600 chars with no space is cut at exactly 600 code points (`_hard_split` in chunking.py, 02 §4 "hard split if no space"), which could separate a combining mark from its base character. NFKC (§3 step 1) composes most base+mark pairs into single code points, which minimizes this, but it is not ruled out for v1 (e.g. marks with no precomposed form). The split is deterministic, so hashes stay stable; the cost is a chunk boundary in an odd place. Avoiding it would change §4, needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 - Localization (P1-08): a chunk moved across a page boundary with unchanged text gives CHANGED with zero regions (§9 diffs chunk text only). Pinned by `test_moved_chunk_without_text_change_has_no_regions`; listed in 02 §13. Fixing needs an ADR.
+
+- P1-09 follow-ups (deferred, none needs code in P1):
+  - **P6 service-layer guard (audit finding 3, MEDIUM, DoS):** replace pairing (`_pair_replace`, localize.py) is quadratic in the size of a `replace` opcode (measured 0.17s at 20x20, 0.75s at 40x40 chunks; a ~1000-chunk full rewrite would take minutes on /verify). A cap inside core would change output (needs ADR); add a size/time guard in the /verify service (reject or degrade to DELETED+INSERTED beyond N x M) in P6.
+  - **P6 service-layer guard (finding 9, INFO):** `localize` does not check `ref.canon_version == cand.canon_version`. The service must compare trees built under the same version (or rebuild the reference under the candidate's rules) before calling it.
+  - `verify_proof` (merkle.py) still accepts an internal node presented as a leaf with a truncated proof inside one chunk-level tree (`verify_proof(node_hash(a,b), proof[1:], root)` is True). Not exploitable today (proofs are built from stored leaves); if proofs are ever exposed to third parties, verify from chunk text and check proof length against the leaf count. 02 §5 / ADR-005 slightly overstate the protection.
+  - Not re-audited in P1-09 (only spot-checked by spec-guardian): 02 §9 steps 3 and 5, and §2, §4, §8 in full. Schedule a future review pass.
 
 ## History summary
 - (empty)
@@ -153,3 +159,25 @@
 - Decisions: spill-over = mismatched page with changed chunk count and a mismatched neighbour. `hash_comparisons` = page-root comparisons (if counts equal) + leaves aligned. Region ids `r1..` in opcode order (replace: MODIFIED, DELETED, INSERTED). Section fields from cand, or ref for DELETED. Leaf-level matcher uses autojunk=False; ratio pairing keeps the default (literal §9.4). No ADR needed.
 - Issues: code was written before the tests (not red-first). Page-move-only case has no regions (see Known issues).
 - Next: P1-09
+
+### 2026-09-20 — P1-09 Core hardening review
+- Done: audit (spec-guardian + review), 9 findings. Fixes: page-level Merkle prefix 0x03 (`page_node_hash`, `page_merkle_root`; `merkle_*` take a `node` keyword), `CANON_VERSION` 1 -> 2 (ADR-017); replace-pair ratio passes `autojunk=True` explicitly (ADR-018); stale `canon_version=1` fixture in test_types.py -> 2; 02 §4/§8/§9/§12 clarified, §13 extended. Tagged `v0.1-core` locally (not pushed).
+- Tests: pytest 299 passed (was 276 at P1-08); ruff, format clean; mypy clean and `mypy --strict proofchain_core` clean. Core coverage 98% (target >= 90%):
+  __init__ 100, __main__ 0 (CLI shim, covered only by a subprocess test), canonical 100, chunking 100, errors 100, extract 95, hashing 100, localize 100, merkle 94, sections 100, tree 91, types 100.
+- Findings coverage:
+  | # | Sev | Finding | Disposition | Pinned by |
+  |---|-----|---------|-------------|-----------|
+  | 1 | HIGH | text_root did not bind page boundaries | FIXED (ADR-017, canon v2); residual noted in 02 §13 | test_hashing/test_merkle/test_tree page-node tests |
+  | 2 | MED | replace-pair autojunk default collapses ratio on long chunks | autojunk=True explicit + ADR-018; §13 limitation | test_replace_pairing_uses_autojunk_default_known_limitation |
+  | 3 | MED | replace pairing quadratic (DoS on /verify) | DEFERRED: P6 service-layer guard (Follow-ups) | none (no core change) |
+  | 4 | LOW | normalize_text not idempotent (e+ZWJ+U+0301) | documented in §13 | test_not_idempotent_zwj_between_base_and_mark_known_limitation |
+  | 5 | LOW | lone surrogate -> raw UnicodeEncodeError in leaf_hash | pinned; service must map it | test_lone_surrogate_raises_unicode_encode_error_known_limitation |
+  | 6 | LOW | spill-over rule vs §9.3 wording (equal-count swaps stay on fast path) | pinned; wording-only | test_equal_count_swap_between_adjacent_pages_stays_on_fast_path |
+  | 7 | LOW | three silent spec ambiguities (hard-split index, body_size ties, hash_comparisons) | now in spec text + ADR-018; noted in §13 | existing chunking/sections/localize tests |
+  | 8 | LOW | extraction ignores off-page text, annotations, form fields, hidden layers | documented in §13 (file_hash still catches) | n/a |
+  | 9 | INFO | localize does not check canon_version match | DEFERRED: P6 service-layer guard (Follow-ups) | none |
+  Also from the spec-guardian re-run: stale test_types fixture fixed; §12 page-node note added; `verify_proof` internal-node-as-leaf overstatement and the unaudited §9/§2/§4/§8 sections logged as Follow-ups (no re-audit done).
+- Spec-guardian on §5-§7 after ADR-017: MATCH (hashing prefixes, page-level root, tree, CANON_VERSION 2 across code/docs/tests).
+- Decisions: ADR-017, ADR-018. v1 is not kept verifiable (pre-launch exception, no anchors exist).
+- Issues: __main__.py shows 0% because pytest-cov does not see the subprocess run; behaviour is tested. Tests for finding 2 pin a limitation, they do not fix it.
+- Next: P2-01

@@ -17,6 +17,9 @@ from proofchain_core import (
     build_integrity_tree,
     file_hash,
     merkle_root,
+    node_hash,
+    page_merkle_root,
+    page_node_hash,
 )
 from proofchain_core.tree import main
 from proofchain_core.types import IntegrityTree
@@ -34,6 +37,16 @@ def _pdf(pages: list[str | None]) -> bytes:
     return bytes(doc.tobytes())
 
 
+def _pdf_blocks(pages: list[list[str]]) -> bytes:
+    """One PDF page per entry; each string is a separate, well-spaced text block."""
+    doc = pymupdf.open()
+    for blocks in pages:
+        page = doc.new_page()
+        for i, text in enumerate(blocks):
+            page.insert_text((72, 72 + 120 * i), text)
+    return bytes(doc.tobytes())
+
+
 def _read(name: str) -> bytes:
     return (PDFS / name).read_bytes()
 
@@ -44,7 +57,7 @@ def _expected_roots(tree: IntegrityTree) -> tuple[list[str], str]:
         merkle_root([c.leaf_hash for c in p.chunks]) if p.chunks else EMPTY_PAGE_ROOT
         for p in tree.pages
     ]
-    return roots, merkle_root(roots)
+    return roots, page_merkle_root(roots)
 
 
 def test_deterministic_twice() -> None:
@@ -73,7 +86,7 @@ def test_file_hash_and_canon_version() -> None:
     data = _read("one_page.pdf")
     tree = build_integrity_tree(data)
     assert tree.file_hash == file_hash(data)
-    assert tree.canon_version == CANON_VERSION == 1
+    assert tree.canon_version == CANON_VERSION == 2
 
 
 def test_single_page_root_is_text_root() -> None:
@@ -110,7 +123,7 @@ def test_empty_page_uses_empty_root(layout: list[str | None]) -> None:
         EMPTY_PAGE_ROOT if t is None else merkle_root([c.leaf_hash for c in p.chunks])
         for t, p in zip(layout, tree.pages, strict=True)
     ]
-    assert tree.text_root == merkle_root(roots)
+    assert tree.text_root == page_merkle_root(roots)
 
 
 def test_blank_page_position_changes_text_root() -> None:
@@ -172,3 +185,30 @@ def test_package_entry_point_runs_clean() -> None:
 def test_cli_reports_bad_input(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([str(PDFS / "not_a_pdf.pdf")]) == 1
     assert capsys.readouterr().err
+
+
+BLOCKS = [f"Paragraph number {i} is long enough to be one chunk on its own." for i in range(4)]
+
+
+def test_pagination_changes_text_root_for_identical_chunk_sequence() -> None:
+    # ADR-017 regression: pages [a,b],[c,d] vs one page [a,b,c,d].
+    two_pages = build_integrity_tree(_pdf_blocks([BLOCKS[:2], BLOCKS[2:]]))
+    one_page = build_integrity_tree(_pdf_blocks([BLOCKS]))
+    chunks = lambda t: [c.text for p in t.pages for c in p.chunks]  # noqa: E731
+    assert chunks(two_pages) == chunks(one_page) == BLOCKS
+    assert two_pages.page_count == 2 and one_page.page_count == 1
+    assert two_pages.text_root != one_page.text_root
+
+
+def test_pagination_changes_text_root_odd_split() -> None:
+    # pages [a,b],[c] vs [a,b,c]
+    split = build_integrity_tree(_pdf_blocks([BLOCKS[:2], BLOCKS[2:3]]))
+    flat = build_integrity_tree(_pdf_blocks([BLOCKS[:3]]))
+    assert split.text_root != flat.text_root
+
+
+def test_text_root_uses_page_domain_for_multi_page() -> None:
+    tree = build_integrity_tree(_pdf_blocks([BLOCKS[:2], BLOCKS[2:]]))
+    a, b = (p.root for p in tree.pages)
+    assert tree.text_root == page_node_hash(a, b)
+    assert tree.text_root != node_hash(a, b)

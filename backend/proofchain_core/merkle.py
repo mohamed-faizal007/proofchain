@@ -1,11 +1,13 @@
 """Merkle tree over chunk hashes. Normative spec: docs/02_ALGORITHMS.md §6."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from proofchain_core.hashing import node_hash
+from proofchain_core.hashing import node_hash, page_node_hash
 
 Side = Literal["left", "right"]
+NodeFn = Callable[[str, str], str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,8 +28,11 @@ class ProofStep:
         return cls(sibling=d["sibling"], side=side)
 
 
-def merkle_levels(hashes: list[str]) -> list[list[str]]:
+def merkle_levels(hashes: list[str], *, node: NodeFn = node_hash) -> list[list[str]]:
     """Levels bottom-up (level 0 = leaves, last = [root]) (§6).
+
+    `node` combines two siblings: `node_hash` for chunk trees, `page_node_hash`
+    for the page-level tree (§7, ADR-017).
 
     Adjacent nodes pair left to right; an odd last node is promoted unchanged
     (never duplicated, which would allow CVE-2012-2459 mutation).
@@ -37,25 +42,30 @@ def merkle_levels(hashes: list[str]) -> list[list[str]]:
     levels = [list(hashes)]
     while len(levels[-1]) > 1:
         cur = levels[-1]
-        nxt = [node_hash(cur[i], cur[i + 1]) for i in range(0, len(cur) - 1, 2)]
+        nxt = [node(cur[i], cur[i + 1]) for i in range(0, len(cur) - 1, 2)]
         if len(cur) % 2:
             nxt.append(cur[-1])
         levels.append(nxt)
     return levels
 
 
-def merkle_root(hashes: list[str]) -> str:
+def merkle_root(hashes: list[str], *, node: NodeFn = node_hash) -> str:
     """Root of the tree; a single element is its own root (§6)."""
-    return merkle_levels(hashes)[-1][0]
+    return merkle_levels(hashes, node=node)[-1][0]
 
 
-def merkle_proof(hashes: list[str], i: int) -> list[ProofStep]:
+def page_merkle_root(page_roots: list[str]) -> str:
+    """text_root: Merkle root over page roots with the page-level prefix (§7, ADR-017)."""
+    return merkle_root(page_roots, node=page_node_hash)
+
+
+def merkle_proof(hashes: list[str], i: int, *, node: NodeFn = node_hash) -> list[ProofStep]:
     """Audit path for leaf `i`; promoted nodes contribute no step (§6)."""
     if not 0 <= i < len(hashes):
         raise IndexError(f"leaf index {i} out of range for {len(hashes)} leaves")
     proof: list[ProofStep] = []
     idx = i
-    for level in merkle_levels(hashes)[:-1]:
+    for level in merkle_levels(hashes, node=node)[:-1]:
         if idx % 2 == 0:
             if idx + 1 < len(level):
                 proof.append(ProofStep(sibling=level[idx + 1], side="right"))
@@ -65,15 +75,15 @@ def merkle_proof(hashes: list[str], i: int) -> list[ProofStep]:
     return proof
 
 
-def verify_proof(leaf: str, proof: list[ProofStep], root: str) -> bool:
+def verify_proof(leaf: str, proof: list[ProofStep], root: str, *, node: NodeFn = node_hash) -> bool:
     """Recompute the root from `leaf` along `proof` and compare (§6)."""
     cur = leaf
     try:
         for step in proof:
             if step.side == "right":
-                cur = node_hash(cur, step.sibling)
+                cur = node(cur, step.sibling)
             elif step.side == "left":
-                cur = node_hash(step.sibling, cur)
+                cur = node(step.sibling, cur)
             else:
                 return False
     except ValueError:
