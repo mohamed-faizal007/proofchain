@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from collections.abc import Awaitable
 from pathlib import Path
 from typing import Any, TypeVar
@@ -20,6 +21,15 @@ from app.errors import AnchorFailedError, ChainUnavailableError
 ABI_PATH = Path(__file__).parent / "abi" / "ProofChainRegistry.json"
 RECEIPT_TIMEOUT_SECONDS = 120.0
 _T = TypeVar("_T")
+logger = logging.getLogger(__name__)
+# web3 logs the full RPC URI (API key included) at DEBUG on every request.
+logging.getLogger("web3").setLevel(logging.WARNING)
+
+
+def _unavailable(exc: BaseException) -> ChainUnavailableError:
+    """Drop the cause on purpose: aiohttp errors embed the RPC URL, which may hold an API key."""
+    logger.warning("chain RPC unavailable: %s", type(exc).__name__)
+    return ChainUnavailableError("Blockchain node unreachable or timed out")
 
 
 class Web3RegistryClient:
@@ -157,9 +167,9 @@ class Web3RegistryClient:
             )
             await self._wait_confirmations(int(receipt["blockNumber"]))
         except ContractLogicError as exc:
-            raise AnchorFailedError(f"Contract rejected the transaction: {exc}") from exc
+            raise AnchorFailedError("Contract rejected the transaction") from exc
         except (OSError, ClientError, TimeoutError) as exc:
-            raise ChainUnavailableError("Blockchain node unreachable or timed out") from exc
+            raise _unavailable(exc) from None
         if receipt["status"] != 1:
             raise AnchorFailedError("Transaction reverted")
         return receipt
@@ -174,4 +184,4 @@ class Web3RegistryClient:
         try:
             return await call
         except (OSError, ClientError, TimeoutError) as exc:
-            raise ChainUnavailableError("Blockchain node unreachable or timed out") from exc
+            raise _unavailable(exc) from None
