@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import router as v1_router
-from app.config import Settings, get_settings
+from app.config import DEFAULT_JWT_SECRET, Settings, get_settings
 from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
 from app.logging import configure_logging, request_id_var
@@ -61,6 +61,17 @@ async def _http_error_handler(_: Request, exc: Exception) -> Response:
     return _with_request_id(_envelope(exc.status_code, code, str(exc.detail)))
 
 
+def warn_if_default_jwt_secret(settings: Settings) -> None:
+    """Safety net for a forgotten APP_ENV=prod: prod itself rejects the default secret."""
+    if settings.app_env != "prod" and settings.jwt_secret == DEFAULT_JWT_SECRET:
+        logger.warning(
+            "JWT_SECRET is still the public default while APP_ENV=%s: anyone can forge tokens "
+            "(including ADMIN). Fine for local dev only; on a real deployment set JWT_SECRET "
+            "and APP_ENV=prod.",
+            settings.app_env,
+        )
+
+
 def create_app(
     settings: Settings | None = None,
     db: MongoDatabase | None = None,
@@ -72,6 +83,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if settings.app_env != "test":
+            warn_if_default_jwt_secret(settings)
         client = None
         if db is None:
             client = create_client(settings)
