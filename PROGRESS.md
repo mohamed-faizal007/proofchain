@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P4 in progress (P4-01 done)
-- Next task: P4-02
+- Phase: P4 in progress (P4-01, P4-02 done)
+- Next task: P4-03
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -288,3 +288,10 @@
 - Review: `code-reviewer` found no HIGH/MEDIUM. LOW items handled: 3 extra tests and a NatSpec note on `reason`. Left as is: duplicate hashes and `canonVersion == 0` are accepted.
 - Issues: RECORD_MISMATCH should also compare on-chain `revoked` (see Follow-ups, for P6).
 - Next: P4-02 (deploy script writes deployments JSON and the backend ABI)
+
+### 2026-09-25 — P4-02 Deploy script + ABI export
+- Done: `contracts/scripts/deploy.ts` (thin CLI) + `scripts/lib/deploy-lib.ts` (`deployRegistry`): admin = deployer, anchorer = `ANCHOR_ADDRESS` (default deployer); writes `contracts/deployments/<network>.json` and the bare ABI array to `backend/app/chain/abi/ProofChainRegistry.json` (committed); prints `REGISTRY_ADDRESS=`. `deploy:local` npm script, `ANCHOR_ADDRESS` in `.env.example`.
+- Tests: `test/deploy.test.ts` (6): default and explicit anchorer roles, record fields + code at address, ABI equals artifact, byte-identical re-runs, malformed `ANCHOR_ADDRESS` rejected before any tx. Contracts 31 passed, tsc clean. Manual: real `hardhat node` + `deploy --network localhost` gave 0x5FbD...0aa3 (block 1); localhost.json and 26-entry ABI verified.
+- Decisions: in-process `hardhat` network writes no files unless output paths are passed; `deployments/localhost.json` and `hardhat.json` are gitignored (sepolia.json will be committed in P10-02). No ADR.
+- Issues: none. Backend untouched.
+- Next: P4-03 (also must reject empty `anchor_private_key` in prod, see Known issues)

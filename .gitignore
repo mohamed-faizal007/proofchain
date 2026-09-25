@@ -16,6 +16,8 @@ coverage/
 contracts/artifacts/
 contracts/cache/
 contracts/typechain-types/
+contracts/deployments/localhost.json
+contracts/deployments/hardhat.json
 # Env / secrets
 .env
 .env.*

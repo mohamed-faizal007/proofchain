@@ -107,7 +107,7 @@ Deps: P3-02 · Do: `python -m app.scripts.seed` creates demo users (idempotent).
 ## P4 — Smart contract & chain client
 ### [x] P4-01 ProofChainRegistry.sol + tests
 Deps: P0-04 · Refs: 05 · Accept: all tests in 05 pass; gas report printed; run `code-reviewer` subagent on contract.
-### [ ] P4-02 Deploy script + ABI export
+### [x] P4-02 Deploy script + ABI export
 Deps: P4-01 · Refs: 05 Deployment · Accept: local deploy writes deployments/localhost.json and backend ABI.
 ### [ ] P4-03 RegistryClient (Fake + Web3)
 Deps: P4-02, P0-03 · Refs: 05 Backend client · Accept: fake unit-tested; `@pytest.mark.chain` test anchors & reads on local node.
