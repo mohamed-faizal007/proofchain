@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from app.chain import RegistryClient
 from proofchain_core import CANON_VERSION
 
 DEFAULT_TIMEOUT_SECONDS = 2.0
@@ -17,7 +18,7 @@ class HealthReport(BaseModel):
     status: Literal["ok", "degraded"]
     mongo: Probe
     s3: Probe
-    chain: Literal["not_configured"]
+    chain: Literal["ok", "down", "not_configured"]
     nlp: Literal["not_configured"]
     canon_version: int
 
@@ -33,23 +34,35 @@ async def _probe(check: Callable[[], Awaitable[bool]] | None, timeout: float) ->
     return "ok" if ok else "down"
 
 
+async def _not_configured() -> Literal["not_configured"]:
+    return "not_configured"
+
+
 async def check_health(
-    db: Any | None, storage: Any | None, timeout: float = DEFAULT_TIMEOUT_SECONDS
+    db: Any | None,
+    storage: Any | None,
+    chain: RegistryClient | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> HealthReport:
     async def ping_mongo() -> bool:
         assert db is not None
         await db.command("ping")
         return True
 
-    mongo, s3 = await asyncio.gather(
+    async def check_chain() -> bool:
+        assert chain is not None
+        return (await chain.health()).ok
+
+    mongo, s3, chain_probe = await asyncio.gather(
         _probe(ping_mongo if db is not None else None, timeout),
         _probe(storage.head_bucket if storage is not None else None, timeout),
+        _probe(check_chain, timeout) if chain is not None else _not_configured(),
     )
     return HealthReport(
-        status="ok" if mongo == "ok" and s3 == "ok" else "degraded",
+        status="ok" if mongo == "ok" and s3 == "ok" and chain_probe != "down" else "degraded",
         mongo=mongo,
         s3=s3,
-        chain="not_configured",  # P4 (chain client)
+        chain=chain_probe,
         nlp="not_configured",  # P7 (NLP pipeline)
         canon_version=CANON_VERSION,
     )

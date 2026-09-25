@@ -50,13 +50,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _reject_insecure_prod(self) -> "Settings":
-        # anchor_private_key is checked in P4-03, not here (see TASKS.md).
-        if self.app_env == "prod" and (
-            self.jwt_secret == DEFAULT_JWT_SECRET or len(self.jwt_secret) < MIN_PROD_JWT_SECRET_LEN
-        ):
+        if self.app_env != "prod":
+            return self
+        if self.jwt_secret == DEFAULT_JWT_SECRET or len(self.jwt_secret) < MIN_PROD_JWT_SECRET_LEN:
             raise ValueError(
                 f"JWT_SECRET must be a random value of >= {MIN_PROD_JWT_SECRET_LEN} chars in prod"
             )
+        if not self.anchor_private_key.strip():
+            raise ValueError("ANCHOR_PRIVATE_KEY must be set in prod")
+        if not self.registry_address.strip():
+            raise ValueError("REGISTRY_ADDRESS must be set in prod")
         return self
 
     @property

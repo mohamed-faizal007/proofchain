@@ -5,9 +5,10 @@ from collections.abc import Awaitable, Callable
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.chain import RegistryClient
 from app.config import Settings
 from app.db import MongoDatabase
-from app.errors import ForbiddenError, UnauthorizedError
+from app.errors import ChainUnavailableError, ForbiddenError, UnauthorizedError
 from app.models.user import Role, User
 from app.repositories.documents import DocumentRepository
 from app.repositories.events import EventRepository
@@ -54,6 +55,13 @@ def get_verification_repo(request: Request) -> VerificationRepository:
 def get_storage(request: Request) -> S3Storage:
     storage: S3Storage = request.app.state.storage
     return storage
+
+
+def get_registry_client(request: Request) -> RegistryClient:
+    client: RegistryClient | None = getattr(request.app.state, "registry_client", None)
+    if client is None:
+        raise ChainUnavailableError("Blockchain registry is not configured")
+    return client
 
 
 def get_app_settings(request: Request) -> Settings:

@@ -14,6 +14,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import router as v1_router
+from app.chain import RegistryClient
+from app.chain.web3_client import Web3RegistryClient
 from app.config import DEFAULT_JWT_SECRET, Settings, get_settings
 from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
@@ -72,12 +74,20 @@ def warn_if_default_jwt_secret(settings: Settings) -> None:
         )
 
 
+def _registry_from_settings(settings: Settings) -> RegistryClient | None:
+    if not (settings.registry_address.strip() and settings.anchor_private_key.strip()):
+        logger.warning("REGISTRY_ADDRESS/ANCHOR_PRIVATE_KEY not set: chain features are disabled")
+        return None
+    return Web3RegistryClient.from_settings(settings)
+
+
 def create_app(
     settings: Settings | None = None,
     db: MongoDatabase | None = None,
     storage: S3Storage | None = None,
+    registry_client: RegistryClient | None = None,
 ) -> FastAPI:
-    """Build the app. `db`/`storage` inject test doubles; otherwise the lifespan builds them."""
+    """Build the app. `db`, `storage`, `registry_client` inject test doubles."""
     settings = settings or get_settings()
     configure_logging()
 
@@ -92,10 +102,13 @@ def create_app(
         else:
             app.state.db = db
         app.state.storage = storage or S3Storage.from_settings(settings)
+        app.state.registry_client = registry_client or _registry_from_settings(settings)
         try:
             await ensure_indexes(app.state.db)
             yield
         finally:
+            if app.state.registry_client is not None:
+                await app.state.registry_client.aclose()
             if client is not None:
                 client.close()
 

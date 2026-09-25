@@ -9,6 +9,7 @@ from fastapi import Depends
 from fastapi.testclient import TestClient
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.chain import FakeRegistryClient
 from app.config import Settings
 from app.deps import require_roles
 from app.main import create_app
@@ -26,11 +27,18 @@ SECRET = "test-secret-" + "x" * 32
 
 
 def _settings(env: str = "test") -> Settings:
-    return Settings(app_env=env, jwt_secret=SECRET)  # type: ignore[arg-type]
+    return Settings(  # type: ignore[arg-type]
+        app_env=env,
+        jwt_secret=SECRET,
+        anchor_private_key="0x" + "1" * 64,
+        registry_address="0x" + "2" * 40,
+    )
 
 
 def _make_client(db: AsyncIOMotorDatabase, env: str = "test") -> Iterator[TestClient]:
-    app = create_app(_settings(env), db=db, storage=object())  # type: ignore[arg-type]
+    app = create_app(  # type: ignore[arg-type]
+        _settings(env), db=db, storage=object(), registry_client=FakeRegistryClient()
+    )
 
     @app.get("/_guard")
     async def guard(user: User = Depends(_ISSUER_OR_APPROVER)) -> dict[str, str]:

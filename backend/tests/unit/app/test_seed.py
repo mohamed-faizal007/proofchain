@@ -21,7 +21,13 @@ ADMIN_EMAIL = "admin@proofchain.local"
 
 
 def _settings(env: str = "test", **kw: Any) -> Settings:
-    return Settings(app_env=env, jwt_secret=SECRET, **kw)  # type: ignore[arg-type]
+    return Settings(  # type: ignore[arg-type]
+        app_env=env,
+        jwt_secret=SECRET,
+        anchor_private_key="0x" + "1" * 64,
+        registry_address="0x" + "2" * 40,
+        **kw,
+    )
 
 
 def _auth(repo: UserRepository) -> AuthService:

@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P4 in progress (P4-01, P4-02 done)
-- Next task: P4-03
+- Phase: P4 tasks done (P4-01..03), phase review pending
+- Next task: P4 phase review, then P5-01
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -14,7 +14,7 @@
 - P0 review (2026-09-19), no HIGH findings. MEDIUM:
   - config.py prod validation was one finding with two halves, now split:
     - DONE (P3-01): default or <32-char `jwt_secret` rejected when app_env=prod.
-    - OPEN, re-assigned to P4-03: empty `anchor_private_key` is still NOT rejected when app_env=prod (pinned by `test_prod_does_not_yet_check_anchor_key`; flip that test when fixing).
+    - DONE (P4-03): empty `anchor_private_key` (and `registry_address`) rejected when app_env=prod.
   - Other deps still use >= with no lockfile (only PyMuPDF is pinned).
 - P0 review LOW: structlog unused; ci.yml lacks `permissions: contents: read` (pytest exit-5 tolerance removed after P1-02);
   X-Request-ID accepted unvalidated; 422 handler echoes pydantic `input` (FIXED in P3-02); http handler maps only 401/403/404/405 (no 413 FILE_TOO_LARGE);
@@ -295,3 +295,10 @@
 - Decisions: in-process `hardhat` network writes no files unless output paths are passed; `deployments/localhost.json` and `hardhat.json` are gitignored (sepolia.json will be committed in P10-02). No ADR.
 - Issues: none. Backend untouched.
 - Next: P4-03 (also must reject empty `anchor_private_key` in prod, see Known issues)
+
+### 2026-09-25 � P4-03 RegistryClient (Fake + Web3)
+- Done: `app/chain/` (`RegistryClient` Protocol, `FakeRegistryClient`, `Web3RegistryClient` on AsyncWeb3 with EIP-1559, nonce lock, confirmations, `VersionAnchored` parsing, `hexutil`, `types`); `get_registry_client` dep (503 if unconfigured), lifespan builds and closes the client; `GET /health` now reports `chain` ok/down/not_configured (concurrent, timeout-bounded, no exception text); prod config rejects empty `ANCHOR_PRIVATE_KEY` and `REGISTRY_ADDRESS`.
+- Tests: `tests/unit/chain/` (hex, fake client, shared idempotency rule, dep wiring), 6 new health tests, config tests; `-m chain` `test_chain_web3.py` (4) passed on a real Hardhat node. 529 passed, ruff/mypy clean.
+- Decisions: idempotency skips the tx only if the latest version matches fileHash+textRoot AND is not revoked (else anchors fresh); skipped anchor returns `already_anchored=True, tx_hash=None`; provider retries disabled so a down node fails fast (retries belong to P5-04); `chain: not_configured` does not degrade `status`. Noted in docs/04 and 05. No ADR.
+- Issues: none. `aclose()` added to the Protocol to avoid leaking the HTTP session.
+- Next: P4 phase review, then P5-01

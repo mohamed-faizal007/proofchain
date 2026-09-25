@@ -80,3 +80,14 @@ async def health() -> ChainHealth
   (single asyncio lock), waits `CHAIN_CONFIRMATIONS`; parses `VersionAnchored` log to get `versionNo`.
 - Idempotency: before sending, if `versionCount` > known and latest version's fileHash equals ours, treat as already anchored.
 - Hex conversion lives only here: Python hex ↔ `bytes32`.
+
+Implementation details (P4-03):
+- Idempotency rule (`is_already_anchored`, shared by both clients): skip the tx only when the **latest** on-chain
+  version has the same `fileHash` and `textRoot` **and is not revoked**. Otherwise a new version is anchored, so
+  re-anchoring identical content after a revoke yields a fresh valid version. A skipped anchor returns
+  `AnchorReceipt(already_anchored=True, tx_hash=None)`.
+- `docId` arguments are the 64-char lowercase hex `chain_doc_id`; `tx_hash` values are `0x`-prefixed.
+- `OnChainVersion` exposes `revoked` (needed by the P6 cross-check). `get_version` returns `None` when out of range.
+- Reverts map to `AnchorFailedError`; unreachable node or timeout maps to `ChainUnavailableError`.
+- `aclose()` releases the HTTP session; the app lifespan calls it.
+- Prod config requires non-empty `ANCHOR_PRIVATE_KEY` and `REGISTRY_ADDRESS`.

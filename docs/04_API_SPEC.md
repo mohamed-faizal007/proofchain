@@ -69,7 +69,7 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 |---|---|---|---|
 | GET | /chain/status | any | `{chain_id, contract, latest_block, anchor_account, balance_eth}` |
 
-`/health`: `canon_version` is an integer (the `CANON_VERSION` constant of `proofchain_core`). `mongo`/`s3` are `"ok"` or `"down"`; `chain`/`nlp` are `"not_configured"` until implemented; `status` is `"ok"` or `"degraded"` and the HTTP status stays 200.
+`/health`: `canon_version` is an integer (the `CANON_VERSION` constant of `proofchain_core`). `mongo`/`s3` are `"ok"` or `"down"`; `chain` is `"ok"`/`"down"` from the registry client's `health()` (checked concurrently with a per-probe timeout, no exception text) or `"not_configured"` when no registry client is configured, which does not degrade `status`; `nlp` is `"not_configured"` until implemented; `status` is `"ok"` or `"degraded"` and the HTTP status stays 200.
 
 ## Error codes (non-exhaustive)
 `INVALID_PDF, ENCRYPTED_PDF, NO_EXTRACTABLE_TEXT, FILE_TOO_LARGE, NOT_FOUND, FORBIDDEN, SELF_APPROVAL_FORBIDDEN,

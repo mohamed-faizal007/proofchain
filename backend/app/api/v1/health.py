@@ -12,5 +12,6 @@ async def health(request: Request) -> HealthReport:
     return await check_health(
         getattr(state, "db", None),
         getattr(state, "storage", None),
-        getattr(state, "health_timeout_seconds", DEFAULT_TIMEOUT_SECONDS),
+        getattr(state, "registry_client", None),
+        timeout=getattr(state, "health_timeout_seconds", DEFAULT_TIMEOUT_SECONDS),
     )
