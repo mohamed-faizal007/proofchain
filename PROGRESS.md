@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P3 complete (reviewed 2026-09-25)
-- Next task: P4-01
+- Phase: P4 in progress (P4-01 done)
+- Next task: P4-02
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -75,6 +75,9 @@
   - **P6 service-layer guard (finding 9, INFO):** `localize` does not check `ref.canon_version == cand.canon_version`. The service must compare trees built under the same version (or rebuild the reference under the candidate's rules) before calling it.
   - `verify_proof` (merkle.py) still accepts an internal node presented as a leaf with a truncated proof inside one chunk-level tree (`verify_proof(node_hash(a,b), proof[1:], root)` is True). Not exploitable today (proofs are built from stored leaves); if proofs are ever exposed to third parties, verify from chunk text and check proof length against the leaf count. 02 §5 / ADR-005 slightly overstate the protection.
   - Not re-audited in P1-09 (only spot-checked by spec-guardian): 02 §9 steps 3 and 5, and §2, §4, §8 in full. Schedule a future review pass.
+
+- **P6 verification: compare on-chain `revoked` in the RECORD_MISMATCH check (found in P4-01 design discussion, MEDIUM):**
+  02 §11 decides authorization from Mongo only (`status == APPROVED and not revoked`), and its chain cross-check compares only `(fileHash, textRoot)`. If Mongo and chain disagree on revocation (chain revoked but Mongo still APPROVED, or the reverse, e.g. after the non-atomic P5-05 revoke write fails halfway), verification cannot detect it. Fix in P6: extend the cross-check to compare the on-chain `revoked` flag (`OnChainVersion` must expose it) against Mongo `status == REVOKED`, yielding `RECORD_MISMATCH` on divergence. Needs a 02 §11 spec edit (ADR) plus a test in each direction. Related context, deliberate in P4-01: revocation is audit-preserving. A revoked version stays readable on-chain, and a later version's `prevTextRoot` still points at the revoked version's `textRoot` (test "keeps the hash chain intact when anchoring after a revoke"). Nothing in verification or localization walks `prevTextRoot` (it is an audit field), and revoked versions are excluded as reference baselines (02 §10) and as authentic matches (02 §11), so a revoked version's data is not trusted going forward.
 
 ## History summary
 - (empty)
@@ -276,3 +279,12 @@
 - Real Mongo (mongo:7) checked by hand: create path on a throwaway DB (3 "created", roles correct, admin login OK, DB dropped) and repair path on `proofchain` (idempotent, 3 users).
 - Issues: `set_roles` does not itself block restoring ADMIN; in a real lockout the API path is unusable because no active ADMIN can authenticate, hence the seed.
 - Next: P3 phase review, then P4-01
+
+### 2026-09-25 — P4-01 ProofChainRegistry.sol + tests
+- Done: `contracts/contracts/ProofChainRegistry.sol` per 05 (AccessControl, custom errors, event per state change); removed Placeholder.sol and the smoke test. docs/05 gained an "Implementation details" note.
+- Tests: `ProofChainRegistry.test.ts` (25): v1/v2 linkage, event args and timestamps, role checks (incl. admin grant/revoke, anchorer cannot grant), zero-hash and zero-address reverts, out-of-range versions, revoke and double revoke, findByFileHash hit/miss/duplicate/revoked, and v1 -> v2 -> revoke v2 -> v3 keeping `prevTextRoot` = v2 root. tsc clean.
+- Gas (optimizer 200 runs): anchorVersion ~120-126k, revokeVersion ~36k, deploy 869k (1.4% of block limit). findByFileHash is a linear scan (view).
+- Decisions: `ZeroAddress` constructor error; `latestVersion` on empty doc reverts `VersionNotFound(docId, 0)`; findByFileHash returns the newest match; revocation is audit-preserving (revoked versions stay readable, later `prevTextRoot` still links to them); `revokedAt` is event-only. No ADR (05 is not the normative canon spec; no CANON_VERSION impact).
+- Review: `code-reviewer` found no HIGH/MEDIUM. LOW items handled: 3 extra tests and a NatSpec note on `reason`. Left as is: duplicate hashes and `canonVersion == 0` are accepted.
+- Issues: RECORD_MISMATCH should also compare on-chain `revoked` (see Follow-ups, for P6).
+- Next: P4-02 (deploy script writes deployments JSON and the backend ABI)

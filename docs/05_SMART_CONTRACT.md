@@ -45,6 +45,15 @@ contract ProofChainRegistry is AccessControl {
 Rules: reject zero `docId/fileHash/textRoot`; `versionNo` is 1-based; revoke cannot be undone;
 `findByFileHash` is a linear scan (fine for tens of versions — note in report).
 
+Implementation details (P4-01):
+- The constructor also reverts `ZeroAddress()` for a zero `admin` or `anchorer` (error added beyond the sketch above).
+- `latestVersion` on a doc with no versions reverts `VersionNotFound(docId, 0)`.
+- `findByFileHash` scans newest to oldest and returns the latest matching version.
+- Revocation is audit-preserving, not a deletion: a revoked version stays readable (`revoked = true`) and is still
+  returned by `getVersion` / `findByFileHash`; callers must check the flag. Anchoring after a revoke is allowed and
+  `prevTextRoot` still points at the previous version's `textRoot` even if that version is revoked.
+  `revokedAt` exists only in the `VersionRevoked` event (the struct has no field for it).
+
 ## Required tests (`contracts/test/ProofChainRegistry.test.ts`)
 anchor v1/v2 & prevTextRoot linkage · event args · only ANCHOR_ROLE (revert with `AccessControlUnauthorizedAccount`) ·
 zero-hash reverts · getVersion out of range reverts · revoke + double revoke · findByFileHash hit/miss ·
