@@ -80,6 +80,17 @@ class S3Storage:
             raise StorageError(f"failed to store object {key}") from exc
         return StoredObject(key=key, version_id=resp.get("VersionId"), size_bytes=len(data))
 
+    async def delete(self, key: str, version_id: str | None = None) -> None:
+        """Delete one object version (rollback of a failed upload); no-op if already gone."""
+        try:
+            await self._run(
+                partial(
+                    self._client.delete_object, Bucket=self._bucket, Key=key, **_version(version_id)
+                )
+            )
+        except (ClientError, BotoCoreError) as exc:
+            raise StorageError(f"failed to delete object {key}") from exc
+
     async def get(self, key: str, version_id: str | None = None) -> bytes:
         def read() -> bytes:
             resp = self._client.get_object(Bucket=self._bucket, Key=key, **_version(version_id))

@@ -69,6 +69,20 @@ async def test_overwrite_creates_new_version_and_old_version_readable(storage: S
     assert await storage.get("k.pdf") == b"two"
 
 
+async def test_delete_version_removes_only_that_version_and_is_idempotent(
+    storage: S3Storage,
+) -> None:
+    v1 = await storage.put("k.pdf", b"one")
+    v2 = await storage.put("k.pdf", b"two")
+    await storage.delete("k.pdf", version_id=v2.version_id)
+    await storage.delete("k.pdf", version_id=v2.version_id)  # already gone: no error
+    assert await storage.get("k.pdf") == b"one"
+    only = await storage.put("only.pdf", b"x")
+    await storage.delete("only.pdf", version_id=only.version_id)
+    assert await storage.head("only.pdf") is None
+    assert v1.version_id is not None
+
+
 async def test_head_existing_and_missing(storage: S3Storage) -> None:
     put = await storage.put("k.pdf", b"abc")
     head = await storage.head("k.pdf")

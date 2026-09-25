@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P4 tasks done (P4-01..03), phase review pending
-- Next task: P4 phase review, then P5-01
+- Phase: P5 in progress (P5-01 done)
+- Next task: P5-02 Submit revision
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -52,6 +52,13 @@
   - Prod guard does not check `chain_rpc_url` / `chain_id` (defaults 127.0.0.1:8545 / 31337 pass), and `anchor_private_key` is a plain `str` (visible in `repr(settings)` / validation errors). Consider `SecretStr` and rejecting chain 31337 / localhost RPC in prod (P10-02).
   - CORRECTED (measured, not read from file names; the reviewer never opened `tests/unit/chain/`): the claim "no node-free unit tests" was wrong. Node-free suite covers `web3_client.py` at 61% (65 of 106 lines): constructor (ABI load, key and address validation), `_rpc`/`_send` connectivity mapping (HTTP 401, dead port), `ContractLogicError` mapping, secret-leak checks, `version_count`, `aclose`, and `health()` failure path, via `test_web3_error_mapping.py` and `test_health.py`; the shared idempotency rule, hex conversion and Fake client are at 100%. Still NOT covered node-free (only by `-m chain`, which the default run skips): `anchor_version` orchestration (idempotent-skip wiring, `VersionAnchored` parsing and the missing-event error), `get_version` bounds, `_read_version` struct decoding, the `_send` happy path and `status != 1`, `_wait_confirmations`, health success and wrong `chain_id`, and `from_settings`. Add stubbed-AsyncWeb3 tests for those in P5-04 (`tests/unit/chain/`).
 - P4 review LOW: `request_kwargs={"timeout": float}` may not be enforced by aiohttp (use `ClientTimeout`; verify); no gas buffer and `baseFeePerGas` defaults to 0 on non-1559 chains; idempotency ignores `canon_version` (state in 05 if intended); Fake vs real diverge (canon_version range, `anchored_at` is a block counter, never raises `ChainUnavailableError`); `main.py` lifespan: if `registry_client.aclose()` raises, the Mongo client is not closed (use nested try/finally), and a half-set REGISTRY_ADDRESS/ANCHOR_PRIVATE_KEY only logs a generic warning; health does not check ANCHOR_ROLE or balance, and `/chain/status` (04) is not implemented (confirm scope); confirmations wait does not re-verify the receipt after a reorg (fine locally, note for sepolia).
+
+- P5-01 known limits (registration rollback, `DocumentService.register`):
+  - Events are append-only, so if `REVISION_SUBMITTED` fails after `DOCUMENT_CREATED` was written, the rows and S3 object are rolled back but the first event stays, pointing at a deleted document. Logged (ids only); pinned by `test_event_2_failure_leaves_a_logged_orphan_event`. The real fix is the atomic write / reconcile check the P2 review asks for in the P5 services.
+  - A `DOCUMENT_CREATED` append that commits and then raises is not counted as written (no orphan-event log line). Rolled-back rows are still removed.
+  - Rollback is `except Exception`, so a cancelled request (client disconnect, `CancelledError`) can leave orphans; and a rollback step that itself fails leaves orphans that are only logged (`registration rollback incomplete, orphaned resources: ...`). A reconciler for orphaned S3 keys / rows does not exist yet.
+  - The 12 MB tree-size guard with S3 fallback (03 line 50) is still not implemented; a very large PDF could exceed Mongo's 16 MB document limit and would then fail at the tree upsert (rolled back, 500). Decide before P6 or drop from 03.
+  - `logger.exception("unhandled exception")` in the request-id middleware logs `str(exc)` via the traceback, so any raw web3/aiohttp exception that escapes a service would log an RPC URL / API key. Chain errors are mapped in P5-04; consider redacting in the log formatter in P10-01.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
@@ -304,9 +311,16 @@
 - Issues: none. Backend untouched.
 - Next: P4-03 (also must reject empty `anchor_private_key` in prod, see Known issues)
 
-### 2026-09-25 � P4-03 RegistryClient (Fake + Web3)
+### 2026-09-25 � P4-03 RegistryClient (Fake + Web3)
 - Done: `app/chain/` (`RegistryClient` Protocol, `FakeRegistryClient`, `Web3RegistryClient` on AsyncWeb3 with EIP-1559, nonce lock, confirmations, `VersionAnchored` parsing, `hexutil`, `types`); `get_registry_client` dep (503 if unconfigured), lifespan builds and closes the client; `GET /health` now reports `chain` ok/down/not_configured (concurrent, timeout-bounded, no exception text); prod config rejects empty `ANCHOR_PRIVATE_KEY` and `REGISTRY_ADDRESS`.
 - Tests: `tests/unit/chain/` (hex, fake client, shared idempotency rule, dep wiring), 6 new health tests, config tests; `-m chain` `test_chain_web3.py` (4) passed on a real Hardhat node. 529 passed, ruff/mypy clean.
 - Decisions: idempotency skips the tx only if the latest version matches fileHash+textRoot AND is not revoked (else anchors fresh); skipped anchor returns `already_anchored=True, tx_hash=None`; provider retries disabled so a down node fails fast (retries belong to P5-04); `chain: not_configured` does not degrade `status`. Noted in docs/04 and 05. No ADR.
 - Issues: none. `aclose()` added to the Protocol to avoid leaking the HTTP session.
 - Next: P4 phase review, then P5-01
+
+### 2026-09-25 — P5-01 Document registration service + route
+- Done: `POST /api/v1/documents` (ISSUER only, multipart `file`, `title`, `doc_type`, `change_note?`) returning 201 `{document, revision}`. `DocumentService.register` validates title/note/size/PDF header, builds the tree in a worker thread (core errors mapped to `INVALID_PDF`/`ENCRYPTED_PDF`/`NO_EXTRACTABLE_TEXT`), then writes S3 -> document -> revision -> tree -> `DOCUMENT_CREATED` -> `REVISION_SUBMITTED`, with best-effort reverse rollback of S3/tree/revision/document on any failure. New: `S3Storage.delete`, `tree_mapping.tree_to_doc`, `schemas/documents.py` DTOs (S3 key not exposed), `get_document_service` dep.
+- Tests: `test_documents_register.py` (16: happy path vs direct core call, S3/DB/events persisted and event chain valid, authz 401/403, all 422/413 cases, filename path stripped); `test_documents_register_faults.py` (failure at each of 6 steps; DB write that commits then raises; failure of the rollback itself for every step x every rollback step, and all rollback steps at once: original error is what the caller sees, every registered undo step still attempted, log has class names and ids only, no exception text in body or service log); storage delete test. Mutation check: disabling the rollback call fails 34 of 40 fault tests. 587 passed, ruff/mypy clean.
+- Decisions: DB undo steps are registered before their write (a write that commits then raises is still cleaned up); S3 put is registered after success (needs the version id to delete that exact version). Uses the existing catch-all in the request-id middleware for 500s, no new handler. No ADR.
+- Issues: see Known issues "P5-01 known limits".
+- Next: P5-02 Submit revision

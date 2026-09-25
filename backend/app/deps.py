@@ -18,6 +18,7 @@ from app.repositories.users import UserRepository
 from app.repositories.verifications import VerificationRepository
 from app.security.jwt import decode_access_token
 from app.services.auth import AuthService
+from app.services.documents import DocumentService
 from app.storage import S3Storage
 
 _bearer = HTTPBearer(auto_error=False)
@@ -74,6 +75,19 @@ def get_auth_service(
     settings: Settings = Depends(get_app_settings),
 ) -> AuthService:
     return AuthService(users, settings)
+
+
+def get_document_service(
+    documents: DocumentRepository = Depends(get_document_repo),
+    revisions: RevisionRepository = Depends(get_revision_repo),
+    trees: TreeRepository = Depends(get_tree_repo),
+    events: EventRepository = Depends(get_event_repo),
+    storage: S3Storage = Depends(get_storage),
+    settings: Settings = Depends(get_app_settings),
+) -> DocumentService:
+    return DocumentService(
+        documents, revisions, trees, events, storage, settings.max_upload_mb * 1024 * 1024
+    )
 
 
 async def get_optional_user(
