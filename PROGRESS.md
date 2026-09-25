@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P5 in progress (P5-01 done)
-- Next task: P5-02 Submit revision
+- Phase: P5 in progress (P5-01, P5-02 done)
+- Next task: P5-03 Approve/reject + provenance events
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -59,6 +59,14 @@
   - Rollback is `except Exception`, so a cancelled request (client disconnect, `CancelledError`) can leave orphans; and a rollback step that itself fails leaves orphans that are only logged (`registration rollback incomplete, orphaned resources: ...`). A reconciler for orphaned S3 keys / rows does not exist yet.
   - The 12 MB tree-size guard with S3 fallback (03 line 50) is still not implemented; a very large PDF could exceed Mongo's 16 MB document limit and would then fail at the tree upsert (rolled back, 500). Decide before P6 or drop from 03.
   - `logger.exception("unhandled exception")` in the request-id middleware logs `str(exc)` via the traceback, so any raw web3/aiohttp exception that escapes a service would log an RPC URL / API key. Chain errors are mapped in P5-04; consider redacting in the log formatter in P10-01.
+
+- P5-02 interpretation choices and limits (revision submission, `DocumentService.submit_revision`):
+  - **Owner-only submit is an interpretation, not spec.** 04 says only `ISSUER` for `POST /documents/{id}/revisions`; the code also requires `submitter == document.owner_id` (403 otherwise). Revisit if a shared-team workflow is ever needed (e.g. a per-document ISSUER allow-list).
+  - `change_note` is required on submit (04 lists it without `?`, unlike registration); blank is 422 VALIDATION_ERROR.
+  - The PENDING check is scoped to `(document_id, status=PENDING)`; pinned by `test_pending_revision_on_another_document_never_blocks` and the other-owner variant. The parent is the latest APPROVED revision (not the latest revision); NO_CONTENT_CHANGE compares `text_root` only when `canon_version` matches, and is skipped when no revision is approved yet.
+  - Races: two submits that both pass the pending check compute the same `revision_no`; the unique `(document_id, revision_no)` index rejects the loser, mapped to 409 PENDING_REVISION_EXISTS and rolled back (`test_racing_submit_loses_...`).
+  - Counter: `bump_revision_count` is one atomic `$inc` (100 concurrent bumps verified on mongo:7). Its compensating -1 is registered only after the `$inc` returned, so an increment that commits but loses its ack leaves `revision_count` one too high (logged nowhere, pinned by `test_write_that_commits_then_raises_is_rolled_back[counter]`). Same append-only-event orphan limit as P5-01 if the event append commits then raises.
+  - The 12 MB tree-size guard (see P5-01 limits) is still undecided.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
@@ -324,3 +332,10 @@
 - Decisions: DB undo steps are registered before their write (a write that commits then raises is still cleaned up); S3 put is registered after success (needs the version id to delete that exact version). Uses the existing catch-all in the request-id middleware for 500s, no new handler. No ADR.
 - Issues: see Known issues "P5-01 known limits".
 - Next: P5-02 Submit revision
+
+### 2026-09-25 — P5-02 Submit revision
+- Done: `POST /api/v1/documents/{id}/revisions` (ISSUER and document owner, multipart `file` + required `change_note`) returning 201 `{document, revision}`. `DocumentService.submit_revision`: 404 / 403 / 409 `PENDING_REVISION_EXISTS` / 422 `NO_CONTENT_CHANGE` before any write, then S3 -> revision -> tree -> atomic `revision_count` `$inc` -> `REVISION_SUBMITTED`, with the P5-01 reverse rollback (generalized with an `op` label). Shared upload validation moved to `services/_intake.py`. New: `DocumentRepository.bump_revision_count`, `RevisionRepository.get_latest_approved`.
+- Tests: `test_revisions_submit.py` (22: parent linkage, events, pending 409, pending on another document/owner never blocks, rejection then resubmit, same-text-new-bytes and identical-file 422, no-parent case, authz 401/403/403-non-owner/404, note rules, bad uploads, lost race on revision_no), `test_revisions_submit_faults.py` (failure at each of 5 steps, commit-then-raise, failing rollback: original error kept, no exception text in body or log), `test_document_counter.py` (4) and `-m mongo` `test_document_counter_real_mongo.py` (100 concurrent `$inc`, passed on mongo:7). 622 passed, ruff/mypy clean.
+- Decisions: owner-only submit and required `change_note` (see Known issues, P5-02); no ADR (no spec/CANON change).
+- Issues: see Known issues "P5-02 interpretation choices and limits".
+- Next: P5-03 Approve/reject + provenance events (must also update `latest_approved_*` and fix the state+event write order, see P2 review).

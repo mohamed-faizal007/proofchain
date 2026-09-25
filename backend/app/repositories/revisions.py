@@ -21,6 +21,14 @@ class RevisionRepository(BaseRepository[Revision]):
     async def get_pending(self, document_id: str) -> Revision | None:
         return await self.find_one({"document_id": document_id, "status": "PENDING"})
 
+    async def get_latest_approved(self, document_id: str) -> Revision | None:
+        found = await self.find_many(
+            {"document_id": document_id, "status": "APPROVED"},
+            sort=[("revision_no", -1)],
+            limit=1,
+        )
+        return found[0] if found else None
+
     async def list_by_document(self, document_id: str) -> list[Revision]:
         return await self.find_many({"document_id": document_id}, sort=[("revision_no", 1)])
 

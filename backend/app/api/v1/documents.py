@@ -38,3 +38,26 @@ async def register_document(
         document=DocumentOut.from_document(document),
         revision=RevisionOut.from_revision(revision),
     )
+
+
+@router.post("/{document_id}/revisions", status_code=201, response_model=RegisterResponse)
+async def submit_revision(
+    document_id: str,
+    file: Annotated[UploadFile, File()],
+    change_note: Annotated[str, Form()],
+    user: User = Depends(_issuer),
+    service: DocumentService = Depends(get_document_service),
+    settings: Settings = Depends(get_app_settings),
+) -> RegisterResponse:
+    data = await file.read(settings.max_upload_mb * 1024 * 1024 + 1)
+    document, revision = await service.submit_revision(
+        user,
+        document_id,
+        data=data,
+        filename=file.filename,
+        change_note=change_note,
+    )
+    return RegisterResponse(
+        document=DocumentOut.from_document(document),
+        revision=RevisionOut.from_revision(revision),
+    )

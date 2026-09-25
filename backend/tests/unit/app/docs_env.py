@@ -80,6 +80,27 @@ class Env:
             data=fields,
         )
 
+    def submit(
+        self,
+        headers: dict[str, str],
+        document_id: str,
+        pdf: bytes | str = "one_page.pdf",
+        **form: str,
+    ) -> Any:
+        data = (PDFS / pdf).read_bytes() if isinstance(pdf, str) else pdf
+        return self.client.post(
+            f"{PREFIX}/documents/{document_id}/revisions",
+            headers=headers,
+            files={"file": ("lease_v2.pdf", data, "application/pdf")},
+            data={"change_note": "updated", **form},
+        )
+
+    def set_status(self, revision_id: str, status: str) -> None:
+        """Stand-in for approve/reject (P5-03): force a revision's status directly."""
+        self.client.portal.call(  # type: ignore[union-attr]
+            self.db["revisions"].update_one, {"_id": revision_id}, {"$set": {"status": status}}
+        )
+
 
 @pytest.fixture
 def env(mongo_db: AsyncIOMotorDatabase) -> Iterator[Env]:

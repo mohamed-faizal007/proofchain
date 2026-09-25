@@ -117,7 +117,7 @@ Carried over from P0 review (split in P3-01): `config.py` must also reject an em
 ## P5 — Documents, revisions, maker–checker, anchoring
 ### [x] P5-01 Document registration service + route
 Deps: P1-07, P2-02, P2-03, P3-02 · Refs: 01 §3.1, 04
-### [ ] P5-02 Submit revision
+### [x] P5-02 Submit revision
 Deps: P5-01 · Accept: 409 when pending exists; 422 NO_CONTENT_CHANGE.
 ### [ ] P5-03 Approve/reject + provenance events
 Deps: P5-02 · Accept: self-approval 403; state machine tests.
