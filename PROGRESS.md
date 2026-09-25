@@ -283,7 +283,7 @@
 ### 2026-09-25 — P4-01 ProofChainRegistry.sol + tests
 - Done: `contracts/contracts/ProofChainRegistry.sol` per 05 (AccessControl, custom errors, event per state change); removed Placeholder.sol and the smoke test. docs/05 gained an "Implementation details" note.
 - Tests: `ProofChainRegistry.test.ts` (25): v1/v2 linkage, event args and timestamps, role checks (incl. admin grant/revoke, anchorer cannot grant), zero-hash and zero-address reverts, out-of-range versions, revoke and double revoke, findByFileHash hit/miss/duplicate/revoked, and v1 -> v2 -> revoke v2 -> v3 keeping `prevTextRoot` = v2 root. tsc clean.
-- Gas (optimizer 200 runs): anchorVersion ~120-126k, revokeVersion ~36k, deploy 869k (1.4% of block limit). findByFileHash is a linear scan (view).
+- Gas (final 25-test run, optimizer 200 runs): anchorVersion min 120,622 / max 125,813 / avg 122,409 (29 calls), revokeVersion 35,636-35,780 / avg 35,684 (6 calls), grantRole 51,450, revokeRole 29,486, deploy 869,000 (1.4% of block limit). findByFileHash is a linear scan (view, no tx gas).
 - Decisions: `ZeroAddress` constructor error; `latestVersion` on empty doc reverts `VersionNotFound(docId, 0)`; findByFileHash returns the newest match; revocation is audit-preserving (revoked versions stay readable, later `prevTextRoot` still links to them); `revokedAt` is event-only. No ADR (05 is not the normative canon spec; no CANON_VERSION impact).
 - Review: `code-reviewer` found no HIGH/MEDIUM. LOW items handled: 3 extra tests and a NatSpec note on `reason`. Left as is: duplicate hashes and `canonVersion == 0` are accepted.
 - Issues: RECORD_MISMATCH should also compare on-chain `revoked` (see Follow-ups, for P6).
