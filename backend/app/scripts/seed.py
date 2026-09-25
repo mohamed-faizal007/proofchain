@@ -16,9 +16,10 @@ from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.models.user import Role, User
 from app.repositories.users import UserRepository
 from app.schemas.auth import RegisterIn
-from app.security.passwords import hash_password
+from app.security.passwords import MAX_PASSWORD_BYTES, hash_password
 
 DEV_DEFAULT_PASSWORD = "proofchain-demo-1"
+MIN_PASSWORD_CHARS = 8  # mirrors RegisterIn.password
 
 
 class SeedConfigError(Exception):
@@ -42,7 +43,14 @@ DEMO_USERS = (
 def resolve_seed_password(settings: Settings) -> str:
     password = (settings.seed_password or "").strip()
     if password:
-        return settings.seed_password  # type: ignore[return-value]
+        value = settings.seed_password or ""
+        if len(value) < MIN_PASSWORD_CHARS or len(value.encode("utf-8")) > MAX_PASSWORD_BYTES:
+            # Never echo the value: pydantic's own error message would include it.
+            raise SeedConfigError(
+                f"SEED_PASSWORD must be {MIN_PASSWORD_CHARS}+ characters and at most "
+                f"{MAX_PASSWORD_BYTES} bytes; nothing was written"
+            )
+        return value
     if settings.app_env == "prod":
         raise SeedConfigError("SEED_PASSWORD must be set when APP_ENV=prod; nothing was written")
     return DEV_DEFAULT_PASSWORD

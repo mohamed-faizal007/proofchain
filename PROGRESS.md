@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P3 (P3-03 done; P3 phase review pending)
-- Next task: P4-01 (P3 phase review first)
+- Phase: P3 complete (reviewed 2026-09-25)
+- Next task: P4-01
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -39,6 +39,12 @@
   - Test gaps: 3+ concurrent appenders, out-of-range int in event data, `set_anchor` on non-APPROVED, thread starvation in health; the mongo/minio markers are not run by default (consider running them in CI).
 - P2 phase review doc drift (no code change): 03_DATA_MODEL does not mention the unique `(document_id, prev_event_hash)` index or ADR-019's canonical-JSON definition (line ~59-60); the 12 MB tree-size guard with S3 fallback (`trees/{rev}.json`, 03 line 50) is not implemented in `TreeRepository` (decide in P5-01 or drop from 03); `chain_doc_id = hex(sha256(_id))` and bbox shape are not validated by the models; 04 error-code list omits `CONFLICT` (409) and `STORAGE_ERROR` (502) that `errors.py` adds.
 
+- P3 phase review (2026-09-25), no HIGH findings, no spec drift (04 + ADR-014 match). Suites: backend 484 passed (coverage 97%), ruff/mypy clean, contracts 1 passed, frontend 15 passed + lint clean. Real-Mongo seed checked by hand. FIXED in P3-review: seed script echoed a too-short `SEED_PASSWORD` via pydantic's traceback (now a `SeedConfigError` without the value; pinned by `test_invalid_seed_password_is_rejected_without_leaking_it`). MEDIUM:
+  - **Prod config fails open:** `app_env` defaults to `dev`, so a deploy that forgets `APP_ENV=prod` keeps the public default `JWT_SECRET` (forgeable ADMIN tokens, open `/auth/register`). The prod secret check is length-only (`"a"*32` passes). Consider refusing the default secret unless APP_ENV is explicitly dev/test.
+  - **No login throttling** and each attempt costs a bcrypt verify on the anyio thread pool: online guessing and CPU exhaustion. Add per-IP/per-email backoff and a bcrypt concurrency cap (P10 hardening at latest, before public deploy).
+  - **No audit trail for role changes** (`AuthService.set_roles` writes no event/log, no actor passed in): conflicts with the every-state-change-is-recorded rule. Decide an `admin_audit` collection or log entry before ISSUER/APPROVER flows (P5).
+  - **Seed repair in prod** silently re-enables/re-roles the predictable demo accounts on any rerun (deliberate, for lockout recovery). Consider `--repair` opt-in and a log line per repair when APP_ENV=prod.
+- P3 phase review LOW: `get_optional_user` returns 401 for a stale bearer token on public routes (pin the behavior in a test); `normalize_email` uses `.lower()` (no casefold/NFKC) and uniqueness relies on every insert path using it; register 409 leaks account existence (ADMIN-only in prod); JWT has no iat/jti/iss/aud (fine while single service). Test gaps: prod seed repair, concurrent duplicate register, inactive-user login 401, caplog check that passwords/tokens/hashes never reach logs, prod register with invalid token or deactivated admin, whitespace/low-entropy JWT secret, JWT `sub` non-string/empty.
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
 - **Presigned URL host (P2-03):** `S3Storage.presign_get` signs against the internal `S3_ENDPOINT_URL`. That host is only browser-reachable when the backend runs on the host next to MinIO (`http://localhost:9000`). Once the backend runs in Docker (`app` compose profile, P10-03) the endpoint is `http://minio:9000`, which a browser cannot resolve. The host is part of the SigV4 signature, so it cannot be rewritten after signing. **Must be resolved by P8-03 (revision file download in the frontend) together with the compose networking in P10-03, before either is called done.** Options: a separate `S3_PUBLIC_ENDPOINT_URL` used only for presigning (needs an `.env.example` entry and a second boto client), or a backend proxy download route. No P2-03 test covers this: moto and the host-local MinIO check use one hostname.

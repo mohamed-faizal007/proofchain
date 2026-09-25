@@ -185,3 +185,21 @@ def test_prod_without_password_never_connects_and_exits_nonzero(
     assert "SEED_PASSWORD" in err
     assert "Traceback" not in err
     assert "nothing was written" in err
+
+
+@pytest.mark.parametrize("bad", ["short", "x" * 257, "é" * 40])
+def test_invalid_seed_password_is_rejected_without_leaking_it(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], bad: str
+) -> None:
+    def boom(*_: object, **__: object) -> None:
+        raise AssertionError("must not connect to Mongo")
+
+    monkeypatch.setattr(seed, "create_client", boom)
+
+    code = seed.main(_settings("dev", seed_password=bad))
+
+    assert code != 0
+    captured = capsys.readouterr()
+    assert bad not in captured.err + captured.out
+    assert "Traceback" not in captured.err
+    assert "SEED_PASSWORD" in captured.err
