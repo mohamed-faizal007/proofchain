@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P3 (P2 complete; phase review pending)
-- Next task: P3-03
+- Phase: P3 (P3-03 done; P3 phase review pending)
+- Next task: P4-01 (P3 phase review first)
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -48,7 +48,7 @@
 - **Last-admin guard (P3-02):** `AuthService.set_roles` refuses (409 CONFLICT) to remove ADMIN from an active user when no other *active* ADMIN exists. Known limits:
   - **Race window:** it is check-then-write, not atomic. Two admins demoting each other at the same instant can both pass the check and leave zero active admins. Narrow for a small system; closing it needs a Mongo transaction or a post-write recount with rollback.
   - **Future deactivate-user endpoint:** the same guard MUST apply there (deactivating the last active ADMIN is the same lockout). No such endpoint exists yet; whoever adds one must reuse `count_active_with_role` and add the matching test.
-  - Direct DB edits bypass it; recovery from a lockout is `db.users.updateOne({email: "..."}, {$set: {roles: ["ADMIN"], is_active: true}})` in mongosh, or a future seed/admin-reset script (consider making P3-03's seed restore an existing demo admin's roles).
+  - Direct DB edits bypass it. Lockout recovery: rerun `python -m app.scripts.seed` (P3-03; restores `admin@proofchain.local` to ADMIN + active, or recreates it), or `db.users.updateOne({email: "..."}, {$set: {roles: ["ADMIN"], is_active: true}})` in mongosh.
 - Canonicalization quirk (found in P1-02): ″ (U+2033) canonicalizes to `''` (two apostrophes), not `"`, because NFKC (§3 step 1) expands it to two ′ (U+2032) before the quote mapping (step 3) runs, so ″ in step 3's list never matches. This is spec-compliant per the stated order in 02_ALGORITHMS.md §3 and is pinned by the test `double-prime-nfkc-first` in test_canonical.py. Fixing it would require reordering steps 1 and 3 (or dropping ″ from the list): a deliberate spec change needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
 
 - Chunking hard-split risk (found in P1-05): a sentence over 600 chars with no space is cut at exactly 600 code points (`_hard_split` in chunking.py, 02 §4 "hard split if no space"), which could separate a combining mark from its base character. NFKC (§3 step 1) composes most base+mark pairs into single code points, which minimizes this, but it is not ruled out for v1 (e.g. marks with no precomposed form). The split is deterministic, so hashes stay stable; the cost is a chunk boundary in an odd place. Avoiding it would change §4, needing an ADR in 09_DECISIONS.md and a `CANON_VERSION` bump. Do not change silently.
@@ -262,3 +262,11 @@
 - Decisions: roles read from DB per request, not the JWT claim; login always does one real bcrypt verify (dummy hash for unknown email); register is ADMIN-only in prod; emails normalised; 422 handler strips `input`; ruff treats `Depends` as immutable; last-admin guard (409). No ADR.
 - Issues: last-admin guard is check-then-write (race), and must be reused by any future deactivate endpoint (see Follow-ups); `anchor_private_key` prod check still P4-03.
 - Next: P3-03
+
+### 2026-09-25 — P3-03 Seed script
+- Done: `app/scripts/seed.py` (`python -m app.scripts.seed`): creates `admin@` / `issuer@` / `approver@proofchain.local` (ADMIN / ISSUER / APPROVER). Rerun repairs roles + `is_active` only (never password or name), so it doubles as lockout recovery; it writes via the repository, bypassing the last-admin guard on purpose. `seed_password` setting + `.env.example` entry.
+- Tests: `test_seed.py` (20): idempotency, seed emails validate through `RegisterIn`, total-lockout recovery (demoted / deactivated / both / row deleted, other admins inactive, precondition `count_active_with_role("ADMIN") == 0`, recovered admin can log in), prod without `SEED_PASSWORD` (None / "" / whitespace) raises before any write and existing users unchanged, `main()` exits 1 with a clear stderr message and never calls `create_client`. 481 passed, ruff/mypy clean.
+- Decisions: `@proofchain.local` domain; password from `SEED_PASSWORD`, dev-only default, required in prod (checked before any connection). No ADR.
+- Real Mongo (mongo:7) checked by hand: create path on a throwaway DB (3 "created", roles correct, admin login OK, DB dropped) and repair path on `proofchain` (idempotent, 3 users).
+- Issues: `set_roles` does not itself block restoring ADMIN; in a real lockout the API path is unusable because no active ADMIN can authenticate, hence the seed.
+- Next: P3 phase review, then P4-01

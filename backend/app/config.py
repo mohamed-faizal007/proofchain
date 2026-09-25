@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     jwt_secret: str = DEFAULT_JWT_SECRET
     jwt_expire_minutes: int = 120
+    seed_password: str | None = None  # app.scripts.seed only; required there when app_env=prod
 
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "proofchain"
