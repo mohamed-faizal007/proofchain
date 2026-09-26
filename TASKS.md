@@ -130,7 +130,7 @@ Accept (P2-review repo bypass, owned here): `RevisionRepository` must not expose
 ### [x] P5-05 Revoke, list/detail, tree, presigned file, provenance endpoints
 Deps: P5-04 · Refs: 04
 Accept (P2-review state/event finding): extend the P5-04 reconciler to REVOKED revisions with no VERSION_REVOKED event; test missing and present cases.
-### [ ] P5-06 Revision diff endpoint
+### [x] P5-06 Revision diff endpoint
 Deps: P5-05, P1-08 · Refs: 04 (`/revisions/{id}/diff`)
 
 ---
@@ -139,6 +139,7 @@ Deps: P5-05, P1-08 · Refs: 04 (`/revisions/{id}/diff`)
 Deps: P5-05 · Refs: 02 §10-11
 ### [ ] P6-02 Closest approved version + localization
 Deps: P6-01, P1-08
+Accept (P1-09 finding 9): /verify needs its own canon_version guard before `localize` (the P5-06 diff guard lives in `QueryService.diff` and does not cover /verify): a reference tree built under another `CANON_VERSION` than the candidate is never localized against it (rebuild the reference under the candidate's rules, or report no localization); test with a stored tree whose `canon_version` differs.
 ### [ ] P6-03 Chain cross-check + RECORD_MISMATCH
 Deps: P6-02, P4-03 · Accept: test that edits Mongo text_root directly → RECORD_MISMATCH.
 ### [ ] P6-04 /verify route, report assembly, persistence, timings

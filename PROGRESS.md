@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P5 in progress (P5-01 to P5-05 done)
-- Next task: P5-06 Revision diff endpoint
+- Phase: P5 done (P5-01 to P5-06); P5 phase review pending
+- Next task: P5 phase review, then P6-01
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -127,8 +127,8 @@
   - Determinism note: `\s` in `normalize_text` also matches U+001C-U+001F and U+0085 (not Unicode White_Space); deterministic in Python but an independent re-implementation could differ. Note in 02 §3.
 - P1 phase review doc drift (no code change): 02 §8 does not state that blank spans are excluded from `body_size` and heading rules (a)/(b) (P1-06 judgment; add to §8/ADR); 03_DATA_MODEL shows chunk `section_id`, `chunk_count`, `page_levels` that `Chunk`/`IntegrityTree` do not carry (derive in the P2 service; `page_levels` via `merkle_levels(..., node=page_node_hash)`), and omits chunk `page`; 02 §9.3 wording vs the looser spill-over rule (finding 6); `LocalizationResult.method` is None for IDENTICAL/CONTENT_EQUIVALENT (spec should say nullable). Also note: the code-reviewer subagent ran under system Python 3.13 without pytest (line numbers in its report were unreliable); rely on the .venv (3.11) for test runs.
 - P1-09 follow-ups (deferred, none needs code in P1):
-  - **P6 service-layer guard (audit finding 3, MEDIUM, DoS):** replace pairing (`_pair_replace`, localize.py) is quadratic in the size of a `replace` opcode (measured 0.17s at 20x20, 0.75s at 40x40 chunks; a ~1000-chunk full rewrite would take minutes on /verify). A cap inside core would change output (needs ADR); add a size/time guard in the /verify service (reject or degrade to DELETED+INSERTED beyond N x M) in P6.
-  - **P6 service-layer guard (finding 9, INFO):** `localize` does not check `ref.canon_version == cand.canon_version`. The service must compare trees built under the same version (or rebuild the reference under the candidate's rules) before calling it.
+  - **P6 service-layer guard (audit finding 3, MEDIUM, DoS):** (P5-06: the diff route now also calls `localize`, reachable by any authenticated user but only on stored revisions uploaded by ISSUERs, 25 MB cap; the P6 guard should cover both callers.) Replace pairing (`_pair_replace`, localize.py) is quadratic in the size of a `replace` opcode (measured 0.17s at 20x20, 0.75s at 40x40 chunks; a ~1000-chunk full rewrite would take minutes on /verify). A cap inside core would change output (needs ADR); add a size/time guard in the /verify service (reject or degrade to DELETED+INSERTED beyond N x M) in P6.
+  - **Service-layer guard (finding 9, INFO):** `localize` does not check `ref.canon_version == cand.canon_version`. DONE for the diff route (P5-06): `QueryService.diff` refuses mismatched trees with 409 `CONFLICT` before calling `localize` (`test_canon_version_mismatch_is_409_conflict_and_localize_is_not_called`). STILL OPEN for /verify: P6 needs its own guard (the diff guard does not cover it); added as a P6-02 Accept line in TASKS.md.
   - `verify_proof` (merkle.py) still accepts an internal node presented as a leaf with a truncated proof inside one chunk-level tree (`verify_proof(node_hash(a,b), proof[1:], root)` is True). Not exploitable today (proofs are built from stored leaves); if proofs are ever exposed to third parties, verify from chunk text and check proof length against the leaf count. 02 §5 / ADR-005 slightly overstate the protection.
   - Not re-audited in P1-09 (only spot-checked by spec-guardian): 02 §9 steps 3 and 5, and §2, §4, §8 in full. Schedule a future review pass.
 
@@ -394,3 +394,10 @@
 - Decisions: see Known issues "P5-05" (maker != checker not applied to revoke, with justification; `status` multi-match intentional; synchronous chain-first revoke; ANCHORED required). `test_reconciler.py::test_a_failing_step_does_not_stop_the_others` now expects 3 failing steps (the new revoke-event step also reads events). No ADR (no spec/CANON change).
 - Issues: chain-revoked/Mongo-APPROVED divergence after a failed state write is only closed by retrying the revoke (not by the reconciler); P6 RECORD_MISMATCH should compare the on-chain `revoked` flag (existing Follow-up).
 - Next: P5-06 Revision diff endpoint
+
+### 2026-09-26 — P5-06 Revision diff endpoint
+- Done: `GET /revisions/{id}/diff?against=` (any authenticated user) returning `{revision_id, against_revision_id, localization, analysis: null}`. `QueryService.diff`: `{id}` = candidate, `against` = reference (default parent); 404 for either revision/tree, 422 `VALIDATION_ERROR` (`details.field=against`) for no parent + no `against` or a cross-document `against`, 409 `CONFLICT` (`details {canon_version, against_canon_version}`) on a canon mismatch, checked before `localize`, which runs in a worker thread. New `tree_mapping.doc_to_tree` (inverse of `tree_to_doc`; chunk `page` = its page index), `RevisionDiffOut`. Any status may be diffed. Docs: 04 read-route note.
+- Tests: `test_tree_mapping.py` (2: `test_doc_to_tree_round_trips_contract_3page` on contract_3page.pdf, and the same through the by-alias stored form), `test_revision_diff.py` (17: default-parent diff equals a direct core `localize` on a one-edit contract_3page v2 built by the fixture generator (one MODIFIED region, page index 1, no events written), explicit `against` swaps sides, self-diff IDENTICAL, 4 roles on PENDING, REJECTED/REVOKED, 401, 404 x4, 422 x2, `test_canon_version_mismatch_is_409_conflict_and_localize_is_not_called`). Full suite 833 passed (coverage 96%; `queries.py`, `tree_mapping.py`, `revisions.py` router 100%); ruff/format/mypy clean. Mutation checks: removing the canon guard or the same-document check each fails its test.
+- Decisions: `analysis` is `null` until P7-04 (which already lists "integrate into ... diff"); canon mismatch is 409 rather than rebuilding the older tree from its S3 bytes under current rules (a read route should not re-extract PDFs; revisit if a CANON bump ever leaves live documents on the old version). Resolves P1-09 finding 9 for the diff route only; /verify guard added to P6-02 Accept. No ADR (no spec/CANON change).
+- Issues: audit finding 3 (quadratic replace pairing) is now also reachable through the diff route (noted on the P1-09 follow-up).
+- Next: P5 phase review, then P6-01

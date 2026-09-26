@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query, Response
 
 from app.deps import (
     get_anchor_service,
@@ -14,7 +14,7 @@ from app.deps import (
 )
 from app.models.user import User
 from app.schemas.documents import RevisionOut
-from app.schemas.queries import FileUrlOut, TreeOut
+from app.schemas.queries import FileUrlOut, RevisionDiffOut, TreeOut
 from app.schemas.revisions import ApproveRequest, RejectRequest, RevokeRequest
 from app.services.anchoring import AnchorService, run_anchor_job
 from app.services.queries import QueryService
@@ -52,6 +52,17 @@ async def get_file_url(
 ) -> FileUrlOut:
     url, expires_in = await queries.presign_file(revision_id)
     return FileUrlOut(url=url, expires_in=expires_in)
+
+
+@router.get("/{revision_id}/diff", response_model=RevisionDiffOut)
+async def diff_revision(
+    revision_id: str,
+    against: Annotated[str | None, Query(max_length=64)] = None,
+    _: User = Depends(get_current_user),
+    queries: QueryService = Depends(get_query_service),
+) -> RevisionDiffOut:
+    """`{revision_id}` is the candidate, `against` the reference (default: its parent)."""
+    return RevisionDiffOut.from_diff(await queries.diff(revision_id, against))
 
 
 @router.post("/{revision_id}/approve", status_code=202, response_model=RevisionOut)

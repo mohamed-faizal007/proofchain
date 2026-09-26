@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.models.integrity_tree import IntegrityTreeDoc, TreePage, TreeSection
 from app.models.provenance_event import EventType, ProvenanceEvent
 from app.schemas.documents import DocumentOut, RevisionOut
-from app.services.queries import DocumentPage, Provenance
+from app.services.queries import DocumentPage, Provenance, RevisionDiff
 
 
 class DocumentListOut(BaseModel):
@@ -73,3 +73,20 @@ class ProvenanceOut(BaseModel):
     def from_provenance(cls, p: Provenance) -> "ProvenanceOut":
         events = [EventOut.from_event(e) for e in p.events]
         return cls(document_id=p.document_id, chain_valid=p.chain_valid, events=events)
+
+
+class RevisionDiffOut(BaseModel):
+    """`localization` is a LocalizationResult (02 §9). `analysis` stays null until NLP (P7)."""
+
+    revision_id: str
+    against_revision_id: str
+    localization: dict[str, Any]
+    analysis: list[dict[str, Any]] | None = None
+
+    @classmethod
+    def from_diff(cls, d: RevisionDiff) -> "RevisionDiffOut":
+        return cls(
+            revision_id=d.revision_id,
+            against_revision_id=d.against_revision_id,
+            localization=d.localization.to_dict(),
+        )

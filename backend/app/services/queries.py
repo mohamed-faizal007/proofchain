@@ -4,7 +4,9 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from app.errors import NotFoundError
+import anyio.to_thread
+
+from app.errors import ConflictError, NotFoundError, ValidationFailed
 from app.models.document import DocType, Document
 from app.models.integrity_tree import IntegrityTreeDoc
 from app.models.provenance_event import ProvenanceEvent
@@ -13,7 +15,10 @@ from app.repositories.documents import DocumentRepository
 from app.repositories.events import EventRepository
 from app.repositories.revisions import RevisionRepository
 from app.repositories.trees import TreeRepository
+from app.services.tree_mapping import doc_to_tree
 from app.storage import S3Storage
+from proofchain_core import localize
+from proofchain_core.types import LocalizationResult
 
 
 @dataclass(frozen=True)
@@ -29,6 +34,13 @@ class Provenance:
     document_id: str
     chain_valid: bool
     events: list[ProvenanceEvent]
+
+
+@dataclass(frozen=True)
+class RevisionDiff:
+    revision_id: str
+    against_revision_id: str
+    localization: LocalizationResult
 
 
 class QueryService:
@@ -88,10 +100,35 @@ class QueryService:
 
     async def get_tree(self, revision_id: str) -> IntegrityTreeDoc:
         await self.get_revision(revision_id)
-        tree = await self._trees.get_for_revision(revision_id)
-        if tree is None:
-            raise NotFoundError("Integrity tree not found")
-        return tree
+        return await self._tree(revision_id)
+
+    async def diff(self, revision_id: str, against_id: str | None) -> RevisionDiff:
+        """Localize `revision_id` (candidate) against `against_id` (reference, default the parent).
+
+        Any status may be diffed. Trees built under different canon versions are refused
+        (409): their hashes are not comparable and `localize` does not check (P1-09 finding 9).
+        """
+        revision = await self.get_revision(revision_id)
+        if against_id is None:
+            if revision.parent_revision_id is None:
+                raise ValidationFailed(
+                    "Revision has no parent; pass `against`", {"field": "against"}
+                )
+            against_id = revision.parent_revision_id
+        against = await self.get_revision(against_id)
+        if against.document_id != revision.document_id:
+            raise ValidationFailed(
+                "`against` must be a revision of the same document", {"field": "against"}
+            )
+        cand = await self._tree(revision_id)
+        ref = await self._tree(against_id)
+        if ref.canon_version != cand.canon_version:
+            raise ConflictError(
+                "Revisions were hashed under different canonicalization versions",
+                {"canon_version": cand.canon_version, "against_canon_version": ref.canon_version},
+            )
+        result = await anyio.to_thread.run_sync(localize, doc_to_tree(ref), doc_to_tree(cand))
+        return RevisionDiff(revision_id, against_id, result)
 
     async def presign_file(self, revision_id: str) -> tuple[str, int]:
         """(url, expires_in). The URL pins the stored S3 version, so it serves those exact bytes.
@@ -108,6 +145,12 @@ class QueryService:
         events = await self._events.list_by_document(document_id)
         check = await self._events.verify_chain(document_id)
         return Provenance(document_id, check.ok, events)
+
+    async def _tree(self, revision_id: str) -> IntegrityTreeDoc:
+        tree = await self._trees.get_for_revision(revision_id)
+        if tree is None:
+            raise NotFoundError("Integrity tree not found")
+        return tree
 
     async def _document(self, document_id: str) -> Document:
         document = await self._documents.get(document_id)

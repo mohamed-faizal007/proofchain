@@ -50,6 +50,14 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
 - `GET /documents/{id}/provenance`: `{document_id, chain_valid, events: [{id, document_id, revision_id, type,
   actor_id, at, data, prev_event_hash, event_hash}]}` in hash-chain order; events that are off the chain
   (tampered/forked) are still listed after it, and `chain_valid` is then `false`.
+- `GET /revisions/{id}/diff?against={revId}` (P5-06): `{revision_id, against_revision_id, localization,
+  analysis}`. `{id}` is the candidate and `against` the reference (default: `{id}`'s `parent_revision_id`);
+  `localization` is the LocalizationResult of 02 §9 computed from the two stored trees. `analysis` is `null`
+  until NLP is integrated (P7-04). Any revision status may be diffed (approvers review PENDING ones here).
+  Errors: 404 `NOT_FOUND` (either revision or either tree missing); 422 `VALIDATION_ERROR` +
+  `details.field="against"` when `{id}` has no parent and no `against` is given, or `against` belongs to
+  another document; 409 `CONFLICT` + `details {canon_version, against_canon_version}` when the two trees were
+  built under different `CANON_VERSION`s (hashes not comparable; nothing is localized).
 - Revisions in every response carry `revocation` (`null` unless REVOKED) and never expose the S3 key.
 
 ## Verification
