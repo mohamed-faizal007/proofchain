@@ -33,6 +33,14 @@ async def ensure_indexes(db: MongoDatabase) -> None:
     await db.revisions.create_index(
         [("document_id", ASCENDING), ("revision_no", ASCENDING)], unique=True
     )
+    # 03: one PENDING revision per document, enforced atomically (P5 review H1: the service's
+    # pending check can be raced across the tree build).
+    await db.revisions.create_index(
+        [("document_id", ASCENDING)],
+        unique=True,
+        partialFilterExpression={"status": "PENDING"},
+        name="one_pending_per_document",
+    )
     await db.revisions.create_index([("file_hash", ASCENDING)])
     await db.revisions.create_index([("text_root", ASCENDING)])
     await db.revisions.create_index([("document_id", ASCENDING), ("status", ASCENDING)])

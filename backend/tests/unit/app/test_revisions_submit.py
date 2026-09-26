@@ -270,3 +270,30 @@ def test_racing_submit_loses_on_unique_revision_no_and_is_rolled_back(
     assert env.count("provenance_events") == 3
     stored = env.client.portal.call(DocumentRepository(env.db).get, doc_id)  # type: ignore[union-attr]
     assert stored is not None and stored.revision_count == 2
+
+
+def test_stale_pending_check_with_real_revision_no_still_loses(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P5 review H1: the pending check and `next_revision_no` are separated by the tree build,
+    so a racing submit can read "no pending" and then a fresh revision_no (N+1). Only the partial
+    unique index (one PENDING per document) stops a second PENDING revision."""
+    headers = env.issuer()
+    doc_id = approved_document(env, headers)["document"]["id"]
+    assert env.submit(headers, doc_id).status_code == 201  # winner: revision_no 2, PENDING
+
+    async def no_pending(self: Any, document_id: str) -> None:
+        return None
+
+    monkeypatch.setattr(RevisionRepository, "get_pending", no_pending)  # next_revision_no is real
+    r = env.submit(headers, doc_id, change_note="loser")
+    monkeypatch.undo()
+
+    assert (r.status_code, r.json()["error"]["code"]) == (409, "PENDING_REVISION_EXISTS")
+    revs = env.client.portal.call(RevisionRepository(env.db).list_by_document, doc_id)  # type: ignore[union-attr]
+    assert [(x.revision_no, x.status) for x in revs] == [(1, "APPROVED"), (2, "PENDING")]
+    assert env.count("integrity_trees") == 2
+    assert len(env.s3_keys()) == 2
+    assert env.count("provenance_events") == 3
+    stored = env.client.portal.call(DocumentRepository(env.db).get, doc_id)  # type: ignore[union-attr]
+    assert stored is not None and stored.revision_count == 2

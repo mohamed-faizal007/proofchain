@@ -12,6 +12,7 @@ EXPECTED: dict[str, set[str]] = {
     "documents": {"owner_id_1", "chain_doc_id_1", "title_text"},
     "revisions": {
         "document_id_1_revision_no_1",
+        "one_pending_per_document",
         "file_hash_1",
         "text_root_1",
         "document_id_1_status_1",

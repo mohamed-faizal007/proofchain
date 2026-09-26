@@ -194,7 +194,8 @@ class DocumentService:
             try:
                 await self._revisions.insert(revision)
             except ConflictError as exc:
-                # Unique (document_id, revision_no): a concurrent submit won the race.
+                # A concurrent submit won the race: unique (document_id, revision_no), or the
+                # one-PENDING-per-document partial index when the pending check above was stale.
                 raise PendingRevisionExistsError(
                     "A revision is already pending for this document"
                 ) from exc

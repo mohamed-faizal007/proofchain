@@ -42,7 +42,7 @@ async def test_document_revision_no_is_unique(revs: RevisionRepository) -> None:
 
 async def test_next_revision_no_is_sequential_per_document(revs: RevisionRepository) -> None:
     assert await revs.next_revision_no("d1") == 1
-    await revs.insert(make_revision("d1", 1))
+    await revs.insert(make_revision("d1", 1, status="APPROVED"))  # one PENDING per document
     await revs.insert(make_revision("d1", 2))
     await revs.insert(make_revision("d2", 1))
     assert await revs.next_revision_no("d1") == 3
@@ -78,7 +78,7 @@ async def test_set_review_persists_and_only_applies_to_pending(revs: RevisionRep
 
 async def test_approve_marks_anchor_anchoring_reject_does_not(revs: RevisionRepository) -> None:
     a = await revs.insert(make_revision("d1", 1))
-    b = await revs.insert(make_revision("d1", 2))
+    b = await revs.insert(make_revision("d2", 1))  # one PENDING per document
     await revs.set_review(a.id, "APPROVED", "u2", None, now_ms())
     await revs.set_review(b.id, "REJECTED", "u2", "no", now_ms())
     assert (await revs.get(a.id)).anchor.status == "ANCHORING"  # type: ignore[union-attr]

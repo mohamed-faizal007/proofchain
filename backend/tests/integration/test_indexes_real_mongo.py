@@ -61,3 +61,20 @@ async def test_datetime_is_aware_on_real_mongo(real_db: AsyncIOMotorDatabase) ->
     got = (await real_db.users.find_one({"_id": "u1"}))["created_at"]
     assert got.tzinfo is not None
     assert got == now
+
+
+async def test_one_pending_revision_per_document_on_real_mongo(
+    real_db: AsyncIOMotorDatabase,
+) -> None:
+    """P5 review H1: partial unique index; non-PENDING revisions and other documents are free."""
+    await ensure_indexes(real_db)
+    rev = real_db.revisions
+    await rev.insert_one({"_id": "r1", "document_id": "d1", "revision_no": 1, "status": "APPROVED"})
+    await rev.insert_one({"_id": "r2", "document_id": "d1", "revision_no": 2, "status": "PENDING"})
+    await rev.insert_one({"_id": "o1", "document_id": "d2", "revision_no": 1, "status": "PENDING"})
+    with pytest.raises(DuplicateKeyError):
+        await rev.insert_one(
+            {"_id": "r3", "document_id": "d1", "revision_no": 3, "status": "PENDING"}
+        )
+    await rev.update_one({"_id": "r2"}, {"$set": {"status": "REJECTED"}})  # frees the slot
+    await rev.insert_one({"_id": "r3", "document_id": "d1", "revision_no": 3, "status": "PENDING"})
