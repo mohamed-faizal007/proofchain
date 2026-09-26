@@ -121,7 +121,7 @@ Deps: P1-07, P2-02, P2-03, P3-02 · Refs: 01 §3.1, 04
 Deps: P5-01 · Accept: 409 when pending exists; 422 NO_CONTENT_CHANGE.
 ### [x] P5-03 Approve/reject + provenance events
 Deps: P5-02 · Accept: self-approval 403; state machine tests.
-### [ ] P5-04 Anchoring service (background + reconcile + retry)
+### [x] P5-04 Anchoring service (background + reconcile + retry)
 Deps: P5-03, P4-03 · Refs: 01 §3.2, ADR-012 · Accept: FAILED → retry → ANCHORED with fake client; idempotency test.
 Accept (invariant): anchoring service raises a domain error for any revision whose status is not APPROVED (retry endpoint, reconciler, direct call); tests for PENDING and REJECTED.
 Accept (P2-review state/event finding): the reconciler also finds revisions whose status changed (APPROVED/REJECTED) but have no matching provenance event (REVISION_APPROVED/REVISION_REJECTED for that revision_id), and appends the missing event using the revision's `reviewed_by` as actor and `reconciled: true` in `data`. Idempotent: a second run appends nothing. Skips reviews newer than a grace window (e.g. `reviewed_at` older than 60 s only), so a review whose event append is still in flight is not recorded twice. Tests (including the grace window): one per status with the event missing, one with the event present (no-op), and one showing the event chain stays valid after repair. This is the fix the P2 review asked for; the P5-03 rollback only covers a failed append, not a crash between the two writes.

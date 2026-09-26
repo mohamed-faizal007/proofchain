@@ -63,6 +63,11 @@ class RevisionNotPendingError(DomainError):
     status_code = 409
 
 
+class RevisionNotApprovedError(DomainError):
+    code = "REVISION_NOT_APPROVED"
+    status_code = 409
+
+
 class PendingRevisionExistsError(DomainError):
     code = "PENDING_REVISION_EXISTS"
     status_code = 409

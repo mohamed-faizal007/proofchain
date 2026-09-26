@@ -1,7 +1,7 @@
 """revisions repository. State transitions are guarded in the query (03 state machine)."""
 
 import datetime as dt
-from typing import Literal
+from typing import Any, Literal
 
 from app.models.revision import Anchor, Revision
 from app.repositories.base import BaseRepository
@@ -89,11 +89,132 @@ class RevisionRepository(BaseRepository[Revision]):
         )
         return result.modified_count > 0
 
-    async def set_anchor(self, id_: str, anchor: Anchor, version_no: int | None = None) -> bool:
-        fields: dict[str, object] = {"anchor": anchor.model_dump()}
-        if version_no is not None:
-            fields["version_no"] = version_no
-        # Backstop for "only APPROVED revisions are anchored" (CLAUDE.md); the service enforces it
-        # first (P5-04). matched_count so an identical retry still reads as True.
-        result = await self._col.update_one({"_id": id_, "status": "APPROVED"}, {"$set": fields})
-        return result.matched_count > 0
+    # --- write guards (P2 review): no state-free writes on revisions ---
+
+    async def update_one(self, id_: str, update: dict[str, Any]) -> bool:
+        """Disabled: every revision write must go through a state-guarded method below."""
+        raise NotImplementedError("RevisionRepository.update_one bypasses the state guards")
+
+    async def delete(self, id_: str) -> bool:
+        """Delete a PENDING revision only (the P5-01/P5-02 rollbacks of a just-inserted row)."""
+        result = await self._col.delete_one({"_id": id_, "status": "PENDING"})
+        return result.deleted_count > 0
+
+    # --- anchoring (P5-04). Every write requires status APPROVED (CLAUDE.md invariant). ---
+
+    async def claim_anchor(self, id_: str, at: dt.datetime, stale_before: dt.datetime) -> bool:
+        """Claim an APPROVED revision for one anchoring attempt.
+
+        Claimable: FAILED, queued ANCHORING (`attempted_at` null) or a stuck claim older than
+        `stale_before`. A claim still in flight is never taken.
+        """
+        result = await self._col.update_one(
+            {"_id": id_, "status": "APPROVED", "$or": _claimable(stale_before)},
+            {
+                "$set": {
+                    "anchor.status": "ANCHORING",
+                    "anchor.attempted_at": at,
+                    "anchor.error": None,
+                },
+                "$inc": {"anchor.attempts": 1},
+            },
+        )
+        return result.modified_count > 0
+
+    async def requeue_anchor(self, id_: str) -> bool:
+        """FAILED -> queued ANCHORING (admin retry, or a retry that must wait its turn)."""
+        result = await self._col.update_one(
+            {"_id": id_, "status": "APPROVED", "anchor.status": "FAILED"},
+            {"$set": {"anchor.status": "ANCHORING", "anchor.attempted_at": None}},
+        )
+        return result.modified_count > 0
+
+    async def mark_anchored(
+        self, id_: str, claimed_at: dt.datetime, anchor: Anchor, version_no: int
+    ) -> bool:
+        """Finish our own claim (matched by `claimed_at`) as ANCHORED."""
+        result = await self._col.update_one(
+            _own_claim(id_, claimed_at),
+            {"$set": {"anchor": anchor.model_dump(), "version_no": version_no}},
+        )
+        return result.modified_count > 0
+
+    async def mark_anchor_failed(self, id_: str, claimed_at: dt.datetime, error: str) -> bool:
+        """Finish our own claim as FAILED with an error code."""
+        result = await self._col.update_one(
+            _own_claim(id_, claimed_at),
+            {"$set": {"anchor.status": "FAILED", "anchor.error": error}},
+        )
+        return result.modified_count > 0
+
+    async def find_unanchored_predecessor(
+        self, document_id: str, revision_no: int
+    ) -> Revision | None:
+        """Oldest APPROVED revision before `revision_no` that is not ANCHORED yet."""
+        found = await self.find_many(
+            {
+                "document_id": document_id,
+                "status": "APPROVED",
+                "revision_no": {"$lt": revision_no},
+                "anchor.status": {"$ne": "ANCHORED"},
+            },
+            sort=[("revision_no", 1)],
+            limit=1,
+        )
+        return found[0] if found else None
+
+    async def next_queued_successor(self, document_id: str, revision_no: int) -> Revision | None:
+        """Oldest queued (unclaimed) APPROVED revision after `revision_no`."""
+        found = await self.find_many(
+            {
+                "document_id": document_id,
+                "status": "APPROVED",
+                "revision_no": {"$gt": revision_no},
+                "anchor.status": "ANCHORING",
+                "anchor.attempted_at": None,
+            },
+            sort=[("revision_no", 1)],
+            limit=1,
+        )
+        return found[0] if found else None
+
+    # --- reconciler queries (P5-04) ---
+
+    async def find_anchor_candidates(self, stale_before: dt.datetime) -> list[Revision]:
+        """FAILED, queued or stuck-claim anchors, oldest revision first per document.
+
+        Not filtered on `status`: the anchoring service enforces APPROVED and raises otherwise.
+        """
+        return await self.find_many(
+            {"$or": _claimable(stale_before)}, sort=[("document_id", 1), ("revision_no", 1)]
+        )
+
+    async def find_reviewed_before(
+        self, status: Literal["APPROVED", "REJECTED"], cutoff: dt.datetime
+    ) -> list[Revision]:
+        return await self.find_many(
+            {"status": status, "reviewed_at": {"$lt": cutoff}}, sort=[("reviewed_at", 1)]
+        )
+
+    async def find_anchored_before(self, cutoff: dt.datetime) -> list[Revision]:
+        return await self.find_many(
+            {"anchor.status": "ANCHORED", "anchor.anchored_at": {"$lt": cutoff}},
+            sort=[("anchor.anchored_at", 1)],
+        )
+
+
+def _claimable(stale_before: dt.datetime) -> list[dict[str, Any]]:
+    return [
+        {"anchor.status": "FAILED"},
+        {"anchor.status": "ANCHORING", "anchor.attempted_at": None},
+        {"anchor.status": "ANCHORING", "anchor.attempted_at": {"$lt": stale_before}},
+    ]
+
+
+def _own_claim(id_: str, claimed_at: dt.datetime) -> dict[str, Any]:
+    return {
+        "_id": id_,
+        "status": "APPROVED",
+        "anchor.status": "ANCHORING",
+        "anchor.attempted_at": claimed_at,
+    }

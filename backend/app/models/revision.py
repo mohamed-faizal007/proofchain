@@ -26,8 +26,10 @@ class Anchor(MongoModel):
     chain_id: int | None = None
     contract: str | None = None
     anchored_at: dt.datetime | None = None
-    error: str | None = None
+    error: str | None = None  # error CODE only (e.g. CHAIN_UNAVAILABLE), never exception text
     attempts: int = 0
+    # Set when an anchoring attempt claims the revision; null while queued (P5-04).
+    attempted_at: dt.datetime | None = None
 
 
 class Revision(MongoModel):

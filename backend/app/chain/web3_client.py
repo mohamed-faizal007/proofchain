@@ -10,7 +10,14 @@ from typing import Any, TypeVar
 from aiohttp import ClientError
 from eth_account import Account
 from web3 import AsyncHTTPProvider, AsyncWeb3
-from web3.exceptions import ContractLogicError
+from web3.exceptions import (
+    ContractLogicError,
+    ProviderConnectionError,
+    RequestTimedOut,
+    TimeExhausted,
+    TooManyRequests,
+    Web3Exception,
+)
 
 from app.chain.hexutil import from_bytes32, to_bytes32
 from app.chain.registry_client import is_already_anchored
@@ -21,6 +28,15 @@ from app.errors import AnchorFailedError, ChainUnavailableError
 ABI_PATH = Path(__file__).parent / "abi" / "ProofChainRegistry.json"
 RECEIPT_TIMEOUT_SECONDS = 120.0
 _T = TypeVar("_T")
+# Connectivity-class failures: retryable, surfaced as ChainUnavailableError (P5-04 retries these).
+_UNREACHABLE = (
+    OSError,
+    ClientError,
+    TimeoutError,
+    ProviderConnectionError,
+    RequestTimedOut,
+    TooManyRequests,
+)
 logger = logging.getLogger(__name__)
 # web3 logs the full RPC URI (API key included) at DEBUG on every request.
 logging.getLogger("web3").setLevel(logging.WARNING)
@@ -168,8 +184,18 @@ class Web3RegistryClient:
             await self._wait_confirmations(int(receipt["blockNumber"]))
         except ContractLogicError as exc:
             raise AnchorFailedError("Contract rejected the transaction") from exc
-        except (OSError, ClientError, TimeoutError) as exc:
+        except _UNREACHABLE as exc:
             raise _unavailable(exc) from None
+        except TimeExhausted:
+            # Not retried automatically: the tx may still be mined. A later retry re-reads the
+            # chain first and recovers it as already anchored (P5-04).
+            raise AnchorFailedError(
+                "No receipt in time; the transaction may still be mined"
+            ) from None
+        except Web3Exception as exc:
+            # RPC errors (nonce too low, insufficient funds) and ABI encoding errors.
+            logger.warning("chain tx rejected by node: %s", type(exc).__name__)
+            raise AnchorFailedError("Node rejected the transaction") from None
         if receipt["status"] != 1:
             raise AnchorFailedError("Transaction reverted")
         return receipt
@@ -183,5 +209,10 @@ class Web3RegistryClient:
     async def _rpc(self, call: Awaitable[_T]) -> _T:
         try:
             return await call
-        except (OSError, ClientError, TimeoutError) as exc:
+        except ContractLogicError:
+            raise AnchorFailedError("Contract rejected the call") from None
+        except _UNREACHABLE as exc:
             raise _unavailable(exc) from None
+        except Web3Exception as exc:
+            logger.warning("chain read failed: %s", type(exc).__name__)
+            raise AnchorFailedError("Chain read failed") from None

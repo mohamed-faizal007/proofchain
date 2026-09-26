@@ -8,7 +8,13 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import pytest
-from web3.exceptions import ContractLogicError
+from web3.exceptions import (
+    ContractLogicError,
+    ProviderConnectionError,
+    TimeExhausted,
+    Web3RPCError,
+    Web3ValidationError,
+)
 
 from app.chain.web3_client import Web3RegistryClient
 from app.errors import AnchorFailedError, ChainUnavailableError
@@ -83,3 +89,63 @@ async def test_contract_revert_message_is_fixed_and_hides_node_payload(
     assert info.value.message == "Contract rejected the transaction"
     assert "SECRET_REVERT_PAYLOAD" not in info.value.message
     assert "SECRET_REVERT_PAYLOAD" not in str(info.value.details)
+
+
+# --- P5-04: every web3 failure maps to a domain error; only connectivity is retryable ---
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected", "message"),
+    [
+        (
+            TimeExhausted(REVERT_TEXT),
+            AnchorFailedError,
+            "No receipt in time; the transaction may still be mined",
+        ),
+        (Web3RPCError(REVERT_TEXT), AnchorFailedError, "Node rejected the transaction"),
+        (Web3ValidationError(REVERT_TEXT), AnchorFailedError, "Node rejected the transaction"),
+        (
+            ProviderConnectionError(REVERT_TEXT),
+            ChainUnavailableError,
+            "Blockchain node unreachable or timed out",
+        ),
+    ],
+    ids=["receipt_timeout", "rpc_error", "abi_encoding", "provider_connection"],
+)
+async def test_send_maps_web3_errors_without_text(
+    client: Web3RegistryClient,
+    monkeypatch: pytest.MonkeyPatch,
+    exc: Exception,
+    expected: type[Exception],
+    message: str,
+) -> None:
+    async def failing(*args: Any, **kwargs: Any) -> int:
+        raise exc
+
+    monkeypatch.setattr(client._w3.eth, "get_transaction_count", failing)
+    with pytest.raises(expected) as info:
+        await client.revoke_version(DOC, 1, "x")
+    assert info.value.message == message  # type: ignore[attr-defined]
+    assert info.value.__cause__ is None
+    assert "SECRET_REVERT_PAYLOAD" not in "".join(traceback.format_exception(info.value))
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (ContractLogicError(REVERT_TEXT), AnchorFailedError),
+        (Web3RPCError(REVERT_TEXT), AnchorFailedError),
+        (ProviderConnectionError(REVERT_TEXT), ChainUnavailableError),
+    ],
+    ids=["contract_logic", "rpc_error", "provider_connection"],
+)
+async def test_view_call_maps_web3_errors_without_text(
+    client: Web3RegistryClient, exc: Exception, expected: type[Exception]
+) -> None:
+    async def failing() -> int:
+        raise exc
+
+    with pytest.raises(expected) as info:
+        await client._rpc(failing())
+    assert info.value.__cause__ is None
+    assert "SECRET_REVERT_PAYLOAD" not in "".join(traceback.format_exception(info.value))

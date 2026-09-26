@@ -20,6 +20,11 @@ Indexes: `email` unique.
 ```
 Indexes: `owner_id`, `chain_doc_id` unique, text index on `title`.
 
+Pointer semantics (P5-04): `latest_approved_revision_id` is the newest APPROVED revision (set on approval).
+`latest_approved_version_no` is the on-chain `version_no` of *that* revision, so it is `null` while that
+revision is still being anchored (or its anchor FAILED), even if an older revision is anchored. It is set
+when that revision becomes ANCHORED; the startup reconciler recomputes both fields if they are stale.
+
 ## revisions  (every uploaded version)
 ```jsonc
 { "_id": "uuid", "document_id": "uuid", "revision_no": 4,          // sequential per document, all revisions
@@ -32,9 +37,20 @@ Indexes: `owner_id`, `chain_doc_id` unique, text index on `title`.
             "original_filename": "lease.pdf", "content_type": "application/pdf" },
   "file_hash": "hex", "text_root": "hex", "canon_version": 2, "page_count": 7, "chunk_count": 88,
   "anchor": { "status": "NOT_REQUESTED|ANCHORING|ANCHORED|FAILED", "tx_hash": "0x…", "block_number": 123,
-              "chain_id": 31337, "contract": "0x…", "anchored_at": "…", "error": "…|null", "attempts": 1 } }
+              "chain_id": 31337, "contract": "0x…", "anchored_at": "…", "error": "…|null", "attempts": 1,
+              "attempted_at": "…|null" } }
 ```
 Indexes: `(document_id, revision_no)` unique, `file_hash`, `text_root`, `(document_id, status)`, `anchor.status`.
+
+Anchor fields (P5-04):
+- `attempted_at`: set when an anchoring attempt claims the revision; `null` while queued. A claim older than
+  10 minutes is treated as stuck (crashed) and may be taken over by the reconciler; a younger one is in flight.
+- `error`: an error **code** only, never exception text: `CHAIN_UNAVAILABLE` (node unreachable after 3 attempts),
+  `ANCHOR_FAILED` (contract/node rejected, or no receipt in time), `CHAIN_NOT_CONFIGURED`, `UNEXPECTED_ERROR`.
+- `attempts`: number of anchoring claims (automatic retries inside one claim are not counted).
+- `tx_hash` / `block_number` are `null` on an ANCHORED revision when the version was found already on-chain
+  (recovery after e.g. a receipt timeout: no new tx was sent). `version_no` is always set.
+- `anchored_at`: when the ANCHORED state was recorded (server time), not the block timestamp.
 
 ## integrity_trees  (one per revision; kept separate to keep revisions small)
 ```jsonc
@@ -77,3 +93,7 @@ PENDING --reject---> REJECTED   (terminal)
 APPROVED --revoke--> REVOKED    (on-chain VersionRevoked event)
 ```
 Only one PENDING revision per document at a time (409 otherwise).
+
+Anchoring order (P5-04): an APPROVED revision is sent on-chain only after every older APPROVED revision of the
+same document is ANCHORED; until then it stays queued (`ANCHORING`, `attempted_at: null`) and is sent when its
+predecessor anchors. On-chain version order therefore always follows `revision_no`.

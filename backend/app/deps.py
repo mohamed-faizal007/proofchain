@@ -17,6 +17,7 @@ from app.repositories.trees import TreeRepository
 from app.repositories.users import UserRepository
 from app.repositories.verifications import VerificationRepository
 from app.security.jwt import decode_access_token
+from app.services.anchoring import AnchorService, build_anchor_service
 from app.services.auth import AuthService
 from app.services.documents import DocumentService
 from app.services.reviews import ReviewService
@@ -97,6 +98,13 @@ def get_review_service(
     events: EventRepository = Depends(get_event_repo),
 ) -> ReviewService:
     return ReviewService(documents, revisions, events)
+
+
+def get_anchor_service(request: Request) -> AnchorService:
+    """Reads the client from app.state directly: an unconfigured chain is recorded as a FAILED
+    anchor (CHAIN_NOT_CONFIGURED), not a 503 on approve."""
+    client: RegistryClient | None = getattr(request.app.state, "registry_client", None)
+    return build_anchor_service(get_db(request), client, get_app_settings(request))
 
 
 async def get_optional_user(

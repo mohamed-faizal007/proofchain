@@ -32,7 +32,7 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 | POST | /revisions/{id}/approve | APPROVER | `{comment?}`; 403 if approver == submitter; 202 → anchoring in background. Returns the revision (`status=APPROVED`, `anchor.status=ANCHORING`); 409 `REVISION_NOT_PENDING` if not PENDING (incl. losing a concurrent review) |
 | POST | /revisions/{id}/reject | APPROVER | `{comment}` required (blank = 422); 200 with the revision; 403 `SELF_APPROVAL_FORBIDDEN` if rejecter == submitter (maker ≠ checker applies to both decisions); 409 `REVISION_NOT_PENDING` if not PENDING |
 | POST | /revisions/{id}/revoke | APPROVER | `{reason}`; only APPROVED; writes on-chain revocation |
-| POST | /revisions/{id}/retry-anchor | ADMIN | idempotent: checks chain before sending |
+| POST | /revisions/{id}/retry-anchor | ADMIN | idempotent: checks chain before sending. `anchor.status=FAILED` → 202, revision returned queued (`ANCHORING`), new attempt in background; `ANCHORED` → 200 no-op; queued/in flight → 409 `CONFLICT`; not APPROVED → 409 `REVISION_NOT_APPROVED` |
 | GET | /documents/{id}/provenance | any | ordered events + `chain_valid` (hash-chain check) |
 
 ## Verification
@@ -73,4 +73,13 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 
 ## Error codes (non-exhaustive)
 `INVALID_PDF, ENCRYPTED_PDF, NO_EXTRACTABLE_TEXT, FILE_TOO_LARGE, NOT_FOUND, FORBIDDEN, SELF_APPROVAL_FORBIDDEN,
-REVISION_NOT_PENDING, PENDING_REVISION_EXISTS, NO_CONTENT_CHANGE, ANCHOR_FAILED, CHAIN_UNAVAILABLE, VALIDATION_ERROR`.
+REVISION_NOT_PENDING, REVISION_NOT_APPROVED, PENDING_REVISION_EXISTS, NO_CONTENT_CHANGE, ANCHOR_FAILED, CHAIN_UNAVAILABLE, VALIDATION_ERROR`.
+
+`REVISION_NOT_APPROVED` (409): anchoring was requested for a revision whose `status` is not `APPROVED`. Raised by
+every anchoring entry point (retry endpoint, startup reconciler, direct service call); only APPROVED revisions
+are ever anchored.
+
+Anchoring (P5-04): approve returns 202 and anchoring runs after the response. The outcome is only visible on the
+revision (`anchor.*`) and in provenance events (`VERSION_ANCHORED` / `ANCHOR_FAILED`); an unconfigured chain
+does not fail the approval, it records `anchor.status=FAILED`, `anchor.error=CHAIN_NOT_CONFIGURED`. On an
+ANCHORED revision `anchor.tx_hash` may be `null` when the version was recovered as already on-chain.

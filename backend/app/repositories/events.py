@@ -96,6 +96,11 @@ class EventRepository:
             return event
         raise AssertionError("unreachable")  # pragma: no cover
 
+    async def revision_ids_with_event(self, type_: EventType) -> set[str]:
+        """Revision ids that have at least one event of `type_` (reconciler, P5-04)."""
+        ids = await self._col.distinct("revision_id", {"type": type_})
+        return {i for i in ids if i is not None}
+
     async def list_by_document(self, document_id: str) -> list[ProvenanceEvent]:
         """Events in chain order; any unreachable (broken-chain) events are appended by time."""
         ordered, leftover = _walk(await self._load(document_id))

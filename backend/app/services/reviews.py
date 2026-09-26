@@ -6,7 +6,7 @@ known to be written, a failure reverts the revision to PENDING. If the revert fa
 unknown whether the event was written, the revision is left reviewed with no event, which is the
 state the P5-04 reconciler repairs. It is never reverted blindly: an event pointing at a PENDING
 revision could not be repaired. After the event, a pointer failure is logged, not rolled back.
-Anchoring itself starts in P5-04.
+Anchoring is scheduled by the approve route after the response (services/anchoring.py).
 """
 
 import datetime as dt

@@ -1,5 +1,7 @@
 """FastAPI app factory: CORS, request-id middleware, error envelope handlers."""
 
+import asyncio
+import contextlib
 import logging
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -20,6 +22,7 @@ from app.config import DEFAULT_JWT_SECRET, Settings, get_settings
 from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
 from app.logging import configure_logging, request_id_var
+from app.services.reconciler import run_startup_reconcile
 from app.storage import S3Storage
 
 logger = logging.getLogger(__name__)
@@ -86,9 +89,16 @@ def create_app(
     db: MongoDatabase | None = None,
     storage: S3Storage | None = None,
     registry_client: RegistryClient | None = None,
+    reconcile_on_startup: bool | None = None,
 ) -> FastAPI:
-    """Build the app. `db`, `storage`, `registry_client` inject test doubles."""
+    """Build the app. `db`, `storage`, `registry_client` inject test doubles.
+
+    The startup reconciler (P5-04) runs in the background, so it never delays startup or
+    /health; it is off by default under APP_ENV=test so route tests see no concurrent writes.
+    """
     settings = settings or get_settings()
+    if reconcile_on_startup is None:
+        reconcile_on_startup = settings.app_env != "test"
     configure_logging()
 
     @asynccontextmanager
@@ -103,10 +113,19 @@ def create_app(
             app.state.db = db
         app.state.storage = storage or S3Storage.from_settings(settings)
         app.state.registry_client = registry_client or _registry_from_settings(settings)
+        reconcile: asyncio.Task[None] | None = None
         try:
             await ensure_indexes(app.state.db)
+            if reconcile_on_startup:
+                reconcile = asyncio.create_task(
+                    run_startup_reconcile(app.state.db, app.state.registry_client, settings)
+                )
             yield
         finally:
+            if reconcile is not None:
+                reconcile.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await reconcile
             if app.state.registry_client is not None:
                 await app.state.registry_client.aclose()
             if client is not None:

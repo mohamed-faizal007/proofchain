@@ -35,15 +35,17 @@ def test_approve_returns_202_and_records_state_pointer_and_event(env: Env) -> No
         "ANCHORING",
     )
     assert (body["reviewed_by"], body["review_comment"]) == (approver.id, "looks right")
+    # The response is sent before anchoring; TestClient runs the background task before
+    # returning, so the stored revision is already anchored (P5-04, fake chain).
     stored = env.revision(rev_id)
     assert (stored["status"], stored["reviewed_by"], stored["anchor"]["status"]) == (
         "APPROVED",
         approver.id,
-        "ANCHORING",
+        "ANCHORED",
     )
     doc = env.document(doc_id)
     assert doc["latest_approved_revision_id"] == rev_id
-    assert doc["latest_approved_version_no"] is None  # set when anchored (P5-04)
+    assert doc["latest_approved_version_no"] == 1
     [event] = env.events("REVISION_APPROVED")
     assert (event["revision_id"], event["actor_id"]) == (rev_id, approver.id)
     assert event["data"] == {"revision_no": 1, "comment": "looks right"}
