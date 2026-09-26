@@ -275,6 +275,6 @@ async def test_a_failing_step_does_not_stop_the_others(
 
     monkeypatch.setattr(hx.events, "revision_ids_with_event", broken)
     report = await hx.reconciler().run_once()
-    assert report.errors == 2  # review-event and anchor-event steps
+    assert report.errors == 3  # review-event, revoke-event and anchor-event steps
     assert (await hx.get(rev)).anchor.status == "ANCHORED"
     assert SECRET not in caplog.text

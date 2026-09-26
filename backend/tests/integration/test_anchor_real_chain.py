@@ -113,3 +113,37 @@ def test_approve_anchors_on_real_chain_in_revision_order(real_env: Env) -> None:
     assert (r.status_code, r.json()["anchor"]["tx_hash"]) == (200, stored2["anchor"]["tx_hash"])
     count = env.client.portal.call(chain.version_count, doc["chain_doc_id"])  # type: ignore[union-attr]
     assert count == 2
+
+
+def test_revoke_on_real_chain(real_env: Env) -> None:
+    """P5-05: approve -> ANCHORED -> revoke sends revokeVersion and marks the revision REVOKED."""
+    env = real_env
+    issuer, approver = env.issuer(), env.approver()
+    reg = env.post_pdf(issuer).json()
+    v1, doc_id = reg["revision"]["id"], reg["document"]["id"]
+    assert env.review(approver, v1, "approve").status_code == 202
+    assert env.revision(v1)["anchor"]["status"] == "ANCHORED"
+
+    r = env.client.post(
+        f"{PREFIX}/revisions/{v1}/revoke", headers=approver, json={"reason": "issued in error"}
+    )
+
+    assert r.status_code == 200, r.text
+    revocation = r.json()["revocation"]
+    assert revocation["tx_hash"].startswith("0x") and len(revocation["tx_hash"]) == 66
+    assert revocation["block_number"] > env.revision(v1)["anchor"]["block_number"]
+    chain = env.client.app.state.registry_client  # type: ignore[attr-defined]
+    chain_doc_id = env.document(doc_id)["chain_doc_id"]
+    on_chain = env.client.portal.call(chain.get_version, chain_doc_id, 1)  # type: ignore[union-attr]
+    assert on_chain.revoked is True
+    [event] = env.events("VERSION_REVOKED")
+    assert (event["data"]["tx_hash"], event["data"]["already_revoked"]) == (
+        revocation["tx_hash"],
+        False,
+    )
+    doc = env.document(doc_id)
+    assert (doc["latest_approved_revision_id"], doc["latest_approved_version_no"]) == (None, None)
+
+    # a second revoke is a clean 409, no tx
+    r = env.client.post(f"{PREFIX}/revisions/{v1}/revoke", headers=approver, json={"reason": "x"})
+    assert (r.status_code, r.json()["error"]["code"]) == (409, "REVISION_NOT_APPROVED")

@@ -11,3 +11,6 @@ class TreeRepository(BaseRepository[IntegrityTreeDoc]):
     async def upsert(self, tree: IntegrityTreeDoc) -> IntegrityTreeDoc:
         await self._col.replace_one({"_id": tree.id}, tree.model_dump(by_alias=True), upsert=True)
         return tree
+
+    async def get_for_revision(self, revision_id: str) -> IntegrityTreeDoc | None:
+        return await self.get(revision_id)

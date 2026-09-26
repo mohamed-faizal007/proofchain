@@ -41,6 +41,10 @@ class S3Storage:
         self._bucket = bucket
         self._presign_expiry = presign_expiry_seconds
 
+    @property
+    def presign_expiry_seconds(self) -> int:
+        return self._presign_expiry
+
     @classmethod
     def from_settings(cls, settings: Settings) -> "S3Storage":
         client = boto3.client(

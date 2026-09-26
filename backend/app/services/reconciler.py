@@ -2,6 +2,8 @@
 
 1. Reviewed revisions (APPROVED / REJECTED) with no REVISION_APPROVED / REVISION_REJECTED event:
    the event is appended with the reviewer as actor and `reconciled: true` (P2 review finding).
+   A REVOKED revision was approved first, so it is checked for REVISION_APPROVED too.
+   REVOKED revisions with no VERSION_REVOKED event (P5-05): appended from `revocation`.
 2. ANCHORED revisions with no VERSION_ANCHORED event: appended from the stored anchor fields.
    A FAILED revision with no ANCHOR_FAILED event is deliberately NOT repaired: the retry below
    supersedes that attempt and writes its own events.
@@ -18,31 +20,32 @@ import datetime as dt
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal
 
 from app.chain import RegistryClient
 from app.config import Settings
 from app.db import MongoDatabase
 from app.errors import DomainError
 from app.models.provenance_event import EventType
-from app.models.revision import Revision
+from app.models.revision import Revision, RevisionStatus
 from app.repositories.documents import DocumentRepository
 from app.repositories.events import EventRepository
 from app.repositories.revisions import RevisionRepository
 from app.services.anchoring import CLAIM_STALE_AFTER, AnchorService, build_anchor_service, now_ms
+from app.services.revocation import revoke_event_data
 
 logger = logging.getLogger(__name__)
 
 GRACE = dt.timedelta(seconds=60)
-_REVIEW_EVENTS: tuple[tuple[Literal["APPROVED", "REJECTED"], EventType], ...] = (
-    ("APPROVED", "REVISION_APPROVED"),
-    ("REJECTED", "REVISION_REJECTED"),
+_REVIEW_EVENTS: tuple[tuple[tuple[RevisionStatus, ...], EventType], ...] = (
+    (("APPROVED", "REVOKED"), "REVISION_APPROVED"),
+    (("REJECTED",), "REVISION_REJECTED"),
 )
 
 
 @dataclass
 class ReconcileReport:
     review_events: int = 0
+    revoke_events: int = 0
     anchor_events: int = 0
     anchors_attempted: int = 0
     pointers: int = 0
@@ -67,6 +70,7 @@ class Reconciler:
         report = ReconcileReport()
         for step in (
             self._repair_review_events,
+            self._repair_revoke_events,
             self._repair_anchor_events,
             self._retry_anchors,
             self._repair_pointers,
@@ -80,14 +84,23 @@ class Reconciler:
         return report
 
     async def _repair_review_events(self, now: dt.datetime, report: ReconcileReport) -> None:
-        for status, event_type in _REVIEW_EVENTS:
+        for statuses, event_type in _REVIEW_EVENTS:
             have = await self._events.revision_ids_with_event(event_type)
-            for rev in await self._revisions.find_reviewed_before(status, now - GRACE):
+            for rev in await self._revisions.find_reviewed_before(statuses, now - GRACE):
                 if rev.id in have:
                     continue
                 data = {"revision_no": rev.revision_no, "comment": rev.review_comment}
                 if await self._append(rev, event_type, rev.reviewed_by, data, now, report):
                     report.review_events += 1
+
+    async def _repair_revoke_events(self, now: dt.datetime, report: ReconcileReport) -> None:
+        have = await self._events.revision_ids_with_event("VERSION_REVOKED")
+        for rev in await self._revisions.find_revoked_before(now - GRACE):
+            if rev.id in have or rev.revocation is None:
+                continue
+            data = revoke_event_data(rev, rev.revocation)
+            if await self._append(rev, "VERSION_REVOKED", rev.revocation.by, data, now, report):
+                report.revoke_events += 1
 
     async def _repair_anchor_events(self, now: dt.datetime, report: ReconcileReport) -> None:
         have = await self._events.revision_ids_with_event("VERSION_ANCHORED")

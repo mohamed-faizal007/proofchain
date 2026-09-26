@@ -1,6 +1,7 @@
 """documents repository."""
 
 import datetime as dt
+from typing import Any
 
 from app.models.document import Document
 from app.repositories.base import BaseRepository
@@ -74,3 +75,13 @@ class DocumentRepository(BaseRepository[Document]):
 
     async def list_by_owner(self, owner_id: str) -> list[Document]:
         return await self.find_many({"owner_id": owner_id}, sort=[("created_at", -1)])
+
+    async def page(
+        self, filter_: dict[str, Any], skip: int, limit: int
+    ) -> tuple[list[Document], int]:
+        """One page, newest activity first (`_id` breaks ties), plus the total match count."""
+        total = await self._col.count_documents(filter_)
+        items = await self.find_many(
+            filter_, sort=[("updated_at", -1), ("_id", 1)], skip=skip, limit=limit
+        )
+        return items, total

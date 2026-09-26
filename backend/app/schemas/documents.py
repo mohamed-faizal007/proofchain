@@ -5,7 +5,7 @@ import datetime as dt
 from pydantic import BaseModel
 
 from app.models.document import DocType, Document
-from app.models.revision import Anchor, Revision, RevisionStatus
+from app.models.revision import Anchor, Revision, RevisionStatus, Revocation
 
 
 class DocumentOut(BaseModel):
@@ -46,6 +46,7 @@ class RevisionOut(BaseModel):
     page_count: int
     chunk_count: int
     anchor: Anchor
+    revocation: Revocation | None
 
     @classmethod
     def from_revision(cls, r: Revision) -> "RevisionOut":

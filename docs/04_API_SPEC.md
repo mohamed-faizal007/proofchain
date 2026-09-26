@@ -22,7 +22,7 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 |---|---|---|---|
 | POST | /documents | ISSUER | multipart: `file`, `title`, `doc_type`, `change_note?` → creates document + revision 1 (PENDING). 201 `{document, revision}` |
 | GET | /documents | any | filter `q`, `doc_type`, `status`; paginated |
-| GET | /documents/{id} | any | document + latest approved revision summary |
+| GET | /documents/{id} | any | `{document, latest_approved_revision}` (revision or `null`) |
 | POST | /documents/{id}/revisions | ISSUER | multipart `file`, `change_note`; parent = latest approved; 409 if one PENDING exists; 422 if text_root equals parent (no change) |
 | GET | /documents/{id}/revisions | any | all revisions ordered by `revision_no` |
 | GET | /revisions/{id} | any | revision detail |
@@ -31,9 +31,26 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 | GET | /revisions/{id}/diff?against={revId} | any | LocalizationResult + analysis between two revisions (default against parent) |
 | POST | /revisions/{id}/approve | APPROVER | `{comment?}`; 403 if approver == submitter; 202 → anchoring in background. Returns the revision (`status=APPROVED`, `anchor.status=ANCHORING`); 409 `REVISION_NOT_PENDING` if not PENDING (incl. losing a concurrent review) |
 | POST | /revisions/{id}/reject | APPROVER | `{comment}` required (blank = 422); 200 with the revision; 403 `SELF_APPROVAL_FORBIDDEN` if rejecter == submitter (maker ≠ checker applies to both decisions); 409 `REVISION_NOT_PENDING` if not PENDING |
-| POST | /revisions/{id}/revoke | APPROVER | `{reason}`; only APPROVED; writes on-chain revocation |
+| POST | /revisions/{id}/revoke | APPROVER | `{reason}` required (blank = 422, max 500 chars, stored on-chain so public); only APPROVED **and** anchored. Synchronous: 200 with the revision (`status=REVOKED`, `revocation`) after the on-chain revoke. 409 `REVISION_NOT_APPROVED` + `details.status` if not APPROVED (incl. already REVOKED); 409 `CONFLICT` + `details.anchor_status` if APPROVED but not ANCHORED yet; 503 `CHAIN_UNAVAILABLE` (chain down or not configured), 502 `ANCHOR_FAILED` (rejected on-chain); nothing is written on any of these. Any APPROVER may revoke (maker ≠ checker does not apply) |
 | POST | /revisions/{id}/retry-anchor | ADMIN | idempotent: checks chain before sending. `anchor.status=FAILED` → 202, revision returned queued (`ANCHORING`), new attempt in background; `ANCHORED` → 200 no-op; queued/in flight → 409 `CONFLICT`; not APPROVED → 409 `REVISION_NOT_APPROVED` |
 | GET | /documents/{id}/provenance | any | ordered events + `chain_valid` (hash-chain check) |
+
+Read routes (P5-05). "any" = any authenticated user (401 without a token); unknown ids are 404 `NOT_FOUND`.
+- `GET /documents`: `page` ≥ 1 (default 1), `page_size` 1–100 (default 20), newest `updated_at` first.
+  `q` is a case-insensitive **literal** substring of `title` (max 200 chars; never a regex). `doc_type` is one
+  of the DocType values. `status` (a revision status) matches documents that have **at least one** revision
+  in that status, so a document with an APPROVED and a PENDING revision is listed under both filters (never
+  twice in one list). Items are Document objects. Invalid parameters are 422 `VALIDATION_ERROR`.
+- `GET /documents/{id}/revisions`: plain array of revisions (not paginated), ascending `revision_no`.
+- `GET /revisions/{id}/tree`: `{revision_id, document_id, canon_version, file_hash, text_root, page_count,
+  pages: [{index, root, chunks: [{id, index, text, leaf_hash, bbox, section_id}]}], sections}`; 404 if the
+  revision or its tree is missing.
+- `GET /revisions/{id}/file`: `{url, expires_in}`; the URL pins the stored S3 object version. Known limit: it
+  is signed for the backend's S3 endpoint (see PROGRESS.md "Presigned URL host", owned by P8-03/P10-03).
+- `GET /documents/{id}/provenance`: `{document_id, chain_valid, events: [{id, document_id, revision_id, type,
+  actor_id, at, data, prev_event_hash, event_hash}]}` in hash-chain order; events that are off the chain
+  (tampered/forked) are still listed after it, and `chain_valid` is then `false`.
+- Revisions in every response carry `revocation` (`null` unless REVOKED) and never expose the S3 key.
 
 ## Verification
 | Method | Path | Role | Notes |

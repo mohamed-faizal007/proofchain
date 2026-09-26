@@ -24,6 +24,8 @@ Pointer semantics (P5-04): `latest_approved_revision_id` is the newest APPROVED 
 `latest_approved_version_no` is the on-chain `version_no` of *that* revision, so it is `null` while that
 revision is still being anchored (or its anchor FAILED), even if an older revision is anchored. It is set
 when that revision becomes ANCHORED; the startup reconciler recomputes both fields if they are stale.
+A REVOKED revision is not APPROVED (P5-05): revoking the pointed-to revision moves both fields to the newest
+remaining APPROVED revision, or to `null` if none is left.
 
 ## revisions  (every uploaded version)
 ```jsonc
@@ -38,7 +40,9 @@ when that revision becomes ANCHORED; the startup reconciler recomputes both fiel
   "file_hash": "hex", "text_root": "hex", "canon_version": 2, "page_count": 7, "chunk_count": 88,
   "anchor": { "status": "NOT_REQUESTED|ANCHORING|ANCHORED|FAILED", "tx_hash": "0x…", "block_number": 123,
               "chain_id": 31337, "contract": "0x…", "anchored_at": "…", "error": "…|null", "attempts": 1,
-              "attempted_at": "…|null" } }
+              "attempted_at": "…|null" },
+  "revocation": null }   // P5-05, set on revoke: { "by": "uuid", "at": "…", "reason": "…",
+                         //   "tx_hash": "0x…|null", "block_number": 123|null }
 ```
 Indexes: `(document_id, revision_no)` unique, `file_hash`, `text_root`, `(document_id, status)`, `anchor.status`.
 
@@ -51,6 +55,11 @@ Anchor fields (P5-04):
 - `tx_hash` / `block_number` are `null` on an ANCHORED revision when the version was found already on-chain
   (recovery after e.g. a receipt timeout: no new tx was sent). `version_no` is always set.
 - `anchored_at`: when the ANCHORED state was recorded (server time), not the block timestamp.
+
+Revocation fields (P5-05): only an APPROVED revision whose anchor is ANCHORED can be revoked (the contract needs
+its `version_no`). `anchor.*` is kept unchanged as history. `revocation.tx_hash` / `block_number` are `null`
+when the version was found already revoked on-chain (a retried revoke after the Mongo write failed; no new tx).
+`reason` is also written on-chain in the `VersionRevoked` event, so it is public: never put personal data in it.
 
 ## integrity_trees  (one per revision; kept separate to keep revisions small)
 ```jsonc
@@ -90,7 +99,7 @@ Index: `(document_id, at)`, `requested_by`.
 ```
 PENDING --approve--> APPROVED (anchor: ANCHORING -> ANCHORED | FAILED -> retry)
 PENDING --reject---> REJECTED   (terminal)
-APPROVED --revoke--> REVOKED    (on-chain VersionRevoked event)
+APPROVED --revoke--> REVOKED    (only once ANCHORED; on-chain revokeVersion first; terminal)
 ```
 Only one PENDING revision per document at a time (409 otherwise).
 

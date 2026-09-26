@@ -20,7 +20,9 @@ from app.security.jwt import decode_access_token
 from app.services.anchoring import AnchorService, build_anchor_service
 from app.services.auth import AuthService
 from app.services.documents import DocumentService
+from app.services.queries import QueryService
 from app.services.reviews import ReviewService
+from app.services.revocation import RevocationService
 from app.storage import S3Storage
 
 _bearer = HTTPBearer(auto_error=False)
@@ -98,6 +100,27 @@ def get_review_service(
     events: EventRepository = Depends(get_event_repo),
 ) -> ReviewService:
     return ReviewService(documents, revisions, events)
+
+
+def get_query_service(
+    documents: DocumentRepository = Depends(get_document_repo),
+    revisions: RevisionRepository = Depends(get_revision_repo),
+    trees: TreeRepository = Depends(get_tree_repo),
+    events: EventRepository = Depends(get_event_repo),
+    storage: S3Storage = Depends(get_storage),
+) -> QueryService:
+    return QueryService(documents, revisions, trees, events, storage)
+
+
+def get_revocation_service(
+    request: Request,
+    documents: DocumentRepository = Depends(get_document_repo),
+    revisions: RevisionRepository = Depends(get_revision_repo),
+    events: EventRepository = Depends(get_event_repo),
+) -> RevocationService:
+    """Client may be None: the service answers 404/409 first, then 503 if unconfigured."""
+    client: RegistryClient | None = getattr(request.app.state, "registry_client", None)
+    return RevocationService(documents, revisions, events, client)
 
 
 def get_anchor_service(request: Request) -> AnchorService:

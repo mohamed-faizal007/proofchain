@@ -3,7 +3,7 @@
 import datetime as dt
 from typing import Any, Literal
 
-from app.models.revision import Anchor, Revision
+from app.models.revision import Anchor, Revision, RevisionStatus, Revocation
 from app.repositories.base import BaseRepository
 
 
@@ -100,6 +100,16 @@ class RevisionRepository(BaseRepository[Revision]):
         result = await self._col.delete_one({"_id": id_, "status": "PENDING"})
         return result.deleted_count > 0
 
+    # --- revocation (P5-05): APPROVED + ANCHORED -> REVOKED, after the on-chain revoke ---
+
+    async def mark_revoked(self, id_: str, revocation: Revocation) -> bool:
+        """False if the revision is no longer an ANCHORED, APPROVED revision."""
+        result = await self._col.update_one(
+            {"_id": id_, "status": "APPROVED", "anchor.status": "ANCHORED"},
+            {"$set": {"status": "REVOKED", "revocation": revocation.model_dump()}},
+        )
+        return result.modified_count > 0
+
     # --- anchoring (P5-04). Every write requires status APPROVED (CLAUDE.md invariant). ---
 
     async def claim_anchor(self, id_: str, at: dt.datetime, stale_before: dt.datetime) -> bool:
@@ -190,11 +200,22 @@ class RevisionRepository(BaseRepository[Revision]):
         )
 
     async def find_reviewed_before(
-        self, status: Literal["APPROVED", "REJECTED"], cutoff: dt.datetime
+        self, statuses: tuple[RevisionStatus, ...], cutoff: dt.datetime
     ) -> list[Revision]:
         return await self.find_many(
-            {"status": status, "reviewed_at": {"$lt": cutoff}}, sort=[("reviewed_at", 1)]
+            {"status": {"$in": list(statuses)}, "reviewed_at": {"$lt": cutoff}},
+            sort=[("reviewed_at", 1)],
         )
+
+    async def find_revoked_before(self, cutoff: dt.datetime) -> list[Revision]:
+        return await self.find_many(
+            {"status": "REVOKED", "revocation.at": {"$lt": cutoff}}, sort=[("revocation.at", 1)]
+        )
+
+    async def document_ids_with_status(self, status: RevisionStatus) -> list[str]:
+        """Documents that have at least one revision in `status` (GET /documents filter)."""
+        ids = await self._col.distinct("document_id", {"status": status})
+        return [str(i) for i in ids]
 
     async def find_anchored_before(self, cutoff: dt.datetime) -> list[Revision]:
         return await self.find_many(

@@ -32,6 +32,16 @@ class Anchor(MongoModel):
     attempted_at: dt.datetime | None = None
 
 
+class Revocation(MongoModel):
+    """Set when an ANCHORED revision is revoked (P5-05); the on-chain revoke happens first."""
+
+    by: str
+    at: dt.datetime
+    reason: str
+    tx_hash: str | None = None  # None when the version was found already revoked (no tx sent)
+    block_number: int | None = None
+
+
 class Revision(MongoModel):
     id: str = Field(default_factory=new_id, alias="_id")
     document_id: str
@@ -52,3 +62,4 @@ class Revision(MongoModel):
     page_count: int
     chunk_count: int
     anchor: Anchor = Field(default_factory=Anchor)
+    revocation: Revocation | None = None
