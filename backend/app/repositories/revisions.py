@@ -46,17 +46,44 @@ class RevisionRepository(BaseRepository[Revision]):
         comment: str | None,
         at: dt.datetime,
     ) -> bool:
-        """PENDING -> APPROVED|REJECTED. False if the revision is missing or no longer PENDING."""
+        """PENDING -> APPROVED|REJECTED. False if the revision is missing or no longer PENDING.
+
+        Approval also marks the anchor ANCHORING in the same write (01_ARCHITECTURE §3.2), so a
+        crash can never leave an APPROVED revision that the anchoring reconciler would not pick up.
+        """
         if status not in ("APPROVED", "REJECTED"):
             raise ValueError(f"invalid review status: {status}")
+        fields: dict[str, object] = {
+            "status": status,
+            "reviewed_by": reviewed_by,
+            "review_comment": comment,
+            "reviewed_at": at,
+        }
+        if status == "APPROVED":
+            fields["anchor.status"] = "ANCHORING"
+        result = await self._col.update_one({"_id": id_, "status": "PENDING"}, {"$set": fields})
+        return result.modified_count > 0
+
+    async def revert_review(self, id_: str, reviewed_by: str, at: dt.datetime) -> bool:
+        """Undo one specific `set_review` (same reviewer and timestamp) back to PENDING.
+
+        Compensation for a review whose provenance event was not written; never touches a review
+        made by anyone else. Resets the anchor, which is only safe before anchoring starts.
+        """
         result = await self._col.update_one(
-            {"_id": id_, "status": "PENDING"},
+            {
+                "_id": id_,
+                "status": {"$in": ["APPROVED", "REJECTED"]},
+                "reviewed_by": reviewed_by,
+                "reviewed_at": at,
+            },
             {
                 "$set": {
-                    "status": status,
-                    "reviewed_by": reviewed_by,
-                    "review_comment": comment,
-                    "reviewed_at": at,
+                    "status": "PENDING",
+                    "reviewed_by": None,
+                    "reviewed_at": None,
+                    "review_comment": None,
+                    "anchor": Anchor().model_dump(),
                 }
             },
         )

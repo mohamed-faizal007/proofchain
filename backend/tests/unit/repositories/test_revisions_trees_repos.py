@@ -1,3 +1,5 @@
+import datetime as dt
+
 import pytest
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -72,6 +74,38 @@ async def test_set_review_persists_and_only_applies_to_pending(revs: RevisionRep
     # terminal now: a second review must not overwrite it
     assert await revs.set_review(r.id, "REJECTED", "u3", "no", at) is False
     assert (await revs.get(r.id)).status == "APPROVED"  # type: ignore[union-attr]
+
+
+async def test_approve_marks_anchor_anchoring_reject_does_not(revs: RevisionRepository) -> None:
+    a = await revs.insert(make_revision("d1", 1))
+    b = await revs.insert(make_revision("d1", 2))
+    await revs.set_review(a.id, "APPROVED", "u2", None, now_ms())
+    await revs.set_review(b.id, "REJECTED", "u2", "no", now_ms())
+    assert (await revs.get(a.id)).anchor.status == "ANCHORING"  # type: ignore[union-attr]
+    assert (await revs.get(b.id)).anchor.status == "NOT_REQUESTED"  # type: ignore[union-attr]
+
+
+async def test_revert_review_restores_pending_only_for_the_matching_review(
+    revs: RevisionRepository,
+) -> None:
+    r = await revs.insert(make_revision())
+    at = now_ms()
+    await revs.set_review(r.id, "APPROVED", "u2", "ok", at)
+    # a different reviewer or timestamp is someone else's review: never undone
+    assert await revs.revert_review(r.id, "u3", at) is False
+    assert await revs.revert_review(r.id, "u2", at + dt.timedelta(milliseconds=1)) is False
+    assert (await revs.get(r.id)).status == "APPROVED"  # type: ignore[union-attr]
+    assert await revs.revert_review(r.id, "u2", at) is True
+    got = await revs.get(r.id)
+    assert got is not None
+    assert (got.status, got.reviewed_by, got.reviewed_at, got.review_comment) == (
+        "PENDING",
+        None,
+        None,
+        None,
+    )
+    assert got.anchor == Anchor()
+    assert await revs.revert_review(r.id, "u2", at) is False  # already undone: no-op
 
 
 async def test_set_review_rejects_non_review_status(revs: RevisionRepository) -> None:

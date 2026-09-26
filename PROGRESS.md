@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P5 in progress (P5-01, P5-02 done)
-- Next task: P5-03 Approve/reject + provenance events
+- Phase: P5 in progress (P5-01, P5-02, P5-03 done)
+- Next task: P5-04 Anchoring service (background + reconcile + retry)
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -29,7 +29,7 @@
 - P2 phase review (2026-09-20), no HIGH findings. Suites: backend 392 passed (total coverage 95%; `app/deps.py` 0% until P3+ uses it), ruff/mypy clean, contracts 1 passed, frontend 15 passed + lint clean. `-m mongo`/`-m minio` integration tests were not run in this review. MEDIUM:
   - **S3 timeouts vs public /health (FIXED in P2-review: S3 client timeouts):** connect 1s, read 5s, 2 total attempts on the boto client, so an unreachable S3 holds a worker thread ~12s at most instead of 60s x 3; pinned by `test_hanging_s3_call_is_bounded_by_botocore_timeout`. Remaining: `/health` can still fan out one thread per request for that window; consider a short TTL cache for the S3 probe.
   - `EventRepository.append` retries once (ADR-019, deliberate: sized for maker/checker). A third concurrent writer gets a 409; `_tip` walks all of a document's events per append (O(n)). Consider 5-10 retries with jitter and a tip pointer / latest-only fetch.
-  - State change and event are two separate Mongo writes (e.g. `set_review` then `append(REVISION_APPROVED)`), not atomic: a crash between them leaves an APPROVED revision with no event. The P5 services must fix the write order or use a transaction, plus a reconcile check and a test.
+  - State change and event are two separate Mongo writes (e.g. `set_review` then `append(REVISION_APPROVED)`), not atomic: a crash between them leaves an APPROVED revision with no event. The P5 services must fix the write order or use a transaction, plus a reconcile check and a test. (P5-03: state-then-event with a rollback if the append fails. The crash-gap reconcile check is an explicit Accept line on P5-04 in TASKS.md.)
   - `RevisionRepository` still inherits unguarded `update_one`/`delete` from `BaseRepository`, bypassing the PENDING guard; protect or remove them on revisions/trees. (`set_anchor` now filters on `status == "APPROVED"` as a backstop, FIXED in P2-review; the primary check is the P5-04 service invariant, now in its Accept line.)
 - P2 phase review LOW:
   - (`set_anchor` return value FIXED: now `matched_count`.) Document counters (`revision_count`, `latest_approved_*`, `updated_at`) have no atomic helper yet (P5).
@@ -67,6 +67,14 @@
   - Races: two submits that both pass the pending check compute the same `revision_no`; the unique `(document_id, revision_no)` index rejects the loser, mapped to 409 PENDING_REVISION_EXISTS and rolled back (`test_racing_submit_loses_...`).
   - Counter: `bump_revision_count` is one atomic `$inc` (100 concurrent bumps verified on mongo:7). Its compensating -1 is registered only after the `$inc` returned, so an increment that commits but loses its ack leaves `revision_count` one too high (logged nowhere, pinned by `test_write_that_commits_then_raises_is_rolled_back[counter]`). Same append-only-event orphan limit as P5-01 if the event append commits then raises.
   - The 12 MB tree-size guard (see P5-01 limits) is still undecided.
+
+- P5-03 interpretation choices and limits (review, `ReviewService`):
+  - **Write order:** `set_review` (conditional on PENDING, which decides concurrent reviews) -> event (appended with `at = reviewed_at`) -> approve-only document pointer. Nothing is reverted after the event is written.
+  - **Double failure (event append fails AND revert fails):** caller gets the original error, 500 `INTERNAL_ERROR`, no exception text. The revision stays APPROVED (`anchor.status=ANCHORING`) or REJECTED with `reviewed_by` set, has no event, and the pointer is unchanged. An ERROR log line gives the ids, and a retry gets 409 `REVISION_NOT_PENDING`. There is deliberately no "unknown state" marker: it would be one more write that could fail, and "reviewed with no event" can already be found by a query. The P5-04 reconciler Accept line covers it.
+  - The same state is left, never reverted, when the append fails and the follow-up event lookup also fails, because the event may exist and an event pointing at a PENDING revision could not be repaired. An append that commits then raises is detected by the lookup and treated as success.
+  - A pointer write that fails after the event is logged, and the request still returns 202. Repair of `latest_approved_revision_id` is a P5-04 Accept line.
+  - **Maker != checker covers reject too** (04 only states it for approve); noted in 04. There is no ownership or team rule for approvers.
+  - Wrong state is 409 `REVISION_NOT_PENDING` (existing code in 04), not the generic `CONFLICT` from the plan. The P2-review `update_one`/`delete` bypass on `RevisionRepository` is still open.
 
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
@@ -339,3 +347,10 @@
 - Decisions: owner-only submit and required `change_note` (see Known issues, P5-02); no ADR (no spec/CANON change).
 - Issues: see Known issues "P5-02 interpretation choices and limits".
 - Next: P5-03 Approve/reject + provenance events (must also update `latest_approved_*` and fix the state+event write order, see P2 review).
+
+### 2026-09-26 — P5-03 Approve/reject + provenance events
+- Done: `POST /revisions/{id}/approve` (202, APPROVER, `{comment?}`) and `/reject` (200, `{comment}` required) returning the revision. `ReviewService` (`app/services/reviews.py`): 404 -> 403 `SELF_APPROVAL_FORBIDDEN` -> 409 `REVISION_NOT_PENDING` pre-checks, then conditional `set_review` (approve also sets `anchor.status=ANCHORING` in the same write) -> `REVISION_APPROVED`/`REVISION_REJECTED` event -> `set_latest_approved` (approve only). New repo methods `RevisionRepository.revert_review` (matches only the same reviewer and timestamp) and `DocumentRepository.set_latest_approved`. Doc note in 04 (response shape, 409, maker != checker on reject). Anchoring is not started yet (P5-04).
+- Tests: `test_revisions_review.py` (15: happy paths with pointer/event/chain, comment rules, self-review 403 for both actions, unrelated approver approves two different issuers' revisions, authz 401/403/404, approved revision becomes the next parent, rejection frees the slot), `test_review_state_machine.py` (8: every reviewed -> reviewed transition 409 with nothing written, REVOKED 409, concurrent approve/approve and approve/reject held at a barrier after the pre-check: exactly one winner, one event, clean 409 loser), `test_review_faults.py` (12: failure/commit-then-raise at each step reverts to PENDING and a retry works, committed event counts as success, event + revert both fail, unknown event outcome not reverted, pointer failure logged), 3 repo tests. Mutation checks: dropping the PENDING filter fails both race tests; disabling the revert fails 8 fault tests. 660 passed, ruff/mypy clean.
+- Decisions: see Known issues "P5-03". No ADR (no spec/CANON change).
+- Issues: added P5-04 Accept lines for the missing-event reconciler (with an in-flight grace window) and for the stale-pointer repair, and a P5-05 line for REVOKED.
+- Next: P5-04 Anchoring service

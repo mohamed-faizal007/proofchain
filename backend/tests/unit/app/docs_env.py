@@ -95,6 +95,30 @@ class Env:
             data={"change_note": "updated", **form},
         )
 
+    def approver(self, email: str = "approver@example.com") -> dict[str, str]:
+        return self.auth(self.user(["APPROVER"], email))
+
+    def review(
+        self, headers: dict[str, str], revision_id: str, action: str, comment: str | None = "ok"
+    ) -> Any:
+        body = None if comment is None else {"comment": comment}
+        return self.client.post(
+            f"{PREFIX}/revisions/{revision_id}/{action}", headers=headers, json=body
+        )
+
+    def revision(self, revision_id: str) -> dict[str, Any]:
+        return self.client.portal.call(self.db["revisions"].find_one, {"_id": revision_id})  # type: ignore[union-attr,no-any-return]
+
+    def document(self, document_id: str) -> dict[str, Any]:
+        return self.client.portal.call(self.db["documents"].find_one, {"_id": document_id})  # type: ignore[union-attr,no-any-return]
+
+    def events(self, type_: str | None = None) -> list[dict[str, Any]]:
+        async def load() -> list[dict[str, Any]]:
+            q = {} if type_ is None else {"type": type_}
+            return [e async for e in self.db["provenance_events"].find(q)]
+
+        return self.client.portal.call(load)  # type: ignore[union-attr]
+
     def set_status(self, revision_id: str, status: str) -> None:
         """Stand-in for approve/reject (P5-03): force a revision's status directly."""
         self.client.portal.call(  # type: ignore[union-attr]

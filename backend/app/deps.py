@@ -19,6 +19,7 @@ from app.repositories.verifications import VerificationRepository
 from app.security.jwt import decode_access_token
 from app.services.auth import AuthService
 from app.services.documents import DocumentService
+from app.services.reviews import ReviewService
 from app.storage import S3Storage
 
 _bearer = HTTPBearer(auto_error=False)
@@ -88,6 +89,14 @@ def get_document_service(
     return DocumentService(
         documents, revisions, trees, events, storage, settings.max_upload_mb * 1024 * 1024
     )
+
+
+def get_review_service(
+    documents: DocumentRepository = Depends(get_document_repo),
+    revisions: RevisionRepository = Depends(get_revision_repo),
+    events: EventRepository = Depends(get_event_repo),
+) -> ReviewService:
+    return ReviewService(documents, revisions, events)
 
 
 async def get_optional_user(

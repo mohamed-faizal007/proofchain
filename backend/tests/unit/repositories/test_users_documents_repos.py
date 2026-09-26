@@ -5,7 +5,7 @@ from app.db import ensure_indexes
 from app.errors import ConflictError
 from app.repositories.documents import DocumentRepository
 from app.repositories.users import UserRepository
-from tests.unit.repositories.factories import make_document, make_user
+from tests.unit.repositories.factories import make_document, make_user, now_ms
 
 
 @pytest.fixture
@@ -53,3 +53,16 @@ async def test_list_by_owner(docs: DocumentRepository) -> None:
     await docs.insert(make_document("a3", owner_id="u2"))
     assert {d.chain_doc_id for d in await docs.list_by_owner("u1")} == {"a1", "a2"}
     assert await docs.list_by_owner("nobody") == []
+
+
+async def test_set_latest_approved_moves_pointer_and_touches_updated_at(
+    docs: DocumentRepository,
+) -> None:
+    d = await docs.insert(make_document("aa"))
+    at = now_ms()
+    assert await docs.set_latest_approved(d.id, "rev-2", at) is True
+    got = await docs.get(d.id)
+    assert got is not None
+    assert (got.latest_approved_revision_id, got.updated_at) == ("rev-2", at)
+    assert got.latest_approved_version_no is None  # set at anchor time (P5-04)
+    assert await docs.set_latest_approved("missing", "rev-2", at) is False

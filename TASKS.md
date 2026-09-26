@@ -119,13 +119,16 @@ Carried over from P0 review (split in P3-01): `config.py` must also reject an em
 Deps: P1-07, P2-02, P2-03, P3-02 · Refs: 01 §3.1, 04
 ### [x] P5-02 Submit revision
 Deps: P5-01 · Accept: 409 when pending exists; 422 NO_CONTENT_CHANGE.
-### [ ] P5-03 Approve/reject + provenance events
+### [x] P5-03 Approve/reject + provenance events
 Deps: P5-02 · Accept: self-approval 403; state machine tests.
 ### [ ] P5-04 Anchoring service (background + reconcile + retry)
 Deps: P5-03, P4-03 · Refs: 01 §3.2, ADR-012 · Accept: FAILED → retry → ANCHORED with fake client; idempotency test.
 Accept (invariant): anchoring service raises a domain error for any revision whose status is not APPROVED (retry endpoint, reconciler, direct call); tests for PENDING and REJECTED.
+Accept (P2-review state/event finding): the reconciler also finds revisions whose status changed (APPROVED/REJECTED) but have no matching provenance event (REVISION_APPROVED/REVISION_REJECTED for that revision_id), and appends the missing event using the revision's `reviewed_by` as actor and `reconciled: true` in `data`. Idempotent: a second run appends nothing. Skips reviews newer than a grace window (e.g. `reviewed_at` older than 60 s only), so a review whose event append is still in flight is not recorded twice. Tests (including the grace window): one per status with the event missing, one with the event present (no-op), and one showing the event chain stays valid after repair. This is the fix the P2 review asked for; the P5-03 rollback only covers a failed append, not a crash between the two writes.
+Accept (P5-03 pointer): when a revision is anchored, set `documents.latest_approved_version_no`; the reconciler also repairs a stale `latest_approved_revision_id` (P5-03 logs but does not roll back a pointer write that fails after the event), recomputing it from the newest APPROVED revision. Test: stale pointer is repaired; correct pointer is untouched.
 ### [ ] P5-05 Revoke, list/detail, tree, presigned file, provenance endpoints
 Deps: P5-04 · Refs: 04
+Accept (P2-review state/event finding): extend the P5-04 reconciler to REVOKED revisions with no VERSION_REVOKED event; test missing and present cases.
 ### [ ] P5-06 Revision diff endpoint
 Deps: P5-05, P1-08 · Refs: 04 (`/revisions/{id}/diff`)
 

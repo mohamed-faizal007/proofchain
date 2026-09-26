@@ -29,8 +29,8 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 | GET | /revisions/{id}/tree | any | integrity tree (roots + chunks) |
 | GET | /revisions/{id}/file | any | `{url, expires_in}` presigned GET |
 | GET | /revisions/{id}/diff?against={revId} | any | LocalizationResult + analysis between two revisions (default against parent) |
-| POST | /revisions/{id}/approve | APPROVER | `{comment?}`; 403 if approver == submitter; 202 → anchoring in background |
-| POST | /revisions/{id}/reject | APPROVER | `{comment}` required |
+| POST | /revisions/{id}/approve | APPROVER | `{comment?}`; 403 if approver == submitter; 202 → anchoring in background. Returns the revision (`status=APPROVED`, `anchor.status=ANCHORING`); 409 `REVISION_NOT_PENDING` if not PENDING (incl. losing a concurrent review) |
+| POST | /revisions/{id}/reject | APPROVER | `{comment}` required (blank = 422); 200 with the revision; 403 `SELF_APPROVAL_FORBIDDEN` if rejecter == submitter (maker ≠ checker applies to both decisions); 409 `REVISION_NOT_PENDING` if not PENDING |
 | POST | /revisions/{id}/revoke | APPROVER | `{reason}`; only APPROVED; writes on-chain revocation |
 | POST | /revisions/{id}/retry-anchor | ADMIN | idempotent: checks chain before sending |
 | GET | /documents/{id}/provenance | any | ordered events + `chain_valid` (hash-chain check) |
