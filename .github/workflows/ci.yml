@@ -30,6 +30,62 @@ jobs:
       - run: python -m mypy proofchain_core app
       - run: python -m pytest -q --cov=proofchain_core --cov=app
 
+  chain-integration:
+    # Real Hardhat node + MongoDB, so `-m chain` / `-m mongo` run on every push, not by hand
+    # (P5 review M5). The node runs as a background process, not a service container: it has to
+    # be started from this checkout (contracts/) and the contract deployed from it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      MONGO_URI: mongodb://localhost:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: npm ci
+        working-directory: contracts
+      - name: Start Hardhat node
+        working-directory: contracts
+        run: |
+          npx hardhat node --hostname 127.0.0.1 > "$RUNNER_TEMP/hardhat.log" 2>&1 &
+          for _ in $(seq 1 90); do
+            if curl -sf -X POST -H 'Content-Type: application/json' \
+              --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+              http://127.0.0.1:8545 > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Hardhat node did not start"; cat "$RUNNER_TEMP/hardhat.log"; exit 1
+      - name: Deploy registry (writes deployments/localhost.json and the backend ABI)
+        run: npm run deploy:local
+        working-directory: contracts
+      - name: Committed backend ABI matches the compiled contract
+        run: git diff --exit-code -- backend/app/chain/abi/ProofChainRegistry.json
+      - run: pip install -e ".[dev]"
+        working-directory: backend
+      - name: Chain + Mongo integration tests
+        run: python -m pytest -q -m "chain or mongo"
+        working-directory: backend
+      - name: Hardhat node log
+        if: failure()
+        run: cat "$RUNNER_TEMP/hardhat.log"
+
   core-windows:
     # Determinism across OS: core tests must pass identically on Windows.
     runs-on: windows-latest
