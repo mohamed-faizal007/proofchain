@@ -4,6 +4,7 @@ import datetime as dt
 
 import pytest
 
+from app.errors import AnchorFailedError
 from app.models.revision import Anchor
 from app.services.anchoring import CLAIM_STALE_AFTER, now_ms
 from tests.unit.app.anchor_harness import Harness
@@ -98,3 +99,39 @@ async def test_stuck_claim_is_taken_over(hx: Harness) -> None:
     got = await hx.get(rev)
     assert got.anchor.attempts == 2 and got.anchor.attempted_at is not None
     assert got.anchor.attempted_at > old
+
+
+async def test_failure_mid_drain_leaves_later_revisions_queued(hx: Harness) -> None:
+    """3-deep queue: v1 retry drains v2, then v3 FAILS; v4 (behind v3) stays queued, unsent."""
+    doc = await hx.document()
+    v1 = await hx.revision(doc, 1, anchor=Anchor(status="FAILED", error="CHAIN_UNAVAILABLE"))
+    v2, v3, v4 = [await hx.revision(doc, n) for n in (2, 3, 4)]  # queued behind v1
+    svc = hx.service()
+    real = hx.client.anchor_version
+    sent: list[str] = []
+
+    async def v3_rejected(doc_id: str, file_hash: str, text_root: str, canon: int):  # type: ignore[no-untyped-def]
+        sent.append(text_root)
+        if text_root == v3.text_root:
+            raise AnchorFailedError("Contract rejected the transaction")
+        return await real(doc_id, file_hash, text_root, canon)
+
+    hx.client.anchor_version = v3_rejected  # type: ignore[method-assign]
+    assert await svc.anchor(v1.id, "retry") == "ANCHORED"
+
+    assert sent == [v1.text_root, v2.text_root, v3.text_root]  # v4 never sent
+    got = [await hx.get(r) for r in (v1, v2, v3, v4)]
+    assert [g.version_no for g in got] == [1, 2, None, None]
+    assert (got[2].anchor.status, got[2].anchor.error) == ("FAILED", "ANCHOR_FAILED")
+    assert (got[3].anchor.status, got[3].anchor.attempted_at, got[3].anchor.attempts) == (
+        "ANCHORING",
+        None,
+        0,
+    )
+    assert await hx.client.version_count(doc.chain_doc_id) == 2
+
+    # Retrying v3 anchors it and then drains v4, in order.
+    hx.client.anchor_version = real  # type: ignore[method-assign]
+    await svc.request_retry(v3.id)
+    assert await svc.anchor(v3.id, "retry") == "ANCHORED"
+    assert [(await hx.get(r)).version_no for r in (v1, v2, v3, v4)] == [1, 2, 3, 4]

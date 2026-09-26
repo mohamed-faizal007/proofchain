@@ -86,6 +86,9 @@ Implementation details (P4-03):
   version has the same `fileHash` and `textRoot` **and is not revoked**. Otherwise a new version is anchored, so
   re-anchoring identical content after a revoke yields a fresh valid version. A skipped anchor returns
   `AnchorReceipt(already_anchored=True, tx_hash=None)`.
+- Before sending, the client refuses (`AnchorFailedError`) while the anchor account has a pending nonce above its
+  mined nonce: an earlier tx (e.g. after a receipt timeout) may still be mined, and a second send could anchor the
+  same version twice (P5-04).
 - `docId` arguments are the 64-char lowercase hex `chain_doc_id`; `tx_hash` values are `0x`-prefixed.
 - `OnChainVersion` exposes `revoked` (needed by the P6 cross-check). `get_version` returns `None` when out of range.
 - Reverts map to `AnchorFailedError`; unreachable node or timeout maps to `ChainUnavailableError`.

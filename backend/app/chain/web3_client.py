@@ -164,6 +164,11 @@ class Web3RegistryClient:
         sender = self._account.address
         try:
             nonce = await self._w3.eth.get_transaction_count(sender, "pending")
+            # Every send waits for its receipt under the lock, so a pending nonce above the
+            # mined one means an earlier tx (e.g. after a receipt timeout) is still in the
+            # mempool. Sending now could anchor the same version twice: refuse instead.
+            if nonce > await self._w3.eth.get_transaction_count(sender, "latest"):
+                raise AnchorFailedError("A previous anchor transaction is still pending")
             latest = await self._w3.eth.get_block("latest")
             priority = await self._w3.eth.max_priority_fee
             base = latest.get("baseFeePerGas", 0)

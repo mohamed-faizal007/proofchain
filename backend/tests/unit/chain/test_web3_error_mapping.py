@@ -149,3 +149,36 @@ async def test_view_call_maps_web3_errors_without_text(
         await client._rpc(failing())
     assert info.value.__cause__ is None
     assert "SECRET_REVERT_PAYLOAD" not in "".join(traceback.format_exception(info.value))
+
+
+async def test_send_refuses_while_an_earlier_tx_is_still_pending(
+    client: Web3RegistryClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P5-04 follow-up: no second tx while a timed-out one may still be mined."""
+    sent: list[bytes] = []
+
+    async def count(_: str, block: str) -> int:
+        return 5 if block == "pending" else 4
+
+    async def send_raw(raw: bytes) -> bytes:
+        sent.append(raw)
+        return b""
+
+    monkeypatch.setattr(client._w3.eth, "get_transaction_count", count)
+    monkeypatch.setattr(client._w3.eth, "send_raw_transaction", send_raw)
+    with pytest.raises(AnchorFailedError) as info:
+        await client.revoke_version(DOC, 1, "x")
+    assert info.value.message == "A previous anchor transaction is still pending"
+    assert sent == []
+
+
+async def test_send_proceeds_when_no_tx_is_pending(
+    client: Web3RegistryClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def count(_: str, block: str) -> int:
+        return 4
+
+    monkeypatch.setattr(client._w3.eth, "get_transaction_count", count)
+    # Past the pending check, the next RPC hits the fixture's HTTP 401 node.
+    with pytest.raises(ChainUnavailableError):
+        await client.revoke_version(DOC, 1, "x")

@@ -208,3 +208,32 @@ def test_startup_reconciler_runs_in_background(env: Env) -> None:
 
 async def _tick() -> None:
     await asyncio.sleep(0.01)
+
+
+def test_retry_409s_are_distinguishable_queued_vs_not_approved(env: Env) -> None:
+    """Same status code, different code + details: queued (wait / retry the blocker) vs a
+    revision that can never be anchored (wrong status)."""
+    client = scripted(env)
+    approver, headers = env.approver(), admin(env)
+    issuer, v1, doc_id = first_revision(env)
+    client.failures = [REVERT]
+    approve(env, approver, v1)  # v1 FAILED
+    v2 = next_revision(env, issuer, doc_id, PDFS[1])
+    approve(env, approver, v2)  # APPROVED, queued behind v1
+    v3 = next_revision(env, issuer, doc_id, PDFS[2])  # PENDING
+
+    queued, pending = retry(env, headers, v2), retry(env, headers, v3)
+
+    assert (queued.status_code, pending.status_code) == (409, 409)
+    assert queued.json()["error"] == {
+        "code": "CONFLICT",
+        "message": "Anchoring is already queued or in progress",
+        "details": {"anchor_status": "ANCHORING"},
+    }
+    assert pending.json()["error"] == {
+        "code": "REVISION_NOT_APPROVED",
+        "message": "Only APPROVED revisions are anchored",
+        "details": {"status": "PENDING"},
+    }
+    assert retry(env, headers, v1).status_code == 202  # retrying the blocker unblocks v2
+    assert env.revision(v2)["version_no"] == 2
