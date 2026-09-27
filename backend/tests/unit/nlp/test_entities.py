@@ -46,6 +46,31 @@ def test_extract_dates_relative_expression_is_anchored_not_wall_clock():
     assert extract_dates("Renewal due next year.") == ["2001-01-01"]
 
 
+def test_extract_dates_does_not_misread_the_modal_verb_may_as_the_month():
+    # dateparser otherwise reads bare "may" as the month name May (RELATIVE_BASE's year, no
+    # day); "may" is one of 06's three obligation modals (shall/must/will <-> may), so this
+    # collision would tag every modal flip to "may" with a fabricated DATE_CHANGE.
+    assert extract_dates("The tenant may pay rent.") == []
+    assert extract_dates("We may terminate this agreement.") == []
+    assert extract_dates("This may or may not happen.") == []
+    assert extract_dates("You may not sublet the unit.") == []
+
+
+def test_extract_dates_still_detects_may_with_a_day_or_year():
+    # a real May date always carries a digit (day and/or year), so it is not filtered
+    assert extract_dates("Payment is due in May 2025.") == ["2025-05-01"]
+    assert extract_dates("The deadline is May 5, 2025.") == ["2025-05-05"]
+
+
+def test_extract_dates_bare_month_may_with_no_day_or_year_is_a_known_tradeoff():
+    # deliberate false negative: a bare "May" with neither day nor year is indistinguishable
+    # from the modal-verb collision above by this regex-only rule, so it is dropped too. Rare
+    # in contract text (which specifies exact dates); the alternative is a fabricated date on
+    # every "may"-modal clause, which is worse and far more common. See entities.py
+    # `_is_bare_modal_may`.
+    assert extract_dates("Payment is due in May.") == []
+
+
 def test_extract_percentage_matches_symbol_and_per_cent():
     assert extract_percentages("Interest of 12.5% per annum.") == ["12.50%"]
     assert extract_percentages("Interest of 12.5 per cent per annum.") == ["12.50%"]

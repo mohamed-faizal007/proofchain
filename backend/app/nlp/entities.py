@@ -80,11 +80,30 @@ def extract_money(text: str) -> list[str]:
     return [value for _, _, value in _money_match_spans(text)]
 
 
+_BARE_MAY_RE = re.compile(r"\bmay\b", re.IGNORECASE)
+_HAS_DIGIT_RE = re.compile(r"\d")
+
+
+def _is_bare_modal_may(matched_text: str) -> bool:
+    """True if `matched_text` is dateparser reading the modal verb "may" (06's OBLIGATION_CHANGE
+    weak modal, e.g. "the tenant may pay", "we may terminate") as the month name May, rather than
+    a real date. dateparser resolves a bare month name to `RELATIVE_BASE`'s year with no day, so
+    the signal is: the word "may" is present and no digit (day/year) anchors the match to an
+    actual date. This also drops a genuine bare month reference with no year (e.g. "due in
+    May.") as a deliberate tradeoff -- rare in contract text, versus "may" as a modal being one
+    of 06's three obligation-modal keywords and therefore common. A month+year or month+day
+    match (e.g. "May 2025", "May 5, 2025") always has a digit and is unaffected.
+    """
+    return bool(_BARE_MAY_RE.search(matched_text)) and not _HAS_DIGIT_RE.search(matched_text)
+
+
 def _date_match_spans(text: str) -> list[tuple[int, int, str]]:
     matches = search_dates(text, languages=_DATE_LANGUAGES, settings=_DATEPARSER_SETTINGS) or []
     results: list[tuple[int, int, str]] = []
     search_from = 0
     for matched_text, dt in matches:
+        if _is_bare_modal_may(matched_text):
+            continue
         start = text.find(matched_text, search_from)
         if start == -1:
             start = text.find(matched_text)

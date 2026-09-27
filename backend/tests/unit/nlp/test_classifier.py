@@ -267,6 +267,17 @@ def test_explanation_describes_an_unpaired_removed_entity():
     assert "the amount INR:100.00 was removed" in result.explanation
 
 
+def test_explanation_describes_an_unpaired_added_entity():
+    region = _region(
+        RegionType.MODIFIED,
+        ref_text="Pay Rs. 500 total.",
+        cand_text="Pay Rs. 500 and Rs. 100 total.",
+    )
+    result = _classifier.analyze(region)
+    assert result.primary_category == Category.AMOUNT_CHANGE
+    assert "the amount INR:100.00 was added" in result.explanation
+
+
 def test_explanation_omits_location_when_region_has_no_section_or_page():
     region = _region(
         RegionType.MODIFIED,
