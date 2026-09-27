@@ -85,7 +85,7 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
                   "severity": "HIGH", "similarity": 0.94,
                   "entity_changes": [ { "type": "MONEY", "before": "₹50,000", "after": "₹80,000" } ],
                   "explanation": "The amount changed from ₹50,000 to ₹80,000 in Section 4 (Payment Terms)." } ],
-  "chain_check": { "performed": true, "ok": true, "tx_hash": "0x…", "explorer_url": "…" },
+  "chain_check": { "performed": true, "ok": true, "reason": null, "mismatches": [], "tx_hash": "0x…", "explorer_url": "…" },
   "timings_ms": { "total": 812 } }
 ```
 

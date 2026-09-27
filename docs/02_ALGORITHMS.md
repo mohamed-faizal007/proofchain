@@ -128,7 +128,10 @@ elif match (PENDING | REJECTED | REVOKED):  verdict = UNAUTHORIZED_VERSION
 elif document known:                        verdict = TAMPERED (+ localization + NLP)
 else:                                       verdict = UNKNOWN_DOCUMENT
 then: chain cross-check of the matched/reference version:
-    on-chain (fileHash, textRoot) must equal Mongo; else verdict = RECORD_MISMATCH
+    on-chain (fileHash, textRoot, canonVersion, revoked) must equal Mongo (revoked == status REVOKED);
+    a missing on-chain version also counts; else verdict = RECORD_MISMATCH (ADR-020)
+    not performed (revision not ANCHORED, no registry, node unreachable): keep the Mongo-based verdict,
+    chain_check.performed = false; an outage is never a RECORD_MISMATCH (ADR-020)
 ```
 Document association when `document_id` is not supplied: lookup by `file_hash`, then by `text_root`; otherwise
 `UNKNOWN_DOCUMENT` (the UI then asks the user to pick the document).

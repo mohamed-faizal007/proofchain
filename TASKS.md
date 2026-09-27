@@ -140,7 +140,7 @@ Deps: P5-05 · Refs: 02 §10-11
 ### [x] P6-02 Closest approved version + localization
 Deps: P6-01, P1-08
 Accept (P1-09 finding 9): /verify needs its own canon_version guard before `localize` (the P5-06 diff guard lives in `QueryService.diff` and does not cover /verify): a reference tree built under another `CANON_VERSION` than the candidate is never localized against it (rebuild the reference under the candidate's rules, or report no localization); test with a stored tree whose `canon_version` differs.
-### [ ] P6-03 Chain cross-check + RECORD_MISMATCH
+### [x] P6-03 Chain cross-check + RECORD_MISMATCH
 Deps: P6-02, P4-03 · Accept: test that edits Mongo text_root directly → RECORD_MISMATCH.
 ### [ ] P6-04 /verify route, report assembly, persistence, timings
 Deps: P6-03 · Refs: 04 VerificationReport · Accept: integration test for every verdict in PRD §5. The `UNAUTHORIZED_VERSION` test covers both a never-approved match (PENDING/REJECTED) and a REVOKED match, and asserts the AUTHORIZATION step `detail` text differs between them (the revoked one names the revocation date and reason from `matched_revision.revocation`); the verdict enum is unchanged.
