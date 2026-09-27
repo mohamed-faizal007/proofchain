@@ -149,7 +149,7 @@ Deps: P6-03 · Refs: 04 VerificationReport · Accept: integration test for every
 ## P7 — NLP semantic analysis
 ### [x] P7-01 Token diff + regex entities (money ₹/Rs/INR/$, dates, %, numbers)
 Deps: P0-02 · Refs: 06
-### [ ] P7-02 Obligation/negation detection + rule classifier + templates
+### [x] P7-02 Obligation/negation detection + rule classifier + templates
 Deps: P7-01
 ### [ ] P7-03 spaCy NER + embeddings (lazy singletons) + graceful fallback
 Deps: P7-02
