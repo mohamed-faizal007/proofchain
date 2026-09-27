@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P6 complete and reviewed (P6-01..04 + phase review, HIGH fixed in `P6-review: redact anonymous verification reports`, ADR-021). Tag `v0.1-P6` NOT yet created; the review commits are NOT yet pushed.
-- Next task: P7-01 token diff + regex entities (start with `git tag -a v0.1-P6`, then read the P6 phase review Known issues; M1 is a design decision to settle before P8, not a P7 blocker)
+- Phase: P7-01 done (token diff + regex entities). Tag `v0.1-P6` still NOT created; the P6 review commits are still NOT pushed.
+- Next task: P7-02 obligation/negation detection + rule classifier + templates
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -472,3 +472,13 @@
 ### 2026-09-27 — P6 wrap-up checkpoint
 - Done: no new code. Answered the two review follow-ups in Known issues: the partial oracle is LOW (uuid4 ids; escalation trigger recorded) and M1 is deferred with explicit reasoning (matches 02 §11/ADR-020; real fix is an ADR-level verdict change, candidate ADR recorded). "Current status" updated. Tag `v0.1-P6` not created; commits after `4edbc85` are local only.
 - Next: `git tag -a v0.1-P6`, push branch and tag, then P7-01.
+
+### 2026-09-27 — P7-01 Token diff + regex entities
+- Done: `app/nlp/types.py` (`Category` StrEnum with the full 06 table, `DiffOp`, `EntityChange`, `ChangeAnalysis` shell for P7-02+ to fill in), `app/nlp/token_diff.py` (`tokenize` on `\w+|[^\w\s]`, `diff_tokens` via `difflib.SequenceMatcher`, `changed_token_count` for the future MINOR_EDIT threshold), `app/nlp/entities.py` (regex `extract_money`/`extract_dates`/`extract_percentages`/`extract_numbers` plus `diff_entities` multiset comparison). spaCy NER (PARTY_CHANGE) is P7-03, not here.
+- Determinism: `dateparser` moved from the `nlp` extra to a hard base dependency (`pyproject.toml`) so date extraction needs no model download and runs in the default test suite. Pinned `_DATEPARSER_SETTINGS`: `DATE_ORDER: "DMY"` (06 "DMY preferred"; ambiguous `01/02/2024` -> `2024-02-01`, not `2024-01-02`), `RELATIVE_BASE: datetime(2000, 1, 1)` (a relative expression like "next year" resolves against a fixed anchor, never `datetime.now()`), `PREFER_DAY_OF_MONTH: "first"` (a day-less date like "March 2024" doesn't fall back to today's day), `languages=["en"]` passed at every call site instead of relying on dateparser's language auto-detection. Same discipline as `proofchain_core`'s P1 canonicalization determinism, since NLP output feeds stored `ChangeAnalysis`/verification records. Pinned by `test_extract_dates_normalizes_to_iso_dmy_preferred` (DMY order), `test_extract_dates_settings_pin_date_order_and_relative_base` (asserts the config dict directly), `test_extract_dates_relative_expression_is_anchored_not_wall_clock` ("next year" -> `2001-01-01`, not wall-clock-dependent).
+- Money normalization: regex captures symbol (₹/Rs./INR/$/USD) and/or scale word (lakh/lac/crore) and/or "rupees"; a bare number with none of those is not a money match (left for `extract_numbers`). Lakh/crore multiply into the amount (`50 lakh` -> `INR:5000000.00`); no symbol defaults to INR. `extract_numbers` excludes any span already matched by money/date/percent via span-overlap check, so no double-counting.
+- Tests: `tests/unit/nlp/test_token_diff.py` (5), `tests/unit/nlp/test_entities.py` (11, includes the three determinism tests above and multiset add/remove/unchanged cases for `diff_entities`). All new tests pass on first run.
+- Verification: `python -m pytest tests/unit/nlp -q` 14 passed; ruff check --fix (one SIM108 ternary fix) + format clean; mypy clean (proofchain_core + app, incl. the new nlp modules); full suite `python -m pytest -q --cov=app --cov=proofchain_core --cov-report=term-missing`: 958 passed, 22 deselected, total coverage 98% (`app/nlp/entities.py` 97% — lines 90/92 are a defensive fallback in `_date_match_spans` for a dateparser match that can't be found in the source text, unreachable in practice since `search_dates` returns substrings of its input; `token_diff.py`/`types.py` 100%).
+- Decisions: `dateparser` is a hard dependency, not gated behind the `nlp` extra/`NLP_ENABLED` (unlike spaCy/sentence-transformers in P7-03) — it's pure-Python with no model download, so gating it would only weaken CI coverage of the regex/date pipeline for no benefit. `EntityChange` multiset diff emits one entry per surplus/deficit occurrence (sorted by value) rather than one summary row per type, so `diff_entities` on identical text is always `[]` and repeated-value counts (e.g. two `INR:50000.00` before, one after) are represented precisely.
+- Issues: none.
+- Next: P7-02 obligation/negation detection + rule classifier + templates
