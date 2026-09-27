@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P5 done and reviewed (tag v0.1-P5 suggested); P6 next
-- Next task: P6-02 Closest approved version + localization
+- Next task: P6-03 Chain cross-check + RECORD_MISMATCH
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -433,3 +433,10 @@
 - Decisions (all confirmed): several matches -> APPROVED first, then highest `revision_no`, then newest submission; REVOKED is non-approved (P6-04 maps it to `UNAUTHORIZED_VERSION`); with `document_id` given, a hash that matches another document's revision is no match; `is_latest_approved` = APPROVED and equals `document.latest_approved_revision_id`. Added (small, not in the plan): text-root matches only count under the same `canon_version`. Unknown `document_id` -> 404 `NOT_FOUND`. No ADR (no spec/CANON change). P6-04 Accept extended: `UNAUTHORIZED_VERSION` test must cover never-approved and REVOKED matches with differing AUTHORIZATION detail text. 02 §11 redundant `and not revoked` logged under Follow-ups.
 - Issues: none. Full-suite time is ~5 min with coverage.
 - Next: P6-02 Closest approved version + localization
+
+### 2026-09-27 — P6-02 Closest approved version + localization
+- Done: `ReferenceService.localize_against(cand, document_id)` in `app/services/reference.py` returns `ReferenceResult {reference, localization, no_localization_reason}` (02 §10; no verdict). Considers APPROVED revisions only (REVOKED/PENDING/REJECTED never a reference), localizes each in a worker thread, picks the highest `(equal_chunks, revision_no)` so ties go to the latest.
+- Tests: `tests/unit/app/test_reference.py` (9): `test_picks_version_with_most_equal_chunks`, `test_tie_prefers_latest_approved`, `test_absolute_equal_count_favours_longer_reference`, `test_ignores_non_approved_and_revoked`, `test_skips_other_canon_version_tree` (spies `localize`, asserts it never sees the other canon), `test_all_other_canon_returns_no_localization_with_reason`, `test_no_approved_revisions_returns_none`, `test_identical_reference_scores_all_chunks`, `test_missing_stored_tree_raises_not_found`. Full suite 887 passed, 21 deselected; `reference.py` 100%; ruff/format/mypy clean. Mutation checks (3): removing the canon guard, flipping the tie-break, or widening the status filter each fails tests.
+- Decisions: (1) canon mismatch -> no localization (`CANON_VERSION_MISMATCH`), not a rebuild: we keep no old canon code path or original bytes to rebuild an old-canon tree. This is the failure mode the P1 review MEDIUM warned about ("`text_root` depends on the Python Unicode database ... only PyMuPDF is pinned", Known issues): whoever handles a real `CANON_VERSION` bump with live documents needs a re-canonicalization/migration plan, since old-canon references become unlocalizable. (2) INTERPRETATION, flagged: 02 §10 says "the most `equal` chunks"; implemented as the absolute count `cand chunks - modified - inserted` (all chunks for IDENTICAL/CONTENT_EQUIVALENT), not a ratio. The spec does not say normalise, so it is taken literally; consequence: a longer reference with more equal chunks beats a shorter, proportionally closer one (pinned by `test_absolute_equal_count_favours_longer_reference`). If a ratio is wanted, that is an ADR. (3) A missing stored tree for an APPROVED revision raises `NotFoundError` (corruption, not skipped).
+- Issues: none.
+- Next: P6-03 Chain cross-check + RECORD_MISMATCH

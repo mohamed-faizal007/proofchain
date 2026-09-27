@@ -137,7 +137,7 @@ Deps: P5-05, P1-08 · Refs: 04 (`/revisions/{id}/diff`)
 ## P6 — Verification pipeline
 ### [x] P6-01 Candidate matching & document association
 Deps: P5-05 · Refs: 02 §10-11
-### [ ] P6-02 Closest approved version + localization
+### [x] P6-02 Closest approved version + localization
 Deps: P6-01, P1-08
 Accept (P1-09 finding 9): /verify needs its own canon_version guard before `localize` (the P5-06 diff guard lives in `QueryService.diff` and does not cover /verify): a reference tree built under another `CANON_VERSION` than the candidate is never localized against it (rebuild the reference under the candidate's rules, or report no localization); test with a stored tree whose `canon_version` differs.
 ### [ ] P6-03 Chain cross-check + RECORD_MISMATCH
