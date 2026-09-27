@@ -2,7 +2,7 @@
 verification verdict.
 """
 
-from app.nlp.classifier import ChangeClassifier, RuleOnlyClassifier
+from app.nlp.classifier import ChangeClassifier, HybridClassifier, RuleOnlyClassifier
 from app.nlp.types import Category, ChangeAnalysis, DiffOp, EntityChange
 
 __all__ = [
@@ -11,5 +11,6 @@ __all__ = [
     "ChangeClassifier",
     "DiffOp",
     "EntityChange",
+    "HybridClassifier",
     "RuleOnlyClassifier",
 ]

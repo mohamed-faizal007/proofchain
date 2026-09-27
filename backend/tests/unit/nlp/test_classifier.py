@@ -1,8 +1,57 @@
-from app.nlp.classifier import RuleOnlyClassifier
+import math
+
+import pytest
+
+from app.nlp.classifier import HybridClassifier, RuleOnlyClassifier
 from app.nlp.types import Category
 from proofchain_core.types import ChangeRegion, RegionType
 
 _classifier = RuleOnlyClassifier()
+
+_PARTY_REF_TEXT = "This agreement is between ABC Corp and XYZ Ltd."
+_PARTY_CAND_TEXT = "This agreement is between ABC Corp and QRS Ltd."
+
+
+class _FakeEnt:
+    def __init__(self, text: str, label: str) -> None:
+        self.text = text
+        self.label_ = label
+
+
+class _FakeDoc:
+    def __init__(self, ents: list[_FakeEnt]) -> None:
+        self.ents = ents
+
+
+class _FakeNerModel:
+    def __init__(self, mapping: dict[str, list[tuple[str, str]]]) -> None:
+        self._mapping = mapping
+
+    def __call__(self, text: str) -> _FakeDoc:
+        return _FakeDoc([_FakeEnt(value, label) for label, value in self._mapping.get(text, [])])
+
+
+_FAKE_NER_WITH_PARTY_SIGNAL = _FakeNerModel(
+    {
+        _PARTY_REF_TEXT: [("ORG", "ABC Corp"), ("ORG", "XYZ Ltd")],
+        _PARTY_CAND_TEXT: [("ORG", "ABC Corp"), ("ORG", "QRS Ltd")],
+    }
+)
+
+
+class _FakeEmbedder:
+    def __init__(self, vectors: dict[str, list[float]]) -> None:
+        self._vectors = vectors
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        return [self._vectors[t] for t in texts]
+
+
+# cosine([1, 0], [1, 1]) == 1/sqrt(2) ~= 0.7071, deliberately below the 0.90 MINOR_EDIT
+# threshold so the "embeddings available" tests below exercise the stricter combined rule.
+_FAKE_EMBEDDER_WITH_LOW_SIMILARITY = _FakeEmbedder(
+    {_PARTY_REF_TEXT: [1.0, 0.0], _PARTY_CAND_TEXT: [1.0, 1.0]}
+)
 
 
 def _region(
@@ -256,3 +305,100 @@ def test_explanation_is_byte_identical_across_repeated_runs_with_multiple_entity
     assert "the number changed from 3 to 6" in explanation
     assert results[0].primary_category == Category.AMOUNT_CHANGE
     assert results[0].severity == "HIGH"
+
+
+def _party_region() -> ChangeRegion:
+    return _region(RegionType.MODIFIED, ref_text=_PARTY_REF_TEXT, cand_text=_PARTY_CAND_TEXT)
+
+
+def test_hybrid_classifier_with_both_models_available_detects_party_change():
+    classifier = HybridClassifier(
+        ner_getter=lambda: _FAKE_NER_WITH_PARTY_SIGNAL,
+        embedder_getter=lambda: _FAKE_EMBEDDER_WITH_LOW_SIMILARITY,
+    )
+    result = classifier.analyze(_party_region())
+    assert result.primary_category == Category.PARTY_CHANGE
+    assert result.severity == "HIGH"
+    assert result.method == "RULES+EMBEDDINGS"
+    assert result.similarity == pytest.approx(1 / math.sqrt(2))
+    assert {(c.before, c.after) for c in result.entity_changes} == {
+        ("ORG:XYZ Ltd", None),
+        (None, "ORG:QRS Ltd"),
+    }
+
+
+def test_hybrid_classifier_with_ner_unavailable_never_reports_party_change():
+    """NER failed to load but embeddings loaded fine: PARTY_CHANGE must never leak through
+    just because the *other* model is available (06 "degrade gracefully", no partial state).
+    """
+    classifier = HybridClassifier(
+        ner_getter=lambda: None,
+        embedder_getter=lambda: _FAKE_EMBEDDER_WITH_LOW_SIMILARITY,
+    )
+    result = classifier.analyze(_party_region())
+    assert Category.PARTY_CHANGE not in result.categories
+    assert not result.entity_changes
+    # embeddings still ran independently: method + similarity are unaffected by NER's absence
+    assert result.method == "RULES+EMBEDDINGS"
+    assert result.similarity == pytest.approx(1 / math.sqrt(2))
+    # no entity/party/obligation category applies, so the fallback runs; low similarity
+    # (< 0.90) makes it CLAUSE_MODIFIED even though only 2 tokens changed (<= 3)
+    assert result.primary_category == Category.CLAUSE_MODIFIED
+    assert result.severity == "MEDIUM"
+
+
+def test_hybrid_classifier_with_embeddings_unavailable_keeps_party_change_from_ner():
+    """Embeddings failed to load but NER loaded fine: PARTY_CHANGE (from NER) must still be
+    reported, and `method` must correctly report "RULES" (not "RULES+EMBEDDINGS") -- no
+    partial state leaking the other way either.
+    """
+    classifier = HybridClassifier(
+        ner_getter=lambda: _FAKE_NER_WITH_PARTY_SIGNAL,
+        embedder_getter=lambda: None,
+    )
+    result = classifier.analyze(_party_region())
+    assert result.primary_category == Category.PARTY_CHANGE
+    assert result.severity == "HIGH"
+    assert result.method == "RULES"
+    assert result.similarity is None
+
+
+def test_hybrid_classifier_with_neither_model_available_matches_rule_only_classifier():
+    """Full graceful degradation: with both models unavailable, HybridClassifier must produce
+    exactly what RuleOnlyClassifier produces for the same region -- not just similar, equal.
+    """
+    hybrid = HybridClassifier(ner_getter=lambda: None, embedder_getter=lambda: None)
+    region = _party_region()
+    hybrid_result = hybrid.analyze(region)
+    rule_only_result = _classifier.analyze(region)
+
+    assert hybrid_result == rule_only_result
+    assert hybrid_result.method == "RULES"
+    assert hybrid_result.similarity is None
+    assert Category.PARTY_CHANGE not in hybrid_result.categories
+    assert hybrid_result.primary_category == Category.MINOR_EDIT
+    assert hybrid_result.severity == "LOW"
+
+
+def test_hybrid_classifier_embeddings_threshold_is_stricter_than_word_count_alone():
+    """With embeddings available, MINOR_EDIT requires similarity >= 0.90 AND <= 3 changed
+    tokens (06 table, both conditions) -- strictly more demanding than the word-count-only
+    fallback used when embeddings are unavailable, for the identical low-similarity edit.
+    """
+    with_embeddings = HybridClassifier(
+        ner_getter=lambda: None, embedder_getter=lambda: _FAKE_EMBEDDER_WITH_LOW_SIMILARITY
+    )
+    without_embeddings = HybridClassifier(ner_getter=lambda: None, embedder_getter=lambda: None)
+    region = _party_region()
+
+    with_result = with_embeddings.analyze(region)
+    without_result = without_embeddings.analyze(region)
+
+    assert with_result.primary_category == Category.CLAUSE_MODIFIED
+    assert without_result.primary_category == Category.MINOR_EDIT
+
+
+def test_hybrid_classifier_non_modified_regions_behave_like_rule_only_classifier():
+    inserted = _region(RegionType.INSERTED, cand_text="This clause clarifies delivery.")
+    hybrid = HybridClassifier(ner_getter=lambda: None, embedder_getter=lambda: None)
+    assert hybrid.analyze(inserted) == _classifier.analyze(inserted)

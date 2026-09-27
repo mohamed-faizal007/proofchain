@@ -1,27 +1,34 @@
-"""Rule-based `ChangeClassifier` (docs/06_NLP_SPEC.md Categories table; Pipeline steps
-1, 2 (regex half), 3, 5, 6). Embeddings (step 4, similarity) and spaCy NER (PARTY_CHANGE,
-the other half of step 2) are P7-03; until then `similarity` is always None and
-PARTY_CHANGE is never produced -- a name-only substitution (e.g. a counterparty change)
-has no entity or obligation signal and falls through to the CLAUSE_MODIFIED/MINOR_EDIT
-word-count heuristic below. See PROGRESS.md's P7-02 entry for the resulting known limitation.
+"""`ChangeClassifier`s (docs/06_NLP_SPEC.md Categories table; Pipeline steps 1-6).
+
+`RuleOnlyClassifier` uses only regex/word-diff/modal rules (`method="RULES"`, no PARTY_CHANGE,
+`similarity` always None). `HybridClassifier` additionally uses spaCy NER (PARTY_CHANGE) and
+sentence embeddings (real `similarity`, the spec's MINOR_EDIT threshold), each degrading
+independently and silently to the rule-only behavior when its model is unavailable (06 "must
+degrade gracefully" rule) -- never a partial category (e.g. PARTY_CHANGE must never appear
+when NER did not actually run, even if embeddings loaded fine).
 """
 
 from __future__ import annotations
 
-from typing import Literal, Protocol
+from collections.abc import Callable
+from typing import Any, Literal, Protocol
 
+from app.nlp.embeddings import cosine_similarity, get_embedding_model
 from app.nlp.entities import diff_entities, extract_dates, extract_money
+from app.nlp.ner import diff_party_entities, get_ner_model
 from app.nlp.obligation import contains_obligation_term, detect_obligation_change
 from app.nlp.token_diff import changed_token_count, diff_tokens
 from app.nlp.types import Category, ChangeAnalysis, DiffOp, EntityChange
 from proofchain_core.types import ChangeRegion, RegionType
 
 Severity = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+Method = Literal["RULES", "RULES+EMBEDDINGS"]
 
-# MINOR_EDIT vs CLAUSE_MODIFIED (06 table) is stated in terms of embedding similarity
-# (P7-03, not available yet); until then this word-count threshold is the sole signal,
-# per the "degrade gracefully" engineering rule in 06.
+# MINOR_EDIT vs CLAUSE_MODIFIED (06 table): "similarity >= 0.90 and <= 3 word tokens changed".
+# Without embeddings (RuleOnlyClassifier, or HybridClassifier when the embedding model is
+# unavailable) the word-count half is the sole signal, per 06's "degrade gracefully" rule.
 _MINOR_EDIT_MAX_CHANGED_TOKENS = 3
+_MINOR_EDIT_MIN_SIMILARITY = 0.90
 
 _SEVERITY_RANK: dict[Severity, int] = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
 
@@ -67,6 +74,8 @@ _ENTITY_LABEL = {
     "NUMBER": "number",
 }
 _ENTITY_TYPES_IN_TEMPLATE_ORDER = ("MONEY", "DATE", "PERCENTAGE", "NUMBER")
+_PARTY_ENTITY_TYPE = "PARTY"
+_PARTY_LABEL = "party"
 
 _OBLIGATION_FRAGMENT = (
     "an obligation term changed (shall/must/will <-> may, or a negation was added/removed)"
@@ -92,7 +101,11 @@ def _pick_primary(categories: set[Category]) -> Category:
     )
 
 
-def _entity_descriptions(entity_changes: list[EntityChange]) -> list[str]:
+def _describe_multiset(
+    entity_changes: list[EntityChange],
+    type_order: tuple[str, ...],
+    label_for_type: dict[str, str],
+) -> list[str]:
     removed: dict[str, list[str]] = {}
     added: dict[str, list[str]] = {}
     for c in entity_changes:
@@ -102,8 +115,8 @@ def _entity_descriptions(entity_changes: list[EntityChange]) -> list[str]:
             added.setdefault(c.type, []).append(c.after)
 
     descriptions: list[str] = []
-    for entity_type in _ENTITY_TYPES_IN_TEMPLATE_ORDER:
-        label = _ENTITY_LABEL[entity_type]
+    for entity_type in type_order:
+        label = label_for_type[entity_type]
         before_values = removed.get(entity_type, [])
         after_values = added.get(entity_type, [])
         for before_value, after_value in zip(before_values, after_values, strict=False):
@@ -113,6 +126,16 @@ def _entity_descriptions(entity_changes: list[EntityChange]) -> list[str]:
         for after_value in after_values[len(before_values) :]:
             descriptions.append(f"the {label} {after_value} was added")
     return descriptions
+
+
+def _entity_descriptions(entity_changes: list[EntityChange]) -> list[str]:
+    return _describe_multiset(entity_changes, _ENTITY_TYPES_IN_TEMPLATE_ORDER, _ENTITY_LABEL)
+
+
+def _party_descriptions(party_changes: list[EntityChange]) -> list[str]:
+    return _describe_multiset(
+        party_changes, (_PARTY_ENTITY_TYPE,), {_PARTY_ENTITY_TYPE: _PARTY_LABEL}
+    )
 
 
 def _location_prefix(region: ChangeRegion) -> str:
@@ -181,7 +204,35 @@ def _analyze_deleted(region: ChangeRegion) -> ChangeAnalysis:
     )
 
 
-def _analyze_modified(region: ChangeRegion) -> ChangeAnalysis:
+def _modified_fallback_category(diff_ops: list[DiffOp], similarity: float | None) -> Category:
+    """MINOR_EDIT vs CLAUSE_MODIFIED when no entity/party/obligation category applies (06 table).
+    With `similarity` (embeddings available) both conditions are required, per 06's wording;
+    without it (embeddings unavailable or not wired in), word count alone decides.
+    """
+    changed = changed_token_count(diff_ops)
+    word_count_ok = changed <= _MINOR_EDIT_MAX_CHANGED_TOKENS
+    is_minor = (
+        word_count_ok
+        if similarity is None
+        else (word_count_ok and similarity >= _MINOR_EDIT_MIN_SIMILARITY)
+    )
+    return Category.MINOR_EDIT if is_minor else Category.CLAUSE_MODIFIED
+
+
+def _fallback_generic(category: Category) -> str:
+    return (
+        "a minor wording edit was made"
+        if category is Category.MINOR_EDIT
+        else "the clause text was modified"
+    )
+
+
+def _analyze_modified(
+    region: ChangeRegion,
+    party_changes: list[EntityChange],
+    similarity: float | None,
+    method: Method,
+) -> ChangeAnalysis:
     before = region.ref_text or ""
     after = region.cand_text or ""
     diff_ops: list[DiffOp] = diff_tokens(before, after)
@@ -189,29 +240,22 @@ def _analyze_modified(region: ChangeRegion) -> ChangeAnalysis:
     obligation_flip = detect_obligation_change(diff_ops)
 
     categories = _entity_categories(entity_changes)
+    if party_changes:
+        categories.add(Category.PARTY_CHANGE)
     if obligation_flip:
         categories.add(Category.OBLIGATION_CHANGE)
 
     if categories:
         primary = _pick_primary(categories)
-        generic = ""  # unreachable in _explain: entity/obligation fragments are always present
+        generic = ""  # unreachable in _explain: entity/party/obligation fragments are present
     else:
-        changed = changed_token_count(diff_ops)
-        primary = (
-            Category.MINOR_EDIT
-            if changed <= _MINOR_EDIT_MAX_CHANGED_TOKENS
-            else Category.CLAUSE_MODIFIED
-        )
+        primary = _modified_fallback_category(diff_ops, similarity)
         categories = {primary}
-        generic = (
-            "a minor wording edit was made"
-            if primary is Category.MINOR_EDIT
-            else "the clause text was modified"
-        )
+        generic = _fallback_generic(primary)
 
     severity = _DEFAULT_SEVERITY[primary]
     ordered_categories = tuple(c for c in _CATEGORY_ORDER if c in categories)
-    entity_descriptions = _entity_descriptions(entity_changes)
+    entity_descriptions = _entity_descriptions(entity_changes) + _party_descriptions(party_changes)
     explanation = _explain(region, entity_descriptions, obligation_flip, generic)
 
     return ChangeAnalysis(
@@ -219,23 +263,60 @@ def _analyze_modified(region: ChangeRegion) -> ChangeAnalysis:
         primary_category=primary,
         categories=ordered_categories,
         severity=severity,
-        similarity=None,
-        entity_changes=tuple(entity_changes),
+        similarity=similarity,
+        entity_changes=tuple(entity_changes) + tuple(party_changes),
         token_diff=tuple(diff_ops),
         explanation=explanation,
-        method="RULES",
+        method=method,
     )
 
 
 _ANALYZERS = {
     RegionType.INSERTED: _analyze_inserted,
     RegionType.DELETED: _analyze_deleted,
-    RegionType.MODIFIED: _analyze_modified,
 }
 
 
 class RuleOnlyClassifier:
-    """`ChangeClassifier` using only regex/word-diff/modal rules (`method="RULES"`)."""
+    """`ChangeClassifier` using only regex/word-diff/modal rules (`method="RULES"`, no
+    PARTY_CHANGE, `similarity` always None).
+    """
 
     def analyze(self, region: ChangeRegion) -> ChangeAnalysis:
+        if region.type is RegionType.MODIFIED:
+            return _analyze_modified(region, party_changes=[], similarity=None, method="RULES")
         return _ANALYZERS[region.type](region)
+
+
+class HybridClassifier:
+    """`ChangeClassifier` adding spaCy NER (PARTY_CHANGE) and embedding similarity on top of
+    `RuleOnlyClassifier`'s rules. Each model degrades independently: if spaCy is unavailable,
+    no PARTY_CHANGE category is ever produced (even when embeddings did load); if the
+    embedding model is unavailable, `similarity` stays None and the MINOR_EDIT/CLAUSE_MODIFIED
+    split falls back to the word-count-only rule. `method` reflects only the embedding step,
+    per 06's `Literal["RULES", "RULES+EMBEDDINGS", ...]`; NER availability is not represented
+    there (06 does not distinguish a NER-only method).
+    """
+
+    def __init__(
+        self,
+        ner_getter: Callable[[], Any | None] = get_ner_model,
+        embedder_getter: Callable[[], Any | None] = get_embedding_model,
+    ) -> None:
+        self._ner_getter = ner_getter
+        self._embedder_getter = embedder_getter
+
+    def analyze(self, region: ChangeRegion) -> ChangeAnalysis:
+        if region.type is not RegionType.MODIFIED:
+            return _ANALYZERS[region.type](region)
+
+        before = region.ref_text or ""
+        after = region.cand_text or ""
+        ner_model = self._ner_getter()
+        embedder = self._embedder_getter()
+
+        party_changes = diff_party_entities(before, after, ner_model)
+        similarity = cosine_similarity(before, after, embedder) if embedder is not None else None
+        method: Method = "RULES+EMBEDDINGS" if embedder is not None else "RULES"
+
+        return _analyze_modified(region, party_changes, similarity, method)

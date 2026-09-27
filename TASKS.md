@@ -151,7 +151,7 @@ Deps: P6-03 · Refs: 04 VerificationReport · Accept: integration test for every
 Deps: P0-02 · Refs: 06
 ### [x] P7-02 Obligation/negation detection + rule classifier + templates
 Deps: P7-01
-### [ ] P7-03 spaCy NER + embeddings (lazy singletons) + graceful fallback
+### [x] P7-03 spaCy NER + embeddings (lazy singletons) + graceful fallback
 Deps: P7-02
 ### [ ] P7-04 Integrate into verification & diff; optional LLM explanation behind flag
 Deps: P7-03, P6-04 · Accept: NLP failure does not change verdict (test).
