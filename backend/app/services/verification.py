@@ -42,15 +42,38 @@ def _now_ms() -> dt.datetime:
     return now.replace(microsecond=now.microsecond // 1000 * 1000)
 
 
-def revision_ref(rev: Revision) -> dict[str, Any]:
-    """Snapshot of a revision for the report (never the S3 key)."""
+_REDACTED_REGION_FIELDS = (
+    "ref_text",
+    "cand_text",
+    "ref_bbox",
+    "cand_bbox",
+    "ref_chunk_id",
+    "section_title",
+)
+
+
+def redact_localization(loc: dict[str, Any]) -> dict[str, Any]:
+    """Anonymous callers keep region type, pages and counts, never stored or uploaded text."""
+    regions = [{**r, **dict.fromkeys(_REDACTED_REGION_FIELDS)} for r in loc["regions"]]
+    return {**loc, "regions": regions}
+
+
+def revision_ref(rev: Revision, redact: bool = False) -> dict[str, Any]:
+    """Snapshot of a revision for the report (never the S3 key).
+
+    `redact` keeps only the date of a revocation (not the reason, the revoker or the tx).
+    """
+    revocation = None
+    if rev.revocation is not None:
+        full = rev.revocation.model_dump(mode="json")
+        revocation = {"at": full["at"]} if redact else full
     return {
         "id": rev.id,
         "revision_no": rev.revision_no,
         "version_no": rev.version_no,
         "status": rev.status,
         "anchored_tx": rev.anchor.tx_hash,
-        "revocation": rev.revocation.model_dump(mode="json") if rev.revocation else None,
+        "revocation": revocation,
     }
 
 
@@ -90,9 +113,16 @@ class VerificationService:
         timings["hash"] = _ms(t)
 
         t = time.perf_counter()
-        cm = await self._matching.match(cand, document_id)
+        anonymous = user is None
+        try:
+            cm = await self._matching.match(cand, document_id)
+        except NotFoundError:
+            if not anonymous:
+                raise
+            # An anonymous caller cannot tell an unknown id from no id (no existence oracle).
+            cm = await self._matching.match(cand, None)
         timings["match"] = _ms(t)
-        decision = decide(cm)
+        decision = decide(cm, redact=anonymous)
 
         ref = ReferenceResult(None, None, None)
         t = time.perf_counter()
@@ -136,6 +166,7 @@ class VerificationService:
     ) -> Verification:
         doc = cm.document
         loc = ref.localization
+        anonymous = user is None
         loc_status, loc_detail = localization_step(
             ref.reference, loc, ref.no_localization_reason, decision.verdict == "TAMPERED"
         )
@@ -178,8 +209,8 @@ class VerificationService:
             steps=steps,
             matched_revision_id=cm.match.id if cm.match else None,
             reference_revision_id=ref.reference.id if ref.reference else None,
-            matched_revision=revision_ref(cm.match) if cm.match else None,
-            reference_revision=revision_ref(ref.reference) if ref.reference else None,
+            matched_revision=revision_ref(cm.match, anonymous) if cm.match else None,
+            reference_revision=revision_ref(ref.reference, anonymous) if ref.reference else None,
             no_reference_reason=ref.no_localization_reason,
             chain_check={
                 "performed": chain.performed,
@@ -189,10 +220,17 @@ class VerificationService:
                 "tx_hash": tx,
                 "explorer_url": f"{self._explorer}{tx}" if self._explorer and tx else None,
             },
-            localization=loc.to_dict() if loc else None,
+            localization=self._localization_out(loc, anonymous),
             analysis=[],
             timings_ms=timings,
         )
+
+    @staticmethod
+    def _localization_out(loc: Any, anonymous: bool) -> dict[str, Any] | None:
+        if loc is None:
+            return None
+        out: dict[str, Any] = loc.to_dict()
+        return redact_localization(out) if anonymous else out
 
     async def get(self, user: User, verification_id: str) -> Verification:
         """Owner or ADMIN only; an anonymous run (`requested_by` None) is ADMIN-only."""

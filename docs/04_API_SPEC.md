@@ -91,7 +91,7 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
 
 P6-04 notes:
 - `POST /verify` is public when `PUBLIC_VERIFY=true`, else 401 without a token. Errors: 422 `INVALID_PDF` /
-  `ENCRYPTED_PDF` / `NO_EXTRACTABLE_TEXT`, 413 `FILE_TOO_LARGE`, 404 `NOT_FOUND` (unknown `document_id`).
+  `ENCRYPTED_PDF` / `NO_EXTRACTABLE_TEXT`, 413 `FILE_TOO_LARGE`, 404 `NOT_FOUND` (unknown `document_id`, authenticated callers only).
   `include_nlp=false` only skips the SEMANTIC_ANALYSIS step; it never changes the verdict. `analysis` is `null`
   until P7-04.
 - Report extras: `at`, `matched_revision` / `reference_revision` = `{id, revision_no, version_no, status,
@@ -107,6 +107,11 @@ P6-04 notes:
 - The chain cross-check targets the matched revision, else the reference revision. A REVOKED match is checked too
   (it is ANCHORED); a revocation disagreement gives `RECORD_MISMATCH`. Not performed (`chain_check.performed=false`)
   shows as a `SKIPPED` CHAIN_CHECK step.
+- **Anonymous callers get a redacted report (ADR-021).** Localization regions keep `type`, `ref_page`,
+  `cand_page`, `cand_chunk_id`, `section_id` and drop `ref_text`, `cand_text`, `ref_bbox`, `cand_bbox`,
+  `ref_chunk_id`, `section_title` (set to `null`); a revocation is `{at}` only and the AUTHORIZATION detail /
+  summary omit the reason. An unknown `document_id` is treated as if none was sent (200, no 404). Authenticated
+  callers get the full report and the 404. The verdict is never affected.
 - `GET /verifications?page&page_size` = the caller's own history (newest first) as summary rows.
   `GET /verifications/{id}`: owner or ADMIN, else 403; an anonymous run (`requested_by` null) is ADMIN-only.
 

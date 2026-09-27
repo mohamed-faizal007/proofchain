@@ -93,7 +93,8 @@ def test_oversized_upload_is_413(env: Env) -> None:
 
 
 def test_unknown_document_id_is_404(env: Env) -> None:
-    r = verify(env, original(), document_id="no-such-document")
+    headers = env.auth(env.user(["VERIFIER"], "v@example.com"))
+    r = verify(env, original(), headers, document_id="no-such-document")
     assert (r.status_code, r.json()["error"]["code"]) == (404, "NOT_FOUND")
 
 

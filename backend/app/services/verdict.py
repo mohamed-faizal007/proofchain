@@ -38,8 +38,8 @@ def label(rev: Revision) -> str:
     return f"revision {rev.revision_no}{version}"
 
 
-def decide(cm: CandidateMatch) -> Decision:
-    """02 §11 before the chain cross-check."""
+def decide(cm: CandidateMatch, redact: bool = False) -> Decision:
+    """02 §11 before the chain cross-check. `redact` omits the revocation reason (anonymous)."""
     match = cm.match
     if match is not None and match.status == "APPROVED":
         if cm.match_kind == "FILE_HASH":
@@ -61,18 +61,17 @@ def decide(cm: CandidateMatch) -> Decision:
             "(re-save, metadata or a non-text change); not reported as authentic",
         )
     if match is not None:
-        return Decision("UNAUTHORIZED_VERSION", "FAIL", _unauthorized_detail(match))
+        return Decision("UNAUTHORIZED_VERSION", "FAIL", _unauthorized_detail(match, redact))
     if cm.document is not None:
         return Decision("TAMPERED", "FAIL", "No approved, pending or rejected revision matches")
     return Decision("UNKNOWN_DOCUMENT", "FAIL", "No document could be associated with the upload")
 
 
-def _unauthorized_detail(match: Revision) -> str:
+def _unauthorized_detail(match: Revision, redact: bool = False) -> str:
     if match.status == "REVOKED" and match.revocation is not None:
         rv = match.revocation
-        return (
-            f"Matches {label(match)}, which was revoked on {rv.at.date().isoformat()}: {rv.reason}"
-        )
+        when = f"Matches {label(match)}, which was revoked on {rv.at.date().isoformat()}"
+        return when if redact else f"{when}: {rv.reason}"
     if match.status == "REVOKED":
         return f"Matches {label(match)}, which was revoked"
     return f"Matches {label(match)}, which was submitted but never approved (status {match.status})"

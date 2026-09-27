@@ -109,8 +109,9 @@ def test_revoked_match_runs_the_chain_check_and_its_detail_differs_from_never_ap
     other = env.post_pdf(issuer, "one_page.pdf", title="Other").json()
     assert other["revision"]["status"] == "PENDING"
 
-    revoked = verify(env, original()).json()
-    pending = verify(env, (PDFS / "one_page.pdf").read_bytes()).json()
+    headers = env.auth(env.user(["VERIFIER"], "v@example.com"))  # anonymous reports omit the reason
+    revoked = verify(env, original(), headers).json()
+    pending = verify(env, (PDFS / "one_page.pdf").read_bytes(), headers).json()
 
     assert revoked["verdict"] == pending["verdict"] == "UNAUTHORIZED_VERSION"
     assert revoked["matched_revision"]["status"] == "REVOKED"
@@ -172,7 +173,8 @@ def test_mongo_text_root_edit_is_record_mismatch(env: Env) -> None:
 def test_tampered_with_reference_localizes_and_names_the_reference(env: Env, v2: bytes) -> None:
     _, _, doc_id, rev_id = register_approved(env)
 
-    body = verify(env, v2, document_id=doc_id).json()
+    headers = env.auth(env.user(["VERIFIER"], "v@example.com"))  # anonymous reports carry no text
+    body = verify(env, v2, headers, document_id=doc_id).json()
 
     assert body["verdict"] == "TAMPERED"
     assert body["matched_revision"] is None
