@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 
 class Category(StrEnum):
@@ -33,6 +33,9 @@ class DiffOp:
     before: tuple[str, ...]
     after: tuple[str, ...]
 
+    def to_dict(self) -> dict[str, Any]:
+        return {"op": self.op, "before": list(self.before), "after": list(self.after)}
+
 
 @dataclass(frozen=True, slots=True)
 class EntityChange:
@@ -46,6 +49,9 @@ class EntityChange:
     before: str | None
     after: str | None
 
+    def to_dict(self) -> dict[str, Any]:
+        return {"type": self.type, "before": self.before, "after": self.after}
+
 
 @dataclass(frozen=True, slots=True)
 class ChangeAnalysis:
@@ -58,3 +64,16 @@ class ChangeAnalysis:
     token_diff: tuple[DiffOp, ...]
     explanation: str
     method: Literal["RULES", "RULES+EMBEDDINGS", "RULES+EMBEDDINGS+LLM"]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "region_id": self.region_id,
+            "primary_category": self.primary_category.value,
+            "categories": [c.value for c in self.categories],
+            "severity": self.severity,
+            "similarity": self.similarity,
+            "entity_changes": [e.to_dict() for e in self.entity_changes],
+            "token_diff": [d.to_dict() for d in self.token_diff],
+            "explanation": self.explanation,
+            "method": self.method,
+        }

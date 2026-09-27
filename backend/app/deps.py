@@ -10,6 +10,9 @@ from app.config import Settings
 from app.db import MongoDatabase
 from app.errors import ChainUnavailableError, ForbiddenError, UnauthorizedError
 from app.models.user import Role, User
+from app.nlp.analyze import NlpPipeline
+from app.nlp.classifier import ChangeClassifier, RuleOnlyClassifier
+from app.nlp.llm import DEFAULT_MODEL, get_llm_client
 from app.repositories.documents import DocumentRepository
 from app.repositories.events import EventRepository
 from app.repositories.revisions import RevisionRepository
@@ -78,6 +81,26 @@ def get_app_settings(request: Request) -> Settings:
     return settings
 
 
+def get_nlp_pipeline(
+    request: Request, settings: Settings = Depends(get_app_settings)
+) -> NlpPipeline:
+    """LLM client is only constructed (lazily) when `NLP_LLM_EXPLANATIONS=true`; otherwise
+    `llm_client` stays None and `NlpPipeline`/`analyze_regions` keep the rule/embedding-only
+    template explanation (06 "must degrade gracefully")."""
+    classifier: ChangeClassifier = getattr(
+        request.app.state, "change_classifier", RuleOnlyClassifier()
+    )
+    llm_client = (
+        get_llm_client(settings.anthropic_api_key) if settings.nlp_llm_explanations else None
+    )
+    return NlpPipeline(
+        classifier=classifier,
+        enabled=settings.nlp_enabled,
+        llm_client=llm_client,
+        llm_model=settings.nlp_llm_model or DEFAULT_MODEL,
+    )
+
+
 def get_auth_service(
     users: UserRepository = Depends(get_user_repo),
     settings: Settings = Depends(get_app_settings),
@@ -112,8 +135,9 @@ def get_query_service(
     trees: TreeRepository = Depends(get_tree_repo),
     events: EventRepository = Depends(get_event_repo),
     storage: S3Storage = Depends(get_storage),
+    nlp: NlpPipeline = Depends(get_nlp_pipeline),
 ) -> QueryService:
-    return QueryService(documents, revisions, trees, events, storage)
+    return QueryService(documents, revisions, trees, events, storage, nlp)
 
 
 def get_revocation_service(
@@ -134,6 +158,7 @@ def get_verification_service(
     trees: TreeRepository = Depends(get_tree_repo),
     verifications: VerificationRepository = Depends(get_verification_repo),
     settings: Settings = Depends(get_app_settings),
+    nlp: NlpPipeline = Depends(get_nlp_pipeline),
 ) -> VerificationService:
     """Registry may be None: the chain check is then reported as not performed (ADR-020)."""
     client: RegistryClient | None = getattr(request.app.state, "registry_client", None)
@@ -145,6 +170,7 @@ def get_verification_service(
         verifications,
         settings.max_upload_mb * 1024 * 1024,
         settings.explorer_tx_url,
+        nlp,
     )
 
 

@@ -1,13 +1,15 @@
 """GET /revisions/{id}/diff?against= (P5-06): localization between two stored revisions."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from proofchain_core import CANON_VERSION, build_integrity_tree, localize
+from proofchain_core.types import ChangeRegion
 from tests.fixtures import make_fixtures
-from tests.unit.app.docs_env import PDFS, PREFIX, Env
+from tests.unit.app.docs_env import PDFS, PREFIX, Env, settings
 
 OLD, NEW = "2% per month", "3% per month"
 
@@ -60,7 +62,10 @@ def test_default_diff_is_against_the_parent_and_matches_core(env: Env, v2: bytes
     assert r.status_code == 200, r.text
     body = r.json()
     assert (body["revision_id"], body["against_revision_id"]) == (rev2, v1)
-    assert body["analysis"] is None  # NLP analysis is P7
+    [analysis] = body["analysis"]  # P7-04: the env fixture's default classifier is rule-based
+    assert analysis["primary_category"] == "PERCENTAGE_CHANGE"
+    assert analysis["severity"] == "HIGH"
+    assert analysis["method"] == "RULES"
     assert body["localization"] == localize(ref, cand).to_dict()
     loc = body["localization"]
     assert loc["status"] == "CHANGED"
@@ -178,3 +183,34 @@ def test_canon_version_mismatch_is_409_conflict_and_localize_is_not_called(
     err = r.json()["error"]
     assert err["code"] == "CONFLICT"
     assert err["details"] == {"canon_version": CANON_VERSION, "against_canon_version": old}
+
+
+def test_diff_analysis_is_null_when_nlp_disabled(
+    env_factory: Callable[..., Env], v2: bytes
+) -> None:
+    disabled = settings().model_copy(update={"nlp_enabled": False})
+    env = env_factory(settings_override=disabled)
+    _, _, rev2 = two_revisions(env, v2)
+
+    r = diff(env, rev2)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["analysis"] is None
+    assert r.json()["localization"]["status"] == "CHANGED"  # localization is unaffected
+
+
+def test_diff_analysis_is_null_when_classifier_fails(
+    env_factory: Callable[..., Env], v2: bytes
+) -> None:
+    class _RaisingClassifier:
+        def analyze(self, region: ChangeRegion) -> None:
+            raise RuntimeError("boom")
+
+    env = env_factory(change_classifier=_RaisingClassifier())
+    _, _, rev2 = two_revisions(env, v2)
+
+    r = diff(env, rev2)
+
+    assert r.status_code == 200, r.text  # the failure never becomes a 500
+    assert r.json()["analysis"] is None
+    assert r.json()["localization"]["status"] == "CHANGED"

@@ -47,7 +47,7 @@ class VerificationReportOut(BaseModel):
             steps=v.steps,
             candidate=v.candidate,
             localization=v.localization,
-            analysis=v.analysis or None,  # null until NLP is integrated (P7-04)
+            analysis=v.analysis or None,  # null when NLP was skipped/disabled/not requested
             chain_check=v.chain_check,
             timings_ms=v.timings_ms,
         )

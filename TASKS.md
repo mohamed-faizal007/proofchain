@@ -153,7 +153,7 @@ Deps: P0-02 · Refs: 06
 Deps: P7-01
 ### [x] P7-03 spaCy NER + embeddings (lazy singletons) + graceful fallback
 Deps: P7-02
-### [ ] P7-04 Integrate into verification & diff; optional LLM explanation behind flag
+### [x] P7-04 Integrate into verification & diff; optional LLM explanation behind flag
 Deps: P7-03, P6-04 · Accept: NLP failure does not change verdict (test).
 
 ---

@@ -261,6 +261,9 @@ def test_no_registry_configured_reports_not_performed(env: Env) -> None:
 
 
 def test_include_nlp_flag_never_changes_the_verdict(env: Env, v2: bytes) -> None:
+    """Both calls here are anonymous (no auth header), so NLP is skipped either way (P7-04:
+    never run for anonymous callers, see test_verify_nlp.py); this test's own point is that
+    `include_nlp` affects only the SEMANTIC_ANALYSIS step, never `verdict`/`localization`."""
     doc_id = register_approved(env)[2]
     on = verify(env, v2, document_id=doc_id, include_nlp="true").json()
     off = verify(env, v2, document_id=doc_id, include_nlp="false").json()
@@ -269,4 +272,8 @@ def test_include_nlp_flag_never_changes_the_verdict(env: Env, v2: bytes) -> None
     assert on["localization"] == off["localization"]
     assert on["analysis"] is None and off["analysis"] is None
     assert step(off, "SEMANTIC_ANALYSIS")["detail"] == "Not requested"
-    assert step(on, "SEMANTIC_ANALYSIS")["status"] == "SKIPPED"  # NLP arrives with P7-04
+    assert step(on, "SEMANTIC_ANALYSIS") == {
+        "name": "SEMANTIC_ANALYSIS",
+        "status": "SKIPPED",
+        "detail": "Not available for anonymous requests",
+    }

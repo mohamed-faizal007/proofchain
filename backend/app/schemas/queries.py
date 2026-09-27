@@ -76,7 +76,8 @@ class ProvenanceOut(BaseModel):
 
 
 class RevisionDiffOut(BaseModel):
-    """`localization` is a LocalizationResult (02 §9). `analysis` stays null until NLP (P7)."""
+    """`localization` is a LocalizationResult (02 §9). `analysis` (P7-04) is a list of
+    ChangeAnalysis dicts when NLP is enabled and there are regions to analyze, else null."""
 
     revision_id: str
     against_revision_id: str
@@ -89,4 +90,5 @@ class RevisionDiffOut(BaseModel):
             revision_id=d.revision_id,
             against_revision_id=d.against_revision_id,
             localization=d.localization.to_dict(),
+            analysis=d.analysis,
         )

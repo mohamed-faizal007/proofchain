@@ -39,6 +39,7 @@ dev = [
 nlp = [
     "spacy>=3.7",
     "sentence-transformers>=2.7",
+    "anthropic>=0.40",
 ]
 
 [tool.setuptools.packages.find]

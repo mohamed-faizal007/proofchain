@@ -22,6 +22,7 @@ from app.config import DEFAULT_JWT_SECRET, Settings, get_settings
 from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
 from app.logging import configure_logging, request_id_var
+from app.nlp.classifier import ChangeClassifier, HybridClassifier, RuleOnlyClassifier
 from app.services.reconciler import run_startup_reconcile
 from app.storage import S3Storage
 
@@ -90,15 +91,24 @@ def create_app(
     storage: S3Storage | None = None,
     registry_client: RegistryClient | None = None,
     reconcile_on_startup: bool | None = None,
+    change_classifier: ChangeClassifier | None = None,
 ) -> FastAPI:
-    """Build the app. `db`, `storage`, `registry_client` inject test doubles.
+    """Build the app. `db`, `storage`, `registry_client`, `change_classifier` inject test doubles.
 
     The startup reconciler (P5-04) runs in the background, so it never delays startup or
     /health; it is off by default under APP_ENV=test so route tests see no concurrent writes.
+
+    `change_classifier` defaults to `RuleOnlyClassifier()` (no model loads, deterministic)
+    under APP_ENV=test, same reasoning as the reconciler default, so the fast test suite never
+    triggers a real spaCy/sentence-transformers load; real deployments get `HybridClassifier()`.
     """
     settings = settings or get_settings()
     if reconcile_on_startup is None:
         reconcile_on_startup = settings.app_env != "test"
+    if change_classifier is None:
+        change_classifier = (
+            RuleOnlyClassifier() if settings.app_env == "test" else HybridClassifier()
+        )
     configure_logging()
 
     @asynccontextmanager
@@ -133,6 +143,7 @@ def create_app(
 
     app = FastAPI(title="ProofChain API", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
+    app.state.change_classifier = change_classifier
 
     app.add_exception_handler(DomainError, _domain_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)

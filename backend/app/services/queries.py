@@ -1,5 +1,6 @@
 """Read-only document/revision queries (04 Documents & revisions, GET routes). No writes here."""
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -11,6 +12,7 @@ from app.models.document import DocType, Document
 from app.models.integrity_tree import IntegrityTreeDoc
 from app.models.provenance_event import ProvenanceEvent
 from app.models.revision import Revision, RevisionStatus
+from app.nlp.analyze import NlpPipeline
 from app.repositories.documents import DocumentRepository
 from app.repositories.events import EventRepository
 from app.repositories.revisions import RevisionRepository
@@ -19,6 +21,8 @@ from app.services.tree_mapping import doc_to_tree
 from app.storage import S3Storage
 from proofchain_core import localize
 from proofchain_core.types import LocalizationResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,7 @@ class RevisionDiff:
     revision_id: str
     against_revision_id: str
     localization: LocalizationResult
+    analysis: list[dict[str, Any]] | None
 
 
 class QueryService:
@@ -51,12 +56,14 @@ class QueryService:
         trees: TreeRepository,
         events: EventRepository,
         storage: S3Storage,
+        nlp: NlpPipeline | None = None,
     ) -> None:
         self._documents = documents
         self._revisions = revisions
         self._trees = trees
         self._events = events
         self._storage = storage
+        self._nlp = nlp
 
     async def list_documents(
         self,
@@ -128,7 +135,24 @@ class QueryService:
                 {"canon_version": cand.canon_version, "against_canon_version": ref.canon_version},
             )
         result = await anyio.to_thread.run_sync(localize, doc_to_tree(ref), doc_to_tree(cand))
-        return RevisionDiff(revision_id, against_id, result)
+        analysis = await self._analyze(result)
+        return RevisionDiff(revision_id, against_id, result, analysis)
+
+    async def _analyze(self, result: LocalizationResult) -> list[dict[str, Any]] | None:
+        """`None` until NLP is integrated or disabled (04: "`analysis` is `null` until NLP is
+        integrated"); advisory-only and never raises past here (06 "crypto decides, AI
+        explains" -- this has no verdict to protect, but a diff must still not 500 on an NLP
+        bug)."""
+        if self._nlp is None or not self._nlp.enabled or not result.regions:
+            return None
+        try:
+            analyzed = await self._nlp.analyze(result.regions)
+        except Exception as exc:
+            logger.warning(
+                "nlp analysis failed (%d regions): %s", len(result.regions), type(exc).__name__
+            )
+            return None
+        return [a.to_dict() for a in analyzed]
 
     async def presign_file(self, revision_id: str) -> tuple[str, int]:
         """(url, expires_in). The URL pins the stored S3 version, so it serves those exact bytes.

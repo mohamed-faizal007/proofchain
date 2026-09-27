@@ -1,6 +1,7 @@
 """Shared harness for document route tests: mongomock + moto S3 + fake chain + real app."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from app.chain import FakeRegistryClient
 from app.config import Settings
 from app.main import create_app
 from app.models.user import Role, User
+from app.nlp.classifier import ChangeClassifier
 from app.repositories.users import UserRepository
 from app.security.jwt import create_access_token
 from app.storage import S3Storage
@@ -127,8 +129,11 @@ class Env:
 
 
 @pytest.fixture
-def env(mongo_db: AsyncIOMotorDatabase) -> Iterator[Env]:
-    with mock_aws():
+def env_factory(mongo_db: AsyncIOMotorDatabase) -> Iterator[Callable[..., Env]]:
+    """Like `env`, but lets a test override `settings`/`change_classifier` per call. Each call
+    opens its own `TestClient` (so its lifespan/state is independent); all are closed at
+    teardown."""
+    with mock_aws(), ExitStack() as stack:
         raw = boto3.client(
             "s3",
             region_name="ap-south-1",
@@ -140,9 +145,25 @@ def env(mongo_db: AsyncIOMotorDatabase) -> Iterator[Env]:
         )
         raw.put_bucket_versioning(Bucket=BUCKET, VersioningConfiguration={"Status": "Enabled"})
         storage = S3Storage.from_settings(settings())
-        app = create_app(
-            settings(), db=mongo_db, storage=storage, registry_client=FakeRegistryClient()
-        )
-        # raise_server_exceptions=False exercises the real 500 middleware.
-        with TestClient(app, raise_server_exceptions=False) as client:
-            yield Env(client, mongo_db, raw, storage)
+
+        def make(
+            settings_override: Settings | None = None,
+            change_classifier: ChangeClassifier | None = None,
+        ) -> Env:
+            app = create_app(
+                settings_override or settings(),
+                db=mongo_db,
+                storage=storage,
+                registry_client=FakeRegistryClient(),
+                change_classifier=change_classifier,
+            )
+            # raise_server_exceptions=False exercises the real 500 middleware.
+            client = stack.enter_context(TestClient(app, raise_server_exceptions=False))
+            return Env(client, mongo_db, raw, storage)
+
+        yield make
+
+
+@pytest.fixture
+def env(env_factory: Callable[..., Env]) -> Env:
+    return env_factory()

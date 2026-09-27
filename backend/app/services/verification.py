@@ -5,6 +5,7 @@ add `analysis` afterwards.
 """
 
 import datetime as dt
+import logging
 import time
 from typing import Any
 
@@ -13,6 +14,7 @@ from app.models.document import Document
 from app.models.revision import Revision
 from app.models.user import User
 from app.models.verification import Verification
+from app.nlp.analyze import NlpPipeline
 from app.repositories.documents import DocumentRepository
 from app.repositories.verifications import VerificationRepository
 from app.services._intake import build_tree_from_upload, clean_filename
@@ -20,16 +22,23 @@ from app.services.chain_check import ChainCheckResult, ChainCheckService
 from app.services.matching import CandidateMatch, MatchingService
 from app.services.reference import ReferenceResult, ReferenceService
 from app.services.verdict import (
+    StepStatus,
     Verdict,
     chain_step,
     decide,
     localization_step,
     summarize,
 )
-from proofchain_core.types import IntegrityTree
+from proofchain_core.types import IntegrityTree, LocalizationResult
+
+logger = logging.getLogger(__name__)
 
 NOT_APPLICABLE = "NOT_APPLICABLE"
-NLP_NOT_INTEGRATED = "NLP analysis is not available yet"
+NLP_NOT_REQUESTED = "Not requested"
+NLP_DISABLED = "NLP disabled"
+NLP_NO_REGIONS = "No localized regions to analyze"
+NLP_FAILED = "NLP analysis failed"
+NLP_ANONYMOUS = "Not available for anonymous requests"
 
 
 def _ms(start: float) -> float:
@@ -87,6 +96,7 @@ class VerificationService:
         verifications: VerificationRepository,
         max_bytes: int,
         explorer_tx_url: str = "",
+        nlp: NlpPipeline | None = None,
     ) -> None:
         self._documents = documents
         self._matching = matching
@@ -95,6 +105,7 @@ class VerificationService:
         self._verifications = verifications
         self._max_bytes = max_bytes
         self._explorer = explorer_tx_url
+        self._nlp = nlp
 
     async def verify(
         self,
@@ -138,13 +149,56 @@ class VerificationService:
         verdict: Verdict = decision.verdict
         if chain.performed and chain.ok is False:
             verdict = "RECORD_MISMATCH"  # overrides every other verdict (ADR-020)
-        timings["nlp"] = 0.0  # P7-04 fills this in; the verdict is already final
+
+        # NLP is advisory-only and runs after the verdict above is already final (06 "crypto
+        # decides, AI explains"): nothing here can change `verdict`, including a failure.
+        t = time.perf_counter()
+        analysis, nlp_status, nlp_detail = await self._analyze(
+            include_nlp, anonymous, ref.localization
+        )
+        timings["nlp"] = _ms(t)
         timings["total"] = _ms(t0)
 
         record = self._record(
-            user, cand, filename, cm, decision, verdict, ref, chain, include_nlp, timings
+            user,
+            cand,
+            filename,
+            cm,
+            decision,
+            verdict,
+            ref,
+            chain,
+            timings,
+            analysis,
+            nlp_status,
+            nlp_detail,
         )
         return await self._verifications.insert(record)
+
+    async def _analyze(
+        self, include_nlp: bool, anonymous: bool, loc: LocalizationResult | None
+    ) -> tuple[list[dict[str, Any]], StepStatus, str | None]:
+        if not include_nlp:
+            return [], "SKIPPED", NLP_NOT_REQUESTED
+        if anonymous:
+            # `explanation`/`entity_changes` would reveal reference document content the same
+            # way region text did before ADR-021's redaction; simplest safe answer is to never
+            # run NLP for anonymous callers, rather than inventing a second redaction shape.
+            return [], "SKIPPED", NLP_ANONYMOUS
+        if self._nlp is None or not self._nlp.enabled:
+            return [], "SKIPPED", NLP_DISABLED
+        if loc is None or not loc.regions:
+            return [], "SKIPPED", NLP_NO_REGIONS
+        try:
+            results = await self._nlp.analyze(loc.regions)
+        except Exception as exc:
+            # Class name only, never str(exc)/exc_info: a region carries document text and an
+            # exception message could echo it (same rule as chain errors, PROGRESS.md P5-04).
+            logger.warning(
+                "nlp analysis failed (%d regions): %s", len(loc.regions), type(exc).__name__
+            )
+            return [], "SKIPPED", NLP_FAILED
+        return [r.to_dict() for r in results], "DONE", None
 
     async def _cross_check(self, target: Revision | None, doc: Document | None) -> ChainCheckResult:
         if target is None or doc is None:
@@ -161,8 +215,10 @@ class VerificationService:
         verdict: Verdict,
         ref: ReferenceResult,
         chain: ChainCheckResult,
-        include_nlp: bool,
         timings: dict[str, float],
+        analysis: list[dict[str, Any]],
+        nlp_status: StepStatus,
+        nlp_detail: str | None,
     ) -> Verification:
         doc = cm.document
         loc = ref.localization
@@ -178,11 +234,7 @@ class VerificationService:
             _step("LOCALIZATION", loc_status, loc_detail),
             _step("AUTHORIZATION", decision.status, decision.detail),
             _step("CHAIN_CHECK", chain_status, chain_detail),
-            _step(
-                "SEMANTIC_ANALYSIS",
-                "SKIPPED",
-                NLP_NOT_INTEGRATED if include_nlp else "Not requested",
-            ),
+            _step("SEMANTIC_ANALYSIS", nlp_status, nlp_detail),
         ]
         tx = chain.tx_hash
         return Verification(
@@ -221,7 +273,7 @@ class VerificationService:
                 "explorer_url": f"{self._explorer}{tx}" if self._explorer and tx else None,
             },
             localization=self._localization_out(loc, anonymous),
-            analysis=[],
+            analysis=analysis,
             timings_ms=timings,
         )
 
