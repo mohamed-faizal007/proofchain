@@ -5,7 +5,7 @@
 
 ## Current status
 - Phase: P5 done and reviewed (tag v0.1-P5 suggested); P6 next
-- Next task: P6-01 Candidate matching & document association
+- Next task: P6-02 Closest approved version + localization
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -113,6 +113,7 @@
 ## Follow-ups (ideas deliberately deferred — do not implement without a task)
 - DONE (P5-04): RevisionRepository write bypass (`update_one` raises, `delete` PENDING only). `TreeRepository.delete` stays unguarded (trees have no state; only the rollbacks call it).
 - **P8-06 (verify page / chain proof):** an ANCHORED revision can have `anchor.tx_hash = null` (and `block_number = null`) when the version was recovered as already on-chain (P5-04). The UI must not render a broken explorer link; show "anchored (tx not recorded)" with the on-chain `version_no`, or look the tx up from the `VersionAnchored` log.
+- **02 §11 wording (P6-01, no ADR):** `if match and match.status == APPROVED and not revoked` has a redundant `and not revoked` (REVOKED is its own status, and the `elif` already lists REVOKED under `UNAUTHORIZED_VERSION`). Left as is; tidy the wording the next time §11 is touched under an ADR.
 - **Admin tooling (no task yet; whoever builds it owns these):** P5 review M4 (escape hatch for a permanently FAILED anchor that blocks later revisions; no safe manual DB workaround), M3 (actor audit on retry-anchor) and the P3 review "no audit trail for role changes". Needs a design pass (state/event enum changes in 03, routes, UI) before implementation.
 - CI records the PyMuPDF version; consider a CI check that it matches the pin.
 - **Presigned URL host (P2-03):** `S3Storage.presign_get` signs against the internal `S3_ENDPOINT_URL`. That host is only browser-reachable when the backend runs on the host next to MinIO (`http://localhost:9000`). Once the backend runs in Docker (`app` compose profile, P10-03) the endpoint is `http://minio:9000`, which a browser cannot resolve. The host is part of the SigV4 signature, so it cannot be rewritten after signing. **Must be resolved by P8-03 (revision file download in the frontend) together with the compose networking in P10-03, before either is called done.** Options: a separate `S3_PUBLIC_ENDPOINT_URL` used only for presigning (needs an `.env.example` entry and a second boto client), or a backend proxy download route. No P2-03 test covers this: moto and the host-local MinIO check use one hostname.
@@ -425,3 +426,10 @@
 - CI: new `chain-integration` job (mongo:7 service container; Hardhat node started as a background process from the checkout because a service container cannot deploy from the repo; `npm run deploy:local`; `git diff --exit-code` on the committed backend ABI; `pytest -m "chain or mongo"`; node log on failure). Verified locally: YAML parses, the node-start/wait step on a spare port (up in 28 s of the 90 s budget), the mongo health command, ABI byte-identity; deploy + `-m chain/mongo` already green locally. Not yet run on GitHub (first push will be its real test).
 - M4: no safe cheap escape hatch; flagged in Known issues and a new "Admin tooling" Follow-up.
 - Next: P6-01
+
+### 2026-09-27 — P6-01 Candidate matching & document association
+- Done: `MatchingService.match(cand_tree, document_id=None)` in `app/services/matching.py` returns `CandidateMatch {document, match, match_kind (FILE_HASH|TEXT_ROOT), is_latest_approved}` (02 §11 lookup only; no verdict, localization or chain check). File hash first, then text root; the match keeps its real status (incl. REVOKED and `revocation`) for P6-04. `RevisionRepository.find_by_file_hash/find_by_text_root` gained optional `document_id` (and `canon_version` on the text-root lookup).
+- Tests: `tests/unit/app/test_matching.py` (17). Full suite 878 passed, 21 deselected (coverage 98%; `matching.py` and `repositories/revisions.py` 100%); ruff/format/mypy clean. Mutation checks (6): removing the approved-first ranking, the canon filter, the document scoping on the file-hash lookup, the status guard on `is_latest_approved` (first survived; `test_stale_pointer_at_revoked_revision_is_not_latest_approved` added) or the file-hash-first order each fails a test.
+- Decisions (all confirmed): several matches -> APPROVED first, then highest `revision_no`, then newest submission; REVOKED is non-approved (P6-04 maps it to `UNAUTHORIZED_VERSION`); with `document_id` given, a hash that matches another document's revision is no match; `is_latest_approved` = APPROVED and equals `document.latest_approved_revision_id`. Added (small, not in the plan): text-root matches only count under the same `canon_version`. Unknown `document_id` -> 404 `NOT_FOUND`. No ADR (no spec/CANON change). P6-04 Accept extended: `UNAUTHORIZED_VERSION` test must cover never-approved and REVOKED matches with differing AUTHORIZATION detail text. 02 §11 redundant `and not revoked` logged under Follow-ups.
+- Issues: none. Full-suite time is ~5 min with coverage.
+- Next: P6-02 Closest approved version + localization

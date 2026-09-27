@@ -32,11 +32,24 @@ class RevisionRepository(BaseRepository[Revision]):
     async def list_by_document(self, document_id: str) -> list[Revision]:
         return await self.find_many({"document_id": document_id}, sort=[("revision_no", 1)])
 
-    async def find_by_file_hash(self, file_hash: str) -> list[Revision]:
-        return await self.find_many({"file_hash": file_hash}, sort=[("submitted_at", 1)])
+    async def find_by_file_hash(
+        self, file_hash: str, document_id: str | None = None
+    ) -> list[Revision]:
+        filter_: dict[str, Any] = {"file_hash": file_hash}
+        if document_id is not None:
+            filter_["document_id"] = document_id
+        return await self.find_many(filter_, sort=[("submitted_at", 1)])
 
-    async def find_by_text_root(self, text_root: str) -> list[Revision]:
-        return await self.find_many({"text_root": text_root}, sort=[("submitted_at", 1)])
+    async def find_by_text_root(
+        self, text_root: str, document_id: str | None = None, canon_version: int | None = None
+    ) -> list[Revision]:
+        """`canon_version` restricts to roots computed under the same rules (02 §3)."""
+        filter_: dict[str, Any] = {"text_root": text_root}
+        if document_id is not None:
+            filter_["document_id"] = document_id
+        if canon_version is not None:
+            filter_["canon_version"] = canon_version
+        return await self.find_many(filter_, sort=[("submitted_at", 1)])
 
     async def set_review(
         self,
