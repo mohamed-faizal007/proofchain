@@ -1,5 +1,6 @@
 import math
 import sys
+import types
 
 import pytest
 
@@ -52,7 +53,7 @@ def test_get_embedding_model_returns_none_when_loader_reports_unavailable(monkey
 
     monkeypatch.setattr(emb_module, "_load_attempted", False)
     monkeypatch.setattr(emb_module, "_model", None)
-    monkeypatch.setattr(emb_module, "_load_model", lambda: None)
+    monkeypatch.setattr(emb_module, "_load_model", lambda enabled, model_name: None)
     assert emb_module.get_embedding_model() is None
 
 
@@ -61,8 +62,8 @@ def test_get_embedding_model_caches_after_first_load(monkeypatch):
 
     calls = []
 
-    def _fake_loader():
-        calls.append(1)
+    def _fake_loader(enabled: bool, model_name: str) -> str:
+        calls.append((enabled, model_name))
         return "sentinel-model"
 
     monkeypatch.setattr(emb_module, "_load_attempted", False)
@@ -77,7 +78,7 @@ def test_load_model_returns_none_when_sentence_transformers_is_not_installed(mon
     monkeypatch.setitem(sys.modules, "sentence_transformers", None)
     import app.nlp.embeddings as emb_module
 
-    assert emb_module._load_model() is None
+    assert emb_module._load_model(True, "all-MiniLM-L6-v2") is None
 
 
 @pytest.mark.nlp
@@ -89,7 +90,65 @@ def test_load_model_returns_none_when_model_construction_raises_oserror(monkeypa
         raise OSError(f"model '{name}' not found")
 
     monkeypatch.setattr(st, "SentenceTransformer", _raise_oserror)
-    assert emb_module._load_model() is None
+    assert emb_module._load_model(True, "all-MiniLM-L6-v2") is None
+
+
+def test_get_embedding_model_loads_the_configured_model_name(monkeypatch):
+    import app.nlp.embeddings as emb_module
+
+    calls = []
+
+    class _FakeSentenceTransformer:
+        def __init__(self, model_name: str) -> None:
+            calls.append(model_name)
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=_FakeSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+    monkeypatch.setattr(emb_module, "_load_attempted", False)
+    monkeypatch.setattr(emb_module, "_model", None)
+
+    result = emb_module.get_embedding_model(enabled=True, model_name="custom-embed-model")
+
+    assert calls == ["custom-embed-model"]
+    assert isinstance(result, _FakeSentenceTransformer)
+
+
+def test_get_embedding_model_disabled_returns_none_without_ever_importing_the_package(
+    monkeypatch,
+):
+    import app.nlp.embeddings as emb_module
+
+    def _must_not_be_called(model_name: str) -> None:
+        raise AssertionError("sentence_transformers must never be constructed when disabled")
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=_must_not_be_called)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+    monkeypatch.setattr(emb_module, "_load_attempted", False)
+    monkeypatch.setattr(emb_module, "_model", None)
+
+    result = emb_module.get_embedding_model(enabled=False, model_name="all-MiniLM-L6-v2")
+
+    assert result is None
+
+
+def test_cosine_similarity_is_none_end_to_end_when_embeddings_disabled_via_settings(
+    monkeypatch,
+):
+    """The full chain the P9 ablation study needs: NLP_EMBEDDINGS_ENABLED=false must mean
+    `cosine_similarity` always returns None, never attempting a model load."""
+    import app.nlp.embeddings as emb_module
+
+    def _must_not_be_called(model_name: str) -> None:
+        raise AssertionError("sentence_transformers must never be constructed when disabled")
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=_must_not_be_called)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+    monkeypatch.setattr(emb_module, "_load_attempted", False)
+    monkeypatch.setattr(emb_module, "_model", None)
+
+    model = emb_module.get_embedding_model(enabled=False, model_name="all-MiniLM-L6-v2")
+
+    assert cosine_similarity("a", "b", model) is None
 
 
 @pytest.mark.nlp

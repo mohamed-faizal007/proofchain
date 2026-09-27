@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import anyio.to_thread
 from fastapi import FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -23,6 +24,9 @@ from app.db import MongoDatabase, create_client, ensure_indexes, get_database
 from app.errors import DomainError
 from app.logging import configure_logging, request_id_var
 from app.nlp.classifier import ChangeClassifier, HybridClassifier, RuleOnlyClassifier
+from app.nlp.embeddings import get_embedding_model
+from app.nlp.ner import get_ner_model
+from app.nlp.warmup import warm_nlp_models
 from app.services.reconciler import run_startup_reconcile
 from app.storage import S3Storage
 
@@ -92,6 +96,7 @@ def create_app(
     registry_client: RegistryClient | None = None,
     reconcile_on_startup: bool | None = None,
     change_classifier: ChangeClassifier | None = None,
+    warm_nlp_on_startup: bool | None = None,
 ) -> FastAPI:
     """Build the app. `db`, `storage`, `registry_client`, `change_classifier` inject test doubles.
 
@@ -100,14 +105,29 @@ def create_app(
 
     `change_classifier` defaults to `RuleOnlyClassifier()` (no model loads, deterministic)
     under APP_ENV=test, same reasoning as the reconciler default, so the fast test suite never
-    triggers a real spaCy/sentence-transformers load; real deployments get `HybridClassifier()`.
+    triggers a real spaCy/sentence-transformers load; real deployments get `HybridClassifier()`
+    bound to this app's own `settings` (not the global `get_settings()` cache), so
+    `NLP_SPACY_MODEL`/`NLP_EMBEDDINGS_ENABLED`/`NLP_EMBEDDING_MODEL` actually take effect.
+
+    `warm_nlp_on_startup` (06: "warmed at startup when NLP_ENABLED=true") defaults to off under
+    APP_ENV=test for the same reason; real deployments load the NER/embedding/LLM models once
+    at startup (off the event loop) instead of paying that cost inside the first request.
     """
     settings = settings or get_settings()
     if reconcile_on_startup is None:
         reconcile_on_startup = settings.app_env != "test"
+    if warm_nlp_on_startup is None:
+        warm_nlp_on_startup = settings.app_env != "test"
     if change_classifier is None:
         change_classifier = (
-            RuleOnlyClassifier() if settings.app_env == "test" else HybridClassifier()
+            RuleOnlyClassifier()
+            if settings.app_env == "test"
+            else HybridClassifier(
+                ner_getter=lambda: get_ner_model(settings.nlp_spacy_model),
+                embedder_getter=lambda: get_embedding_model(
+                    settings.nlp_embeddings_enabled, settings.nlp_embedding_model
+                ),
+            )
         )
     configure_logging()
 
@@ -126,6 +146,8 @@ def create_app(
         reconcile: asyncio.Task[None] | None = None
         try:
             await ensure_indexes(app.state.db)
+            if warm_nlp_on_startup and settings.nlp_enabled:
+                await anyio.to_thread.run_sync(warm_nlp_models, settings)
             if reconcile_on_startup:
                 reconcile = asyncio.create_task(
                     run_startup_reconcile(app.state.db, app.state.registry_client, settings)

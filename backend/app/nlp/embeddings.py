@@ -1,9 +1,14 @@
 """Sentence-embedding cosine similarity (docs/06_NLP_SPEC.md Pipeline step 4), MODIFIED
 regions only.
 
-Lazy singleton (`sentence-transformers` "all-MiniLM-L6-v2", CPU), loaded once on first use;
-None if the package or model is unavailable, so callers degrade gracefully (06 "must degrade
-gracefully" rule): `similarity` stays None rather than raising.
+Lazy singleton (`sentence-transformers`, CPU), loaded once on first use (whatever
+`enabled`/`model_name` that first call passes -- sourced from `Settings.nlp_embeddings_enabled`/
+`nlp_embedding_model`; this module never reads `Settings` itself, same `get_llm_client(api_key)`
+shape as `app/nlp/llm.py`). `enabled=False` returns None immediately without ever importing
+`sentence_transformers` or constructing a model -- not merely "unavailable", genuinely never
+attempted, so the P9 rules-vs-rules+embeddings ablation gets a real toggle. None either way
+means callers degrade gracefully (06 "must degrade gracefully" rule): `similarity` stays None
+rather than raising.
 """
 
 from __future__ import annotations
@@ -11,24 +16,28 @@ from __future__ import annotations
 import math
 from typing import Any
 
+_DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
+
 _model: Any | None = None
 _load_attempted = False
 
 
-def _load_model() -> Any | None:
+def _load_model(enabled: bool, model_name: str) -> Any | None:
+    if not enabled:
+        return None
     try:
         from sentence_transformers import SentenceTransformer
 
-        return SentenceTransformer("all-MiniLM-L6-v2")
+        return SentenceTransformer(model_name)
     except (ImportError, OSError):
         return None
 
 
-def get_embedding_model() -> Any | None:
-    """Lazy singleton; None if sentence-transformers or the model is unavailable."""
+def get_embedding_model(enabled: bool = True, model_name: str = _DEFAULT_MODEL_NAME) -> Any | None:
+    """Lazy singleton; None if disabled, or sentence-transformers/`model_name` is unavailable."""
     global _model, _load_attempted
     if not _load_attempted:
-        _model = _load_model()
+        _model = _load_model(enabled, model_name)
         _load_attempted = True
     return _model
 

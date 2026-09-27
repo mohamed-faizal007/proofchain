@@ -2,9 +2,12 @@
 PARTY_CHANGE. Regex entities (money/date/percentage/number, P7-01) already own those types, so
 spaCy's MONEY/DATE/PERCENT labels are not duplicated here -- only PERSON/ORG/GPE.
 
-Lazy singleton, loaded once on first use; if spaCy or the `en_core_web_sm` model is not
-installed the singleton stays None and callers degrade gracefully (06 "must degrade
-gracefully" rule): no PARTY_CHANGE is ever produced, rather than raising.
+Lazy singleton, loaded once on first use (whatever `model_name` that first call passes --
+callers agree on one value per process, sourced from `Settings.nlp_spacy_model`; this module
+never reads `Settings` itself so the model name is always explicit at the call site, same
+`get_llm_client(api_key)` shape as `app/nlp/llm.py`, not a hidden global). If spaCy or the
+model is not installed the singleton stays None and callers degrade gracefully (06 "must
+degrade gracefully" rule): no PARTY_CHANGE is ever produced, rather than raising.
 """
 
 from __future__ import annotations
@@ -16,25 +19,26 @@ from app.nlp.types import EntityChange
 
 _PARTY_LABELS = {"PERSON", "ORG", "GPE"}
 _PARTY_ENTITY_TYPE = "PARTY"
+_DEFAULT_MODEL_NAME = "en_core_web_sm"
 
 _model: Any | None = None
 _load_attempted = False
 
 
-def _load_model() -> Any | None:
+def _load_model(model_name: str) -> Any | None:
     try:
         import spacy
 
-        return spacy.load("en_core_web_sm")
+        return spacy.load(model_name)
     except (ImportError, OSError):
         return None
 
 
-def get_ner_model() -> Any | None:
-    """Lazy singleton; None if spaCy or the model is unavailable. Loaded at most once."""
+def get_ner_model(model_name: str = _DEFAULT_MODEL_NAME) -> Any | None:
+    """Lazy singleton; None if spaCy or `model_name` is unavailable. Loaded at most once."""
     global _model, _load_attempted
     if not _load_attempted:
-        _model = _load_model()
+        _model = _load_model(model_name)
         _load_attempted = True
     return _model
 
