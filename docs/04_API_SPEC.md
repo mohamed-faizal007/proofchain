@@ -89,6 +89,27 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
   "timings_ms": { "total": 812 } }
 ```
 
+P6-04 notes:
+- `POST /verify` is public when `PUBLIC_VERIFY=true`, else 401 without a token. Errors: 422 `INVALID_PDF` /
+  `ENCRYPTED_PDF` / `NO_EXTRACTABLE_TEXT`, 413 `FILE_TOO_LARGE`, 404 `NOT_FOUND` (unknown `document_id`).
+  `include_nlp=false` only skips the SEMANTIC_ANALYSIS step; it never changes the verdict. `analysis` is `null`
+  until P7-04.
+- Report extras: `at`, `matched_revision` / `reference_revision` = `{id, revision_no, version_no, status,
+  anchored_tx, revocation}` snapshots, `no_reference_reason`, and `timings_ms` = `{hash, match, localize, chain,
+  nlp, total}` (ms). Step statuses: `PASS`, `FAIL`, `WARN` (CONTENT_EQUIVALENT), `DONE`, `SKIPPED` (not applicable /
+  not performed, `detail` says why).
+- **TAMPERED without a reference**: a known document (`document_id` given) whose upload matches no revision but has
+  no comparable APPROVED revision (only PENDING/REJECTED, or all built under another `CANON_VERSION`) is still
+  `TAMPERED` (02 §11, PRD §5 "matches nothing approved"), but nothing was compared: `localization` and
+  `reference_revision` are `null`, `no_reference_reason` is `NO_APPROVED_REVISION` / `CANON_VERSION_MISMATCH`, the
+  LOCALIZATION step is `SKIPPED` with a `NO_REFERENCE (...)` detail, and `summary` starts "TAMPERED, no reference
+  available". A localized tamper reads "N changes on page(s) X vs approved revision R (vV)".
+- The chain cross-check targets the matched revision, else the reference revision. A REVOKED match is checked too
+  (it is ANCHORED); a revocation disagreement gives `RECORD_MISMATCH`. Not performed (`chain_check.performed=false`)
+  shows as a `SKIPPED` CHAIN_CHECK step.
+- `GET /verifications?page&page_size` = the caller's own history (newest first) as summary rows.
+  `GET /verifications/{id}`: owner or ADMIN, else 403; an anonymous run (`requested_by` null) is ADMIN-only.
+
 ## System
 | GET | /health | public | `{status, mongo, s3, chain, nlp, canon_version}` |
 |---|---|---|---|

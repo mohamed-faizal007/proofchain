@@ -19,10 +19,14 @@ from app.repositories.verifications import VerificationRepository
 from app.security.jwt import decode_access_token
 from app.services.anchoring import AnchorService, build_anchor_service
 from app.services.auth import AuthService
+from app.services.chain_check import ChainCheckService
 from app.services.documents import DocumentService
+from app.services.matching import MatchingService
 from app.services.queries import QueryService
+from app.services.reference import ReferenceService
 from app.services.reviews import ReviewService
 from app.services.revocation import RevocationService
+from app.services.verification import VerificationService
 from app.storage import S3Storage
 
 _bearer = HTTPBearer(auto_error=False)
@@ -121,6 +125,27 @@ def get_revocation_service(
     """Client may be None: the service answers 404/409 first, then 503 if unconfigured."""
     client: RegistryClient | None = getattr(request.app.state, "registry_client", None)
     return RevocationService(documents, revisions, events, client)
+
+
+def get_verification_service(
+    request: Request,
+    documents: DocumentRepository = Depends(get_document_repo),
+    revisions: RevisionRepository = Depends(get_revision_repo),
+    trees: TreeRepository = Depends(get_tree_repo),
+    verifications: VerificationRepository = Depends(get_verification_repo),
+    settings: Settings = Depends(get_app_settings),
+) -> VerificationService:
+    """Registry may be None: the chain check is then reported as not performed (ADR-020)."""
+    client: RegistryClient | None = getattr(request.app.state, "registry_client", None)
+    return VerificationService(
+        documents,
+        MatchingService(documents, revisions),
+        ReferenceService(revisions, trees),
+        ChainCheckService(client),
+        verifications,
+        settings.max_upload_mb * 1024 * 1024,
+        settings.explorer_tx_url,
+    )
 
 
 def get_anchor_service(request: Request) -> AnchorService:

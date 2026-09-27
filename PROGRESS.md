@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P5 done and reviewed (tag v0.1-P5 suggested); P6 next
-- Next task: P6-04 /verify route, report assembly, persistence, timings
+- Phase: P6 tasks done (P6-01..04), phase review pending
+- Next task: P6 phase review, then P7-01 token diff + regex entities
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -448,3 +448,11 @@
 - Verification: backend 903 passed, 22 deselected, coverage 98% total (`chain_check.py` 100%); ruff/format/mypy clean; `-m chain` 7 passed on a local Hardhat node with mongo:7 up. Mutation checks (7): dropping each of the four compared fields, mapping an outage to a mismatch, and using the Mongo id as the chain key each fail a test. The unanchored-status guard removal first SURVIVED (the test's revision had no `version_no`, so the other guard fired); test fixed to set `version_no` and re-verified both ways.
 - Issues: the first draft keyed the chain lookup by `revision.document_id`; caught by the real-`ReferenceService` test (the fake rejected a non-bytes32 id). Docker Desktop and the Hardhat node were down at the start and were restarted (Docker Desktop is under `%LOCALAPPDATA%\Programs\DockerDesktop`).
 - Next: P6-04 /verify route, report assembly, persistence, timings
+
+### 2026-09-27 - P6-04 /verify route, report assembly, persistence, timings
+- Done: `POST /verify`, `GET /verifications`, `GET /verifications/{id}` (`app/api/v1/verifications.py`). `VerificationService` (`services/verification.py`) runs hash -> match -> localize -> chain check, persists a `Verification` and returns it; pure verdict table and wording in `services/verdict.py`. The chain check targets the matched revision, else the reference revision; a failed check overrides every verdict (`RECORD_MISMATCH`, ADR-020). Model gained `summary`, `steps`, `document_title`, `matched_revision`/`reference_revision` snapshots, `no_reference_reason`; docs 02/03/04 updated. No ADR (no spec/CANON change).
+- Tests (`tests/unit/app/test_verify_verdicts.py` 16, `test_verify_access.py` 14, `test_verify_edge.py` 2): all seven PRD 5 verdicts end to end; `test_revoked_match_runs_the_chain_check_and_its_detail_differs_from_never_approved` (REVOKED match: chain check performed, detail names date + reason, differs from never-approved); capstone `test_revoked_in_mongo_but_active_on_chain_escalates_to_record_mismatch` (+ the reverse and the text_root edit); `test_anonymous_report_is_admin_only_even_for_authenticated_non_admins` (non-ADMIN 403, anonymous 401, ADMIN 200); `test_tampered_without_any_approved_reference`, `test_tampered_with_and_without_reference_never_look_alike`, `test_only_approved_version_on_another_canon_is_no_reference_but_says_why`. Mutation checks (4): dropping the RECORD_MISMATCH override, skipping the chain check on REVOKED, letting anyone read an anonymous report, and collapsing the revoked detail into the never-approved one each fail a test.
+- INTERPRETATION (spec re-read, no real ambiguity): 02 11 says "document known -> TAMPERED" and PRD 5 says TAMPERED = "matches nothing approved"; neither special-cases a document with no APPROVED revision, so the verdict stays TAMPERED. To keep it from passing as a localized tamper, the report carries `localization=null`, `reference_revision=null`, `no_reference_reason`, a `SKIPPED` LOCALIZATION step with a `NO_REFERENCE (...)` detail and a summary that starts "TAMPERED, no reference available". Revisit only if a distinct verdict is wanted (that would be an ADR + PRD change).
+- Decisions: anonymous reports are ADMIN-only; `at` truncated to ms (Mongo precision) so POST and GET agree; SEMANTIC_ANALYSIS is `SKIPPED` and `analysis` null until P7-04; `timings_ms.nlp` is 0 until then.
+- Issues: none.
+- Next: P6 phase review, then P7-01

@@ -14,9 +14,16 @@ class Verification(MongoModel):
     at: dt.datetime = Field(default_factory=lambda: dt.datetime.now(dt.UTC))
     document_id: str | None = None
     candidate: dict[str, Any]
+    document_title: str | None = None
     verdict: str
+    summary: str = ""
+    steps: list[dict[str, Any]] = Field(default_factory=list)
     matched_revision_id: str | None = None
     reference_revision_id: str | None = None
+    # Snapshots taken at verification time, so a later revoke never rewrites a past report.
+    matched_revision: dict[str, Any] | None = None
+    reference_revision: dict[str, Any] | None = None
+    no_reference_reason: str | None = None
     chain_check: dict[str, Any] | None = None
     localization: dict[str, Any] | None = None
     analysis: list[dict[str, Any]] = Field(default_factory=list)

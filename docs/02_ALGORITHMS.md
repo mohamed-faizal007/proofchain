@@ -133,6 +133,8 @@ then: chain cross-check of the matched/reference version:
     not performed (revision not ANCHORED, no registry, node unreachable): keep the Mongo-based verdict,
     chain_check.performed = false; an outage is never a RECORD_MISMATCH (ADR-020)
 ```
+TAMPERED needs a known document; if it has no comparable APPROVED revision the verdict stays TAMPERED but is
+reported with `localization=null` and a `no_reference_reason` (P6-04, 04 API notes).
 Document association when `document_id` is not supplied: lookup by `file_hash`, then by `text_root`; otherwise
 `UNKNOWN_DOCUMENT` (the UI then asks the user to pick the document).
 

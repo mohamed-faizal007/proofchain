@@ -94,6 +94,10 @@ per document — a cheap off-chain tamper-evidence for the audit log. Index: `(d
   "timings_ms": { "hash": 0, "match": 0, "localize": 0, "nlp": 0, "chain": 0, "total": 0 } }
 ```
 Index: `(document_id, at)`, `requested_by`.
+P6-04 additions: `document_title`, `summary`, `steps[]`, `matched_revision` / `reference_revision` (snapshots, so a
+later revoke never rewrites a past report), `no_reference_reason`. `chain_check` stores `{performed, ok, reason,
+mismatches, tx_hash, explorer_url}`; on-chain hashes are not copied (they equal the Mongo values when `ok`).
+`at` is truncated to milliseconds.
 
 ## State machine (revisions)
 ```
