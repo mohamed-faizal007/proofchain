@@ -99,6 +99,10 @@ export interface Revision {
   revocation: Revocation | null;
 }
 
+export interface PendingRevision extends Revision {
+  document_title: string | null;
+}
+
 export interface Paginated<T> {
   items: T[];
   page: number;

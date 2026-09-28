@@ -25,6 +25,7 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 | GET | /documents/{id} | any | `{document, latest_approved_revision}` (revision or `null`) |
 | POST | /documents/{id}/revisions | ISSUER | multipart `file`, `change_note`; parent = latest approved; 409 if one PENDING exists; 422 if text_root equals parent (no change) |
 | GET | /documents/{id}/revisions | any | all revisions ordered by `revision_no` |
+| GET | /revisions?status=PENDING | APPROVER, ADMIN | approvals queue (P8-04): paginated, oldest `submitted_at` first, across all documents; `status` currently only accepts `PENDING` (any other value is 422) |
 | GET | /revisions/{id} | any | revision detail |
 | GET | /revisions/{id}/tree | any | integrity tree (roots + chunks) |
 | GET | /revisions/{id}/file | any | `{url, expires_in}` presigned GET |
@@ -43,6 +44,15 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
   in that status, so a document with an APPROVED and a PENDING revision is listed under both filters (never
   twice in one list). Items are Document objects. Invalid parameters are 422 `VALIDATION_ERROR`.
 - `GET /documents/{id}/revisions`: plain array of revisions (not paginated), ascending `revision_no`.
+- `GET /revisions?status=PENDING` (P8-04, spec addition, no ADR -- additive, no existing behavior
+  changed): `page` ≥ 1 (default 1), `page_size` 1-100 (default 20); `status` is required and only
+  `PENDING` is accepted today (any other value, including a valid `RevisionStatus`, is 422
+  `VALIDATION_ERROR`). `{items, page, page_size, total}`; each item is a Revision plus
+  `document_title` (its document's title, or `null` if the document was deleted). Ordered by
+  `submitted_at` ascending (oldest first) so approvers see the longest-waiting revision first. One
+  query for the page of revisions plus one batched `$in` lookup for the distinct documents on that
+  page -- no per-revision query. APPROVER or ADMIN only (403 `FORBIDDEN` otherwise); 401 without a
+  token.
 - `GET /revisions/{id}/tree`: `{revision_id, document_id, canon_version, file_hash, text_root, page_count,
   pages: [{index, root, chunks: [{id, index, text, leaf_hash, bbox, section_id}]}], sections}`; 404 if the
   revision or its tree is missing.

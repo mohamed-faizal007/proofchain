@@ -35,6 +35,15 @@ class DocumentPage:
 
 
 @dataclass(frozen=True)
+class PendingRevisionsPage:
+    items: list[Revision]
+    titles: dict[str, str]
+    page: int
+    page_size: int
+    total: int
+
+
+@dataclass(frozen=True)
 class Provenance:
     document_id: str
     chain_valid: bool
@@ -105,6 +114,17 @@ class QueryService:
             filter_, skip=(page - 1) * page_size, limit=page_size
         )
         return DocumentPage(items, page, page_size, total)
+
+    async def list_pending_revisions(self, *, page: int, page_size: int) -> PendingRevisionsPage:
+        """Approvals queue (P8-04, GET /revisions?status=PENDING): one query for the page of
+        PENDING revisions plus one batched lookup for their documents' titles -- no per-revision
+        query regardless of how many distinct documents are on the page (no N+1)."""
+        items, total = await self._revisions.page_by_status(
+            "PENDING", skip=(page - 1) * page_size, limit=page_size
+        )
+        document_ids = sorted({r.document_id for r in items})
+        titles = {d.id: d.title for d in await self._documents.find_by_ids(document_ids)}
+        return PendingRevisionsPage(items, titles, page, page_size, total)
 
     async def get_document(self, document_id: str) -> tuple[Document, Revision | None]:
         """The document and its newest APPROVED revision, read from the revisions themselves."""

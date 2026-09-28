@@ -1,6 +1,6 @@
 """/revisions routes (04_API_SPEC Documents & revisions): read, review, anchor, revoke."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query, Response
 
@@ -14,7 +14,7 @@ from app.deps import (
 )
 from app.models.user import User
 from app.schemas.documents import RevisionOut
-from app.schemas.queries import FileUrlOut, RevisionDiffOut, TreeOut
+from app.schemas.queries import FileUrlOut, PendingRevisionListOut, RevisionDiffOut, TreeOut
 from app.schemas.revisions import ApproveRequest, RejectRequest, RevokeRequest
 from app.services.anchoring import AnchorService, run_anchor_job
 from app.services.queries import QueryService
@@ -24,6 +24,21 @@ from app.services.revocation import RevocationService
 router = APIRouter(prefix="/revisions", tags=["revisions"])
 _approver = require_roles("APPROVER")
 _admin = require_roles("ADMIN")
+_approver_or_admin = require_roles("APPROVER", "ADMIN")
+MAX_PAGE_SIZE = 100
+
+
+@router.get("", response_model=PendingRevisionListOut)
+async def list_pending_revisions(
+    status: Literal["PENDING"] = Query(...),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 20,
+    _: User = Depends(_approver_or_admin),
+    queries: QueryService = Depends(get_query_service),
+) -> PendingRevisionListOut:
+    """Approvals queue (P8-04): oldest PENDING revision first, across all documents."""
+    result = await queries.list_pending_revisions(page=page, page_size=page_size)
+    return PendingRevisionListOut.from_page(result)
 
 
 @router.get("/{revision_id}", response_model=RevisionOut)

@@ -230,6 +230,18 @@ class RevisionRepository(BaseRepository[Revision]):
         ids = await self._col.distinct("document_id", {"status": status})
         return [str(i) for i in ids]
 
+    async def page_by_status(
+        self, status: RevisionStatus, skip: int, limit: int
+    ) -> tuple[list[Revision], int]:
+        """One page of revisions in `status`, oldest `submitted_at` first (approvals queue,
+        GET /revisions), plus the total match count."""
+        filter_ = {"status": status}
+        total = await self._col.count_documents(filter_)
+        items = await self.find_many(
+            filter_, sort=[("submitted_at", 1), ("_id", 1)], skip=skip, limit=limit
+        )
+        return items, total
+
     async def find_anchored_before(self, cutoff: dt.datetime) -> list[Revision]:
         return await self.find_many(
             {"anchor.status": "ANCHORED", "anchor.anchored_at": {"$lt": cutoff}},

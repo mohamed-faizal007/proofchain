@@ -2,12 +2,12 @@ import type { ReactElement } from "react";
 import { Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { ApprovalsQueue } from "./pages/ApprovalsQueue";
 import { Dashboard } from "./pages/Dashboard";
 import { DocumentDetail } from "./pages/DocumentDetail";
 import { DocumentNew } from "./pages/DocumentNew";
 import { Login } from "./pages/Login";
 import {
-  ApprovalsQueue,
   NotFound,
   RevisionNew,
   Verify,

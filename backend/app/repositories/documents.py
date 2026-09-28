@@ -76,6 +76,13 @@ class DocumentRepository(BaseRepository[Document]):
     async def list_by_owner(self, owner_id: str) -> list[Document]:
         return await self.find_many({"owner_id": owner_id}, sort=[("created_at", -1)])
 
+    async def find_by_ids(self, ids: list[str]) -> list[Document]:
+        """Batched lookup for a set of document ids (e.g. titles for the approvals queue,
+        GET /revisions): one query regardless of how many ids are passed, no N+1."""
+        if not ids:
+            return []
+        return await self.find_many({"_id": {"$in": ids}})
+
     async def page(
         self, filter_: dict[str, Any], skip: int, limit: int
     ) -> tuple[list[Document], int]:

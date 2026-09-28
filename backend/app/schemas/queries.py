@@ -7,8 +7,9 @@ from pydantic import BaseModel
 
 from app.models.integrity_tree import IntegrityTreeDoc, TreePage, TreeSection
 from app.models.provenance_event import EventType, ProvenanceEvent
+from app.models.revision import Revision
 from app.schemas.documents import DocumentOut, RevisionOut
-from app.services.queries import DocumentPage, Provenance, RevisionDiff
+from app.services.queries import DocumentPage, PendingRevisionsPage, Provenance, RevisionDiff
 
 
 class DocumentListOut(BaseModel):
@@ -26,6 +27,31 @@ class DocumentListOut(BaseModel):
 class DocumentDetailOut(BaseModel):
     document: DocumentOut
     latest_approved_revision: RevisionOut | None
+
+
+class PendingRevisionOut(RevisionOut):
+    """A queued revision plus its document's title (P8-04 approvals queue)."""
+
+    document_title: str | None
+
+    @classmethod
+    def from_revision_and_title(cls, r: Revision, title: str | None) -> "PendingRevisionOut":
+        return cls(**RevisionOut.from_revision(r).model_dump(), document_title=title)
+
+
+class PendingRevisionListOut(BaseModel):
+    items: list[PendingRevisionOut]
+    page: int
+    page_size: int
+    total: int
+
+    @classmethod
+    def from_page(cls, p: PendingRevisionsPage) -> "PendingRevisionListOut":
+        items = [
+            PendingRevisionOut.from_revision_and_title(r, p.titles.get(r.document_id))
+            for r in p.items
+        ]
+        return cls(items=items, page=p.page, page_size=p.page_size, total=p.total)
 
 
 class TreeOut(BaseModel):
