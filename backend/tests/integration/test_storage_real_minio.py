@@ -1,7 +1,7 @@
 """Needs MinIO (`docker compose -f infra/docker-compose.yml up -d minio minio-init`).
 
 Run with: python -m pytest -m minio tests/integration/test_storage_real_minio.py
-Uses S3_ENDPOINT_URL (default http://localhost:9000), minioadmin creds, bucket proofchain-docs.
+Uses S3_ENDPOINT_URL (default http://127.0.0.1:9000), minioadmin creds, bucket proofchain-docs.
 """
 
 import os
@@ -21,7 +21,9 @@ def storage() -> S3Storage:
     return S3Storage.from_settings(
         Settings(
             app_env="test",
-            s3_endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+            # 127.0.0.1, not localhost: see .env.example (P8-02) -- avoids an IPv6-first connect
+            # delay on Windows that can eat into the connect_timeout budget.
+            s3_endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://127.0.0.1:9000"),
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "minioadmin"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "minioadmin"),
         )
