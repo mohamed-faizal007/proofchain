@@ -6,3 +6,6 @@
 - Every page handles loading / empty / error. Never trust role checks client-side for security.
 - Before finishing: `npm run lint; npm run typecheck; npm run test; npm run build`.
 - Do not add new dependencies without noting why in PROGRESS.md.
+- Never render user-supplied or server-supplied content with `dangerouslySetInnerHTML` (XSS). The JWT is kept in
+  `localStorage` (see PROGRESS.md "P8-01" for the tradeoff), which is readable by any script on the page, so this
+  rule is load-bearing, not stylistic.

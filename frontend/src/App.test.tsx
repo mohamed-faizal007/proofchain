@@ -3,27 +3,20 @@ import { MemoryRouter } from "react-router-dom";
 import { AppRoutes } from "./App";
 import { routerFuture } from "./routerFuture";
 
-const routes: [string, string][] = [
+const publicRoutes: [string, string][] = [
   ["/login", "Login"],
   ["/register", "Register"],
-  ["/", "Dashboard"],
-  ["/documents/new", "New document"],
-  ["/documents/abc", "Document"],
-  ["/documents/abc/revisions/new", "New revision"],
-  ["/approvals", "Approvals"],
   ["/verify", "Verify"],
-  ["/verifications", "Verification history"],
-  ["/verifications/v1", "Verification"],
 ];
 
-describe("routes", () => {
-  it.each(routes)("%s renders its placeholder heading", (path, heading) => {
+describe("public routes", () => {
+  it.each(publicRoutes)("%s renders without a session", async (path, heading) => {
     render(
       <MemoryRouter future={routerFuture} initialEntries={[path]}>
         <AppRoutes />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
   });
 
   it("renders NotFound for an unknown path", () => {
@@ -33,5 +26,26 @@ describe("routes", () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole("heading", { level: 1, name: "Page not found" })).toBeInTheDocument();
+  });
+});
+
+const protectedRoutes: string[] = [
+  "/",
+  "/documents/new",
+  "/documents/abc",
+  "/documents/abc/revisions/new",
+  "/approvals",
+  "/verifications",
+  "/verifications/v1",
+];
+
+describe("protected routes without a session", () => {
+  it.each(protectedRoutes)("%s redirects to /login", async (path) => {
+    render(
+      <MemoryRouter future={routerFuture} initialEntries={[path]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("heading", { level: 1, name: "Login" })).toBeInTheDocument();
   });
 });

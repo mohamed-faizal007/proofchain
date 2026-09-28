@@ -1,6 +1,6 @@
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
-import { ApiError, createClient } from "./client";
+import { ApiError, createClient, setUnauthorizedHandler } from "./client";
 
 function fail(status: number, data: unknown, headers: Record<string, string> = {}): AxiosAdapter {
   return (config: InternalAxiosRequestConfig) => {
@@ -54,5 +54,35 @@ describe("api client", () => {
     };
     await createClient({ adapter, getToken: () => null }).get("/x");
     expect(seen).toBeUndefined();
+  });
+
+  it("invokes the unauthorized handler on a 401 from a protected endpoint", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    const client = createClient({
+      adapter: fail(401, { error: { code: "AUTH_REQUIRED", message: "Unauthorized" } }),
+    });
+    await client.get("/documents").catch(() => {});
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not invoke the unauthorized handler on a 401 from /auth/login", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    const client = createClient({
+      adapter: fail(401, { error: { code: "INVALID_CREDENTIALS", message: "Bad credentials" } }),
+    });
+    await client.post("/auth/login", {}).catch(() => {});
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the unauthorized handler on a 401/403 from /auth/register", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    const client = createClient({
+      adapter: fail(401, { error: { code: "AUTH_REQUIRED", message: "Sign in as an admin" } }),
+    });
+    await client.post("/auth/register", {}).catch(() => {});
+    expect(handler).not.toHaveBeenCalled();
   });
 });

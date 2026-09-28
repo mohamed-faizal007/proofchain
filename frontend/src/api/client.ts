@@ -36,16 +36,37 @@ export function toApiError(err: AxiosError): ApiError {
   return new ApiError("HTTP_ERROR", err.message, status, requestId);
 }
 
+/** Mutable module state backing the shared `api` client's token and session-expiry handling. */
+let currentToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Sets the bearer token clients created here attach by default (AuthContext calls this). */
+export function setAuthToken(token: string | null): void {
+  currentToken = token;
+}
+
+/** Registers the callback fired when an authenticated request comes back 401 (session expiry). */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
+/** Endpoints where a 401 has domain meaning (bad credentials / restricted registration), not session expiry. */
+const AUTH_EXEMPT_SUFFIXES = ["/auth/login", "/auth/register"];
+
+function isAuthExempt(url: string | undefined): boolean {
+  return url != null && AUTH_EXEMPT_SUFFIXES.some((suffix) => url.endsWith(suffix));
+}
+
 export interface ClientOptions {
   baseURL?: string;
-  /** Returns the JWT to send, or null when signed out. Wired to auth in a later task. */
+  /** Returns the JWT to send, or null when signed out. Defaults to the shared module token. */
   getToken?: () => string | null;
   adapter?: AxiosAdapter;
 }
 
 export function createClient({
   baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1",
-  getToken = () => null,
+  getToken = () => currentToken,
   adapter,
 }: ClientOptions = {}): AxiosInstance {
   const client = axios.create({ baseURL, adapter });
@@ -56,7 +77,14 @@ export function createClient({
   });
   client.interceptors.response.use(
     (response) => response,
-    (err: unknown) => Promise.reject(err instanceof AxiosError ? toApiError(err) : err),
+    (err: unknown) => {
+      const apiError = err instanceof AxiosError ? toApiError(err) : err;
+      const url = err instanceof AxiosError ? err.config?.url : undefined;
+      if (apiError instanceof ApiError && apiError.status === 401 && !isAuthExempt(url)) {
+        unauthorizedHandler?.();
+      }
+      return Promise.reject(apiError);
+    },
   );
   return client;
 }

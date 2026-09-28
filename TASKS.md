@@ -158,7 +158,7 @@ Deps: P7-03, P6-04 · Accept: NLP failure does not change verdict (test).
 
 ---
 ## P8 — Frontend
-### [ ] P8-01 API client, types, auth context, login/register, protected routes
+### [x] P8-01 API client, types, auth context, login/register, protected routes
 Deps: P0-05, P3-02 · Refs: 07
 ### [ ] P8-02 Dashboard + document list + new document upload
 Deps: P8-01, P5-01

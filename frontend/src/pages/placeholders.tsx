@@ -9,8 +9,6 @@ function Placeholder({ title }: { title: string }): ReactElement {
   );
 }
 
-export const Login = () => <Placeholder title="Login" />;
-export const Register = () => <Placeholder title="Register" />;
 export const Dashboard = () => <Placeholder title="Dashboard" />;
 export const DocumentNew = () => <Placeholder title="New document" />;
 export const DocumentDetail = () => <Placeholder title="Document" />;
