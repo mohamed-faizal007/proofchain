@@ -3,11 +3,12 @@
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any
 
 import anyio.to_thread
 
-from app.errors import ConflictError, NotFoundError, ValidationFailed
+from app.errors import ConflictError, NotFoundError, StorageError, ValidationFailed
 from app.models.document import DocType, Document
 from app.models.integrity_tree import IntegrityTreeDoc
 from app.models.provenance_event import ProvenanceEvent
@@ -46,6 +47,21 @@ class RevisionDiff:
     against_revision_id: str
     localization: LocalizationResult
     analysis: list[dict[str, Any]] | None
+
+
+@dataclass(frozen=True)
+class DownloadedFile:
+    content: bytes
+    filename: str
+    content_type: str
+
+
+def _sanitize_download_filename(name: str) -> str:
+    """Path-stripped, ASCII-printable, no quotes/backslash: safe inside a Content-Disposition
+    header with no further escaping (P8-03)."""
+    stripped = PurePosixPath(PureWindowsPath(name).name).name
+    cleaned = "".join(ch for ch in stripped if 32 <= ord(ch) < 127 and ch not in '"\\')
+    return cleaned.strip() or "revision.pdf"
 
 
 class QueryService:
@@ -163,6 +179,24 @@ class QueryService:
         revision = await self.get_revision(revision_id)
         url = await self._storage.presign_get(revision.file.s3_key, revision.file.s3_version_id)
         return url, self._storage.presign_expiry_seconds
+
+    async def download_file(self, revision_id: str) -> DownloadedFile:
+        """Streams the stored PDF bytes for a revision instead of a presigned URL, so the
+        frontend never needs a browser-reachable route to the internal S3 endpoint (P8-03,
+        PROGRESS.md "Presigned URL host"; `/file` above keeps the old behavior and its limit).
+        """
+        revision = await self.get_revision(revision_id)
+        try:
+            content = await self._storage.get(revision.file.s3_key, revision.file.s3_version_id)
+        except NotFoundError as exc:
+            raise NotFoundError("Revision file not found") from exc
+        except StorageError as exc:
+            # Generic message: the S3 key must never reach the response body (04_API_SPEC).
+            raise StorageError("failed to read revision file") from exc
+        filename = _sanitize_download_filename(revision.file.original_filename)
+        return DownloadedFile(
+            content=content, filename=filename, content_type=revision.file.content_type
+        )
 
     async def provenance(self, document_id: str) -> Provenance:
         await self._document(document_id)

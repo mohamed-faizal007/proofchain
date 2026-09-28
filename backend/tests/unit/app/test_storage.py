@@ -7,10 +7,11 @@ from urllib.parse import parse_qs, urlparse
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from app.config import Settings
-from app.errors import StorageError
+from app.errors import NotFoundError, StorageError
 from app.storage import S3Storage, revision_key
 from app.storage import s3 as s3_module
 
@@ -94,9 +95,27 @@ async def test_head_existing_and_missing(storage: S3Storage) -> None:
     assert await storage.head("nope.pdf") is None
 
 
-async def test_get_missing_raises_storage_error(storage: S3Storage) -> None:
-    with pytest.raises(StorageError):
+async def test_get_missing_raises_not_found_error(storage: S3Storage) -> None:
+    with pytest.raises(NotFoundError):
         await storage.get("nope.pdf")
+
+
+async def test_get_missing_version_raises_not_found_error(storage: S3Storage) -> None:
+    put = await storage.put("k.pdf", b"one")
+    await storage.delete("k.pdf", version_id=put.version_id)
+    with pytest.raises(NotFoundError):
+        await storage.get("k.pdf", version_id=put.version_id)
+
+
+async def test_get_other_client_error_raises_storage_error(
+    storage: S3Storage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(**_kwargs: object) -> None:
+        raise ClientError({"Error": {"Code": "InternalError", "Message": "boom"}}, "GetObject")
+
+    monkeypatch.setattr(storage._client, "get_object", boom)
+    with pytest.raises(StorageError):
+        await storage.get("k.pdf")
 
 
 async def test_presign_pins_version_and_uses_configured_expiry(storage: S3Storage) -> None:

@@ -54,6 +54,22 @@ async def get_file_url(
     return FileUrlOut(url=url, expires_in=expires_in)
 
 
+@router.get("/{revision_id}/download")
+async def download_file(
+    revision_id: str,
+    _: User = Depends(get_current_user),
+    queries: QueryService = Depends(get_query_service),
+) -> Response:
+    """Streams the stored PDF (P8-03): avoids the `/file` presigned URL's internal-endpoint
+    limitation, so any authenticated client can download regardless of network topology."""
+    downloaded = await queries.download_file(revision_id)
+    return Response(
+        content=downloaded.content,
+        media_type=downloaded.content_type,
+        headers={"Content-Disposition": f'attachment; filename="{downloaded.filename}"'},
+    )
+
+
 @router.get("/{revision_id}/diff", response_model=RevisionDiffOut)
 async def diff_revision(
     revision_id: str,

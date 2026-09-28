@@ -116,6 +116,44 @@ export interface DocumentRef {
   title: string | null;
 }
 
+export interface DocumentDetailResponse {
+  document: Document;
+  latest_approved_revision: Revision | null;
+}
+
+export interface FileUrlResponse {
+  url: string;
+  expires_in: number;
+}
+
+export type EventType =
+  | "DOCUMENT_CREATED"
+  | "REVISION_SUBMITTED"
+  | "REVISION_APPROVED"
+  | "REVISION_REJECTED"
+  | "VERSION_ANCHORED"
+  | "ANCHOR_FAILED"
+  | "VERSION_REVOKED"
+  | "VERIFIED";
+
+export interface ProvenanceEvent {
+  id: string;
+  document_id: string;
+  revision_id: string | null;
+  type: EventType;
+  actor_id: string | null;
+  at: string;
+  data: Record<string, unknown>;
+  prev_event_hash: string | null;
+  event_hash: string;
+}
+
+export interface Provenance {
+  document_id: string;
+  chain_valid: boolean;
+  events: ProvenanceEvent[];
+}
+
 export interface VerificationSummary {
   id: string;
   at: string;

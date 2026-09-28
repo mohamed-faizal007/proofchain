@@ -4,7 +4,10 @@ import type {
   DocType,
   DocumentCreateResponse,
   Document,
+  DocumentDetailResponse,
   Paginated,
+  Provenance,
+  Revision,
   RevisionStatus,
 } from "../types";
 
@@ -24,6 +27,42 @@ export function useDocuments(filters: DocumentFilters) {
       const { data } = await api.get<Paginated<Document>>("/documents", { params: filters });
       return data;
     },
+  });
+}
+
+/** GET /documents/{id} (04_API_SPEC): the document plus its newest APPROVED revision (or null). */
+export function useDocument(documentId: string | undefined) {
+  return useQuery({
+    queryKey: ["documents", documentId],
+    queryFn: async () => {
+      const { data } = await api.get<DocumentDetailResponse>(`/documents/${documentId}`);
+      return data;
+    },
+    enabled: documentId != null,
+  });
+}
+
+/** GET /documents/{id}/revisions (04_API_SPEC): all revisions, ascending revision_no. */
+export function useDocumentRevisions(documentId: string | undefined) {
+  return useQuery({
+    queryKey: ["documents", documentId, "revisions"],
+    queryFn: async () => {
+      const { data } = await api.get<Revision[]>(`/documents/${documentId}/revisions`);
+      return data;
+    },
+    enabled: documentId != null,
+  });
+}
+
+/** GET /documents/{id}/provenance (04_API_SPEC): ordered events + chain-hash-chain validity. */
+export function useProvenance(documentId: string | undefined) {
+  return useQuery({
+    queryKey: ["documents", documentId, "provenance"],
+    queryFn: async () => {
+      const { data } = await api.get<Provenance>(`/documents/${documentId}/provenance`);
+      return data;
+    },
+    enabled: documentId != null,
   });
 }
 

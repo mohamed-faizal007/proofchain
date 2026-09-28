@@ -28,6 +28,7 @@ A seed script (`python -m app.scripts.seed`) creates `admin@`, `issuer@`, `appro
 | GET | /revisions/{id} | any | revision detail |
 | GET | /revisions/{id}/tree | any | integrity tree (roots + chunks) |
 | GET | /revisions/{id}/file | any | `{url, expires_in}` presigned GET |
+| GET | /revisions/{id}/download | any | streams the stored PDF bytes (`application/pdf`, `Content-Disposition: attachment`) directly through the backend; no presigned URL, so it needs no browser-reachable S3 endpoint |
 | GET | /revisions/{id}/diff?against={revId} | any | LocalizationResult + analysis between two revisions (default against parent) |
 | POST | /revisions/{id}/approve | APPROVER | `{comment?}`; 403 if approver == submitter; 202 → anchoring in background. Returns the revision (`status=APPROVED`, `anchor.status=ANCHORING`); 409 `REVISION_NOT_PENDING` if not PENDING (incl. losing a concurrent review) |
 | POST | /revisions/{id}/reject | APPROVER | `{comment}` required (blank = 422); 200 with the revision; 403 `SELF_APPROVAL_FORBIDDEN` if rejecter == submitter (maker ≠ checker applies to both decisions); 409 `REVISION_NOT_PENDING` if not PENDING |
@@ -46,7 +47,14 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
   pages: [{index, root, chunks: [{id, index, text, leaf_hash, bbox, section_id}]}], sections}`; 404 if the
   revision or its tree is missing.
 - `GET /revisions/{id}/file`: `{url, expires_in}`; the URL pins the stored S3 object version. Known limit: it
-  is signed for the backend's S3 endpoint (see PROGRESS.md "Presigned URL host", owned by P8-03/P10-03).
+  is signed for the backend's S3 endpoint (see PROGRESS.md "Presigned URL host") -- the frontend uses
+  `/download` instead (P8-03), so this route's limitation no longer affects it; `/file` is kept as-is for any
+  other caller that wants a direct, time-limited S3 link.
+- `GET /revisions/{id}/download`: streams the exact bytes pinned to the revision's stored S3 object version
+  (same source as `/file`) through the backend, so no client needs network access to the S3/MinIO endpoint.
+  `Content-Disposition`'s filename is the revision's `original_filename`, sanitized (path stripped, ASCII
+  printable only, no quotes/backslash). 404 `NOT_FOUND` if the revision or its stored object is missing; 502
+  `STORAGE_ERROR` (no S3 key or exception text in the body) on any other storage failure.
 - `GET /documents/{id}/provenance`: `{document_id, chain_valid, events: [{id, document_id, revision_id, type,
   actor_id, at, data, prev_event_hash, event_hash}]}` in hash-chain order; events that are off the chain
   (tampered/forked) are still listed after it, and `chain_valid` is then `false`.

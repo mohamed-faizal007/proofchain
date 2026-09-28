@@ -78,13 +78,83 @@ def test_file_url_serves_the_original_bytes(env: Env) -> None:
     assert data == (PDFS / "contract_3page.pdf").read_bytes()
 
 
-@pytest.mark.parametrize("suffix", ["", "/tree", "/file"])
+@pytest.mark.parametrize("suffix", ["", "/tree", "/file", "/download"])
 def test_unknown_revision_is_404(env: Env, suffix: str) -> None:
     r = env.client.get(f"{PREFIX}/revisions/nope{suffix}", headers=reader(env))
     assert (r.status_code, r.json()["error"]["code"]) == (404, "NOT_FOUND")
 
 
-@pytest.mark.parametrize("suffix", ["", "/tree", "/file"])
+@pytest.mark.parametrize("suffix", ["", "/tree", "/file", "/download"])
 def test_revision_reads_need_authentication(env: Env, suffix: str) -> None:
     _, _, rev_id = registered(env)
     assert env.client.get(f"{PREFIX}/revisions/{rev_id}{suffix}").status_code == 401
+
+
+def test_download_returns_the_exact_stored_bytes(env: Env) -> None:
+    _, _, rev_id = registered(env)
+    expected = (PDFS / "contract_3page.pdf").read_bytes()
+
+    r = env.client.get(f"{PREFIX}/revisions/{rev_id}/download", headers=reader(env))
+
+    assert r.status_code == 200
+    assert r.content == expected
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.headers["content-disposition"] == 'attachment; filename="lease.pdf"'
+
+
+def test_download_serves_the_pinned_version_even_after_a_later_overwrite(env: Env) -> None:
+    _, _, rev_id = registered(env)
+    stored = env.revision(rev_id)["file"]
+    env.s3.put_object(Bucket="proofchain-test", Key=stored["s3_key"], Body=b"%PDF-overwritten")
+
+    r = env.client.get(f"{PREFIX}/revisions/{rev_id}/download", headers=reader(env))
+
+    assert r.content == (PDFS / "contract_3page.pdf").read_bytes()
+
+
+def test_download_sanitizes_a_hostile_original_filename(env: Env) -> None:
+    _, _, rev_id = registered(env)
+    hostile = '..\\..\\etc/passwd".pdf\r\nX-Injected: 1'
+    env.client.portal.call(  # type: ignore[union-attr]
+        env.db["revisions"].update_one,
+        {"_id": rev_id},
+        {"$set": {"file.original_filename": hostile}},
+    )
+
+    r = env.client.get(f"{PREFIX}/revisions/{rev_id}/download", headers=reader(env))
+
+    assert r.status_code == 200
+    disposition = r.headers["content-disposition"]
+    assert '"' not in disposition[len('attachment; filename="') : -1]
+    assert "\r" not in disposition and "\n" not in disposition
+    assert ".." not in disposition and "/" not in disposition and "\\" not in disposition
+
+
+def test_download_storage_failure_is_502_with_no_key_or_exception_text(env: Env) -> None:
+    _, _, rev_id = registered(env)
+    stored = env.revision(rev_id)["file"]
+
+    def boom(**_kwargs: object) -> None:
+        from botocore.exceptions import ClientError
+
+        raise ClientError({"Error": {"Code": "InternalError", "Message": "boom"}}, "GetObject")
+
+    env.storage._client.get_object = boom  # type: ignore[attr-defined]
+
+    r = env.client.get(f"{PREFIX}/revisions/{rev_id}/download", headers=reader(env))
+
+    assert (r.status_code, r.json()["error"]["code"]) == (502, "STORAGE_ERROR")
+    assert stored["s3_key"] not in r.text
+    assert "boom" not in r.text and "InternalError" not in r.text
+
+
+def test_download_missing_s3_object_is_404(env: Env) -> None:
+    _, _, rev_id = registered(env)
+    stored = env.revision(rev_id)["file"]
+    env.s3.delete_object(
+        Bucket="proofchain-test", Key=stored["s3_key"], VersionId=stored["s3_version_id"]
+    )
+
+    r = env.client.get(f"{PREFIX}/revisions/{rev_id}/download", headers=reader(env))
+
+    assert (r.status_code, r.json()["error"]["code"]) == (404, "NOT_FOUND")

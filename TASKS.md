@@ -162,7 +162,7 @@ Deps: P7-03, P6-04 · Accept: NLP failure does not change verdict (test).
 Deps: P0-05, P3-02 · Refs: 07
 ### [x] P8-02 Dashboard + document list + new document upload
 Deps: P8-01, P5-01
-### [ ] P8-03 Document detail: version timeline, provenance timeline, submit revision
+### [x] P8-03 Document detail: version timeline, provenance timeline, submit revision
 Deps: P8-02, P5-05
 Note: revision file download must resolve the presigned-URL host problem (PROGRESS.md Follow-ups, "Presigned URL host").
 ### [ ] P8-04 Approvals queue

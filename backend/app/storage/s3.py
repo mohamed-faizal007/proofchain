@@ -12,7 +12,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import BaseModel
 
 from app.config import Settings
-from app.errors import StorageError
+from app.errors import NotFoundError, StorageError
 
 T = TypeVar("T")
 
@@ -103,7 +103,11 @@ class S3Storage:
 
         try:
             return await self._run(read)
-        except (ClientError, BotoCoreError) as exc:
+        except ClientError as exc:
+            if _error_code(exc) in _NOT_FOUND_CODES:
+                raise NotFoundError("Object not found") from exc
+            raise StorageError(f"failed to read object {key}") from exc
+        except BotoCoreError as exc:
             raise StorageError(f"failed to read object {key}") from exc
 
     async def head(self, key: str, version_id: str | None = None) -> StoredObject | None:

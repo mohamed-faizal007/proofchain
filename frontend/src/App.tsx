@@ -3,11 +3,11 @@ import { Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
+import { DocumentDetail } from "./pages/DocumentDetail";
 import { DocumentNew } from "./pages/DocumentNew";
 import { Login } from "./pages/Login";
 import {
   ApprovalsQueue,
-  DocumentDetail,
   NotFound,
   RevisionNew,
   Verify,

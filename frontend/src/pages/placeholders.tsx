@@ -9,7 +9,6 @@ function Placeholder({ title }: { title: string }): ReactElement {
   );
 }
 
-export const DocumentDetail = () => <Placeholder title="Document" />;
 export const RevisionNew = () => <Placeholder title="New revision" />;
 export const ApprovalsQueue = () => <Placeholder title="Approvals" />;
 export const Verify = () => <Placeholder title="Verify" />;
