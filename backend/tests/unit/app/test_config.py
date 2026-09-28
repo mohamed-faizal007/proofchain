@@ -1,7 +1,11 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from app.config import DEFAULT_JWT_SECRET, Settings
+
+ENV_EXAMPLE = Path(__file__).resolve().parents[4] / ".env.example"
 
 
 def test_prod_rejects_default_jwt_secret() -> None:
@@ -43,3 +47,14 @@ def test_prod_accepts_anchor_settings() -> None:
 def test_non_prod_allows_empty_anchor_settings(env: str) -> None:
     s = Settings(_env_file=None, app_env=env)  # type: ignore[arg-type]
     assert s.anchor_private_key == "" and s.registry_address == ""
+
+
+def test_env_example_parses_without_leaking_inline_comments() -> None:
+    """pydantic-settings does not strip trailing '# comment' text from a KEY=value line
+    (unlike a shell), so a copied-verbatim `backend/.env` with an inline comment on, e.g.,
+    ANCHOR_PRIVATE_KEY silently made the comment part of the value instead of raising.
+    .env.example must keep every comment on its own line so this can't happen again."""
+    settings = Settings(_env_file=ENV_EXAMPLE, app_env="test")  # type: ignore[call-arg]
+    for name, value in settings.model_dump().items():
+        if isinstance(value, str):
+            assert "#" not in value, f"{name} contains a stray '#': {value!r}"

@@ -24,7 +24,10 @@ SECRET = "super-secret-connection-detail"
 
 
 def _settings() -> Settings:
+    # _env_file=None: must not depend on whatever backend/.env happens to exist on the host
+    # (P8-02 review) -- see the same note in tests/unit/app/docs_env.py.
     return Settings(
+        _env_file=None,
         app_env="test",
         s3_bucket=BUCKET,
         s3_region="ap-south-1",

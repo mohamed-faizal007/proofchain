@@ -28,7 +28,12 @@ PDFS = Path(__file__).resolve().parents[2] / "fixtures" / "pdfs"
 
 
 def settings() -> Settings:
+    # _env_file=None: this fixture must not depend on whatever backend/.env happens to exist on
+    # the host (P8-02 review) -- moto only intercepts the default AWS endpoints, so a real
+    # S3_ENDPOINT_URL/AWS_* from a real .env silently sent these tests at a real MinIO instead of
+    # the mocked bucket, with an unrelated bucket name and credentials that don't match it.
     return Settings(  # type: ignore[arg-type]
+        _env_file=None,
         app_env="test",
         jwt_secret=SECRET,
         anchor_private_key="0x" + "1" * 64,
