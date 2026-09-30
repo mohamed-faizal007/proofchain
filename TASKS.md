@@ -167,7 +167,7 @@ Deps: P8-02, P5-05
 Note: revision file download must resolve the presigned-URL host problem (PROGRESS.md Follow-ups, "Presigned URL host").
 ### [x] P8-04 Approvals queue
 Deps: P8-03
-### [ ] P8-05 PdfViewerWithHighlights (+ bbox tests)
+### [x] P8-05 PdfViewerWithHighlights (+ bbox tests)
 Deps: P8-01 · Refs: 07 Highlight overlay
 ### [ ] P8-06 Verify page + VerificationDetail (banner, steps, side-by-side, change list, chain proof)
 Deps: P8-05, P6-04, P7-04
