@@ -22,3 +22,28 @@ page_count:
       - {name: short, min: 1, max: 3, weight: 35}
       - {name: medium, min: 4, max: 12, weight: 27}
       - {name: long, min: 13, max: 50, weight: 38}
+
+# Tamper cases (docs/08 C.2). `cases` = number of SUCCESSFUL cases wanted per (op, mode); an
+# in-place attempt that does not fit its block is recorded as skipped and another document is tried.
+# Modes: rerender = edit the spec and re-render; inplace = PyMuPDF redact+insert on the original PDF;
+# resave = metadata-only re-save. Cases are drawn from a per-(op, mode, attempt) seed, not from a
+# shared generator, so each case is reproducible on its own.
+tamper:
+  seed: 20260930
+  out_dir: data/tamper
+  multi_edit_ops: {min: 2, max: 5}
+  # Candidate replacement names tried per in-place party attempt (1 = a single draw, no retries).
+  inplace_party_candidates: 1
+  cases:
+    amount_change: {rerender: 20, inplace: 20}
+    date_change: {rerender: 20, inplace: 20}
+    party_change: {rerender: 20, inplace: 20}
+    percentage_change: {rerender: 20}
+    number_change: {rerender: 20}
+    obligation_flip: {rerender: 20}
+    clause_insert: {rerender: 20}
+    clause_delete: {rerender: 20}
+    clause_reword: {rerender: 20}
+    typo_fix: {rerender: 20}
+    metadata_only: {resave: 20}
+    multi_edit: {rerender: 40}

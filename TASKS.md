@@ -178,7 +178,7 @@ Deps: P8-06
 ## P9 — Evaluation (paper results)
 ### [x] P9-01 Corpus generator (templates, Faker en_IN, reportlab, JSON specs)
 Deps: P1-07 · Refs: 08 C.1
-### [ ] P9-02 Tamper operations + ground truth
+### [x] P9-02 Tamper operations + ground truth
 Deps: P9-01 · Refs: 08 C.2
 ### [ ] P9-03 Evaluation runner: detection, localization, efficiency, latency, baselines
 Deps: P9-02, P1-08 · Refs: 08 C.3
