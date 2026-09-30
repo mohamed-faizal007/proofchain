@@ -315,3 +315,25 @@ describe("PdfViewerWithHighlights: page rotation (out of scope)", () => {
     expect(within(page).queryByTestId("highlight-m")).not.toBeInTheDocument();
   });
 });
+
+describe("PdfViewerWithHighlights: in-memory file source (verification upload)", () => {
+  it("opens the File's bytes with NO download request and no object URL", async () => {
+    let requests = 0;
+    stubDownload(() => {
+      requests += 1;
+      return Promise.reject(new Error("must not be called"));
+    });
+    openPdf.mockResolvedValue(fakeDoc([fakePage()]));
+    const file = new File(["CAND-BYTES"], "upload.pdf", { type: "application/pdf" });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <PdfViewerWithHighlights file={file} highlights={[hl("a", "MODIFIED", 0)]} />
+      </QueryClientProvider>,
+    );
+    expect(await pageEl(1)).toBeInTheDocument();
+    const bytes = openPdf.mock.calls[0]?.[0] as ArrayBuffer;
+    expect(new TextDecoder().decode(bytes)).toBe("CAND-BYTES");
+    expect(requests).toBe(0);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+});

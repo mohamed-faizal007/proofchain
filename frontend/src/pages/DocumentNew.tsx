@@ -9,11 +9,9 @@ import { useCreateDocument } from "../api/hooks/documents";
 import type { DocType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { FileDropzone } from "../components/FileDropzone";
+import { validatePdfFile } from "../lib/pdfFile";
 
 const DOC_TYPES: DocType[] = ["CONTRACT", "CERTIFICATE", "INVOICE", "LEGAL", "OTHER"];
-
-/** Server enforces the real limit; this only avoids an obviously-doomed upload. */
-const MAX_UPLOAD_MB = Number(import.meta.env.VITE_MAX_UPLOAD_MB) || 25;
 
 const schema = z.object({
   title: z.string().min(1, "Title is required").max(200),
@@ -22,17 +20,6 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-
-/** Never trusted for security: the server re-validates the PDF and its size. */
-function validateFile(file: File | null): string | null {
-  if (!file) return "Select a PDF file.";
-  if (!file.name.toLowerCase().endsWith(".pdf")) return "File must be a .pdf file.";
-  if (file.type !== "application/pdf") return "File must be a PDF (application/pdf).";
-  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-    return `File must be ${MAX_UPLOAD_MB} MB or smaller.`;
-  }
-  return null;
-}
 
 function mapUploadError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -85,7 +72,7 @@ export function DocumentNew(): ReactElement {
 
   const onSubmit = async (values: FormValues): Promise<void> => {
     if (submittingRef.current) return;
-    if (validateFile(file)) return;
+    if (validatePdfFile(file)) return;
     submittingRef.current = true;
     setFormError(null);
     try {
@@ -108,7 +95,7 @@ export function DocumentNew(): ReactElement {
   // Runs on every submit attempt so a missing/invalid file is flagged even when RHF's own
   // field validation (title, doc_type) also fails and therefore never reaches `onSubmit`.
   function handleFormSubmit(e: FormEvent<HTMLFormElement>): void {
-    setFileError(validateFile(file));
+    setFileError(validatePdfFile(file));
     void handleSubmit(onSubmit)(e);
   }
 

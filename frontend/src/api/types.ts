@@ -167,3 +167,114 @@ export interface VerificationSummary {
   filename: string;
   file_hash: string;
 }
+
+export type Verdict =
+  | "AUTHENTIC_LATEST"
+  | "AUTHENTIC_SUPERSEDED"
+  | "CONTENT_EQUIVALENT"
+  | "UNAUTHORIZED_VERSION"
+  | "TAMPERED"
+  | "RECORD_MISMATCH"
+  | "UNKNOWN_DOCUMENT";
+
+export type StepStatus = "PASS" | "FAIL" | "WARN" | "DONE" | "SKIPPED";
+
+export interface VerificationStep {
+  name: string;
+  status: StepStatus;
+  detail?: string;
+}
+
+export interface RevisionSnapshot {
+  id: string;
+  revision_no: number;
+  version_no: number | null;
+  status: RevisionStatus;
+  anchored_tx: string | null;
+  revocation: { at: string; reason?: string } | null;
+}
+
+export type RegionType = "MODIFIED" | "INSERTED" | "DELETED";
+
+/** PDF points `[x0, y0, x1, y1]`, top-left origin. */
+export type BboxTuple = [number, number, number, number];
+
+/** Pages are 0-based. `ref_*` index the reference PDF, `cand_*` the candidate PDF, and the
+ * two documents may have different page counts. Anonymous reports null the text/bbox fields. */
+export interface ChangeRegion {
+  id: string;
+  type: RegionType;
+  ref_chunk_id: string | null;
+  cand_chunk_id: string | null;
+  ref_page: number | null;
+  cand_page: number | null;
+  ref_text: string | null;
+  cand_text: string | null;
+  ref_bbox: BboxTuple | null;
+  cand_bbox: BboxTuple | null;
+  section_id: string | null;
+  section_title: string | null;
+}
+
+export interface LocalizationResult {
+  status: "IDENTICAL" | "CONTENT_EQUIVALENT" | "CHANGED";
+  regions: ChangeRegion[];
+  changed_pages_ref: number[];
+  changed_pages_cand: number[];
+  method: string | null;
+  hash_comparisons: number;
+  stats: Record<string, number>;
+}
+
+export interface EntityChange {
+  type: string;
+  before: string | null;
+  after: string | null;
+}
+
+export interface DiffOp {
+  op: "equal" | "insert" | "delete" | "replace";
+  before: string[];
+  after: string[];
+}
+
+export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface AnalysisItem {
+  region_id: string;
+  primary_category: string;
+  categories: string[];
+  severity: Severity;
+  similarity: number | null;
+  entity_changes: EntityChange[];
+  token_diff?: DiffOp[];
+  explanation: string;
+  method?: string;
+}
+
+export interface ChainCheck {
+  performed: boolean;
+  ok: boolean | null;
+  reason: string | null;
+  mismatches: string[];
+  tx_hash: string | null;
+  explorer_url: string | null;
+}
+
+export interface VerificationReport {
+  id: string;
+  at: string;
+  verdict: Verdict;
+  summary: string;
+  document: DocumentRef | null;
+  matched_revision: RevisionSnapshot | null;
+  reference_revision: RevisionSnapshot | null;
+  no_reference_reason: string | null;
+  steps: VerificationStep[];
+  candidate: { filename?: string; file_hash: string; text_root: string; page_count: number };
+  localization: LocalizationResult | null;
+  /** null when NLP was skipped, disabled or not requested. */
+  analysis: AnalysisItem[] | null;
+  chain_check: ChainCheck | null;
+  timings_ms: Record<string, number>;
+}

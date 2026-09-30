@@ -20,13 +20,14 @@ export interface DocumentFilters {
 }
 
 /** GET /documents (04_API_SPEC): paginated, filtered by literal `q`, `doc_type`, `status`. */
-export function useDocuments(filters: DocumentFilters) {
+export function useDocuments(filters: DocumentFilters, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["documents", filters],
     queryFn: async () => {
       const { data } = await api.get<Paginated<Document>>("/documents", { params: filters });
       return data;
     },
+    enabled: options.enabled ?? true,
   });
 }
 

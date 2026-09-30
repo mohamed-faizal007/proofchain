@@ -3,7 +3,7 @@ import { api } from "../client";
 
 /** GET /revisions/{id}/download as a blob through the shared axios client (so the
  * Authorization header is attached), returned as an ArrayBuffer for pdf.js. */
-export function useRevisionPdf(revisionId: string) {
+export function useRevisionPdf(revisionId: string | undefined) {
   return useQuery({
     queryKey: ["revision-pdf", revisionId],
     queryFn: async () => {
@@ -12,6 +12,7 @@ export function useRevisionPdf(revisionId: string) {
       });
       return data.arrayBuffer();
     },
+    enabled: revisionId != null,
     staleTime: Infinity,
     gcTime: 5 * 60_000,
     retry: false,

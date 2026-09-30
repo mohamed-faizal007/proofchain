@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRevisionPdf } from "../api/hooks/useRevisionPdf";
+import { useFileBytes } from "../lib/useFileBytes";
 import { highlightsForPage, type PageHighlight } from "../lib/bbox";
 import { openPdf, type PdfPageLike } from "../lib/pdfjs";
 import { HighlightLegend } from "./HighlightOverlay";
 import { PdfPage } from "./PdfPage";
 
 export interface PdfViewerProps {
-  revisionId: string;
+  /** A stored revision, downloaded through the authenticated client. */
+  revisionId?: string;
+  /** Alternatively an in-memory file (e.g. a verification upload that is never stored). */
+  file?: File;
   highlights: PageHighlight[];
   /** Id of the highlight to emphasise and scroll to. */
   focusedId?: string;
@@ -46,10 +50,13 @@ function useElementWidth<T extends HTMLElement>() {
  * object URL is ever created. Import via LazyPdfViewer to keep pdf.js out of the main bundle. */
 export default function PdfViewerWithHighlights({
   revisionId,
+  file,
   highlights,
   focusedId,
 }: PdfViewerProps) {
-  const pdf = useRevisionPdf(revisionId);
+  const remote = useRevisionPdf(file ? undefined : revisionId);
+  const local = useFileBytes(file);
+  const pdf = file ? local : remote;
   const [pages, setPages] = useState<LoadedPage[] | null>(null);
   const [parseError, setParseError] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -92,7 +99,7 @@ export default function PdfViewerWithHighlights({
         role="alert"
         className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800"
       >
-        Could not load the PDF: {pdf.error.message}{" "}
+        Could not load the PDF: {pdf.error?.message ?? "unknown error"}{" "}
         <button type="button" className="underline" onClick={() => void pdf.refetch()}>
           Retry
         </button>

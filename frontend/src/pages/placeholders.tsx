@@ -10,7 +10,5 @@ function Placeholder({ title }: { title: string }): ReactElement {
 }
 
 export const RevisionNew = () => <Placeholder title="New revision" />;
-export const Verify = () => <Placeholder title="Verify" />;
-export const VerificationDetail = () => <Placeholder title="Verification" />;
 export const VerificationHistory = () => <Placeholder title="Verification history" />;
 export const NotFound = () => <Placeholder title="Page not found" />;

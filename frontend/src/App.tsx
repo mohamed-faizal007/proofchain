@@ -7,14 +7,10 @@ import { Dashboard } from "./pages/Dashboard";
 import { DocumentDetail } from "./pages/DocumentDetail";
 import { DocumentNew } from "./pages/DocumentNew";
 import { Login } from "./pages/Login";
-import {
-  NotFound,
-  RevisionNew,
-  Verify,
-  VerificationDetail,
-  VerificationHistory,
-} from "./pages/placeholders";
+import { NotFound, RevisionNew, VerificationHistory } from "./pages/placeholders";
 import { Register } from "./pages/Register";
+import { VerificationDetail } from "./pages/VerificationDetail";
+import { Verify } from "./pages/Verify";
 
 export function AppRoutes(): ReactElement {
   return (
