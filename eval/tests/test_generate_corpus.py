@@ -181,8 +181,8 @@ def test_every_pdf_builds_a_tree(corpus: Corpus) -> None:
 # ---- 2. balance and coverage ---------------------------------------------------------------
 
 TYPE_SHARE_TOLERANCE = 0.10  # relative, around 1/len(doc_types)
-MIN_DOCS_PER_BUCKET = 15  # of 200 (7.5 %)
-MIN_DOCS_PER_CONTRACT_TYPE_BUCKET = 4
+MIN_DOCS_PER_BUCKET = 40  # of 200 (20 %); long is contract-only, so its weight is raised
+MIN_DOCS_PER_CONTRACT_TYPE_BUCKET = 8
 
 
 def test_doc_types_are_balanced(cfg: dict[str, Any], corpus: Corpus) -> None:

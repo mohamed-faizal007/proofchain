@@ -135,3 +135,22 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+  eval:
+    # Corpus generator: determinism tests (pinned reportlab, PyMuPDF, Faker and DejaVu font).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eval
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e "../backend[dev,eval]"
+      - run: python -m ruff check --config ../backend/pyproject.toml .
+      - run: python -m ruff format --check --config ../backend/pyproject.toml .
+      - run: python -m mypy --python-version 3.11 --check-untyped-defs --explicit-package-bases --ignore-missing-imports .
+      - run: python -m pytest -q
