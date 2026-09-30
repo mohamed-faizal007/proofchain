@@ -19,6 +19,25 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 METHODS = ("localize", "positional", "plain_diff")
+
+# Attached to every reported plain-diff result (metrics.json, localization.csv) so a figure or
+# table built from those numbers cannot drop it.
+PLAIN_DIFF_CAVEAT = (
+    "Plain diff scores this high only because it is handed the stored reference text directly, "
+    "with no verification that the reference itself is authentic. It has no tamper-evidence "
+    "property: it cannot detect that the reference was substituted or corrupted, which is the "
+    "problem the anchored Merkle root and the verification pipeline exist to solve."
+)
+BASELINES: dict[str, dict[str, Any]] = {
+    "whole_file": {"tamper_evident": True, "localizes": False},
+    "positional": {"tamper_evident": True, "localizes": True},
+    "plain_diff": {
+        "tamper_evident": False,
+        "localizes": True,
+        "requires_trusted_reference_text": True,
+        "caveat": PLAIN_DIFF_CAVEAT,
+    },
+}
 ROUND = 6
 
 
@@ -82,6 +101,8 @@ def _score(rows: list[dict[str, Any]]) -> dict[str, Any]:
             entry["macro_f1"] = round(
                 math.fsum(prf(*r[level][m])["f1"] for r in rows) / len(rows), ROUND
             )
+            if m == "plain_diff":
+                entry["caveat"] = PLAIN_DIFF_CAVEAT
             per_method[m] = entry
         out[level] = per_method
     return out

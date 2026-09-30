@@ -152,6 +152,7 @@ def build_metrics(cfg: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, 
         "seed": cfg["seed"],
         "tamper_seed": cfg["tamper"]["seed"],
         "detection": metrics.detection_table(rows),
+        "baselines": metrics.BASELINES,
         "localization": metrics.localization_table(rows),
         "efficiency": metrics.efficiency_table(rows),
     }
@@ -177,6 +178,7 @@ def _localization_lines(table: dict[str, Any]) -> list[list[Any]]:
                             s[k]
                             for k in ("tp", "fp", "fn", "precision", "recall", "f1", "macro_f1")
                         ]
+                        + [s.get("caveat", "")]
                     )
     return lines
 
@@ -222,6 +224,7 @@ def write_results(
             "recall",
             "f1",
             "macro_f1",
+            "caveat",
         ],
         _localization_lines(result["localization"]),
     )

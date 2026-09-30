@@ -17,6 +17,8 @@ Rules: every script takes `--config` and `--seed`; no network access; results ar
 `python generate_corpus.py --config configs/default.yaml`, then `python tamper.py --config configs/default.yaml`,
 then `python run_eval.py --config configs/default.yaml` -> `results/seed<seed>/` (`metrics.json`, CSVs,
 `latency.*`). Only the latency files change between runs. Baseline definitions are in `baselines.py`.
+Every plain-diff result carries a `caveat` field (metrics.json, localization.csv): it is handed the stored
+reference text and has no tamper evidence, so quote its scores only together with that caveat.
 
 ## Setup and determinism
 `cd backend; pip install -e ".[dev,eval]"` (Faker is pinned exactly). Run from `eval/`:

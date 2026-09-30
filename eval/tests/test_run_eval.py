@@ -278,3 +278,44 @@ def test_truth_ids_are_positional_in_both_trees(cfg: dict[str, Any], small_run: 
     }
     assert shared  # same id, different content: the two id spaces must be scored apart
     assert localize(ref_tree, cand_tree).stats["inserted"] >= 1
+
+
+def test_plain_diff_results_always_carry_the_no_tamper_evidence_caveat(
+    cfg: dict[str, Any], rows: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    """The plain diff scores perfectly only because it is handed the stored reference text; P9-05
+    must not be able to quote the number without this caveat."""
+    result = run_eval.build_metrics(cfg, rows)
+    info = result["baselines"]["plain_diff"]
+    assert info["tamper_evident"] is False
+    assert info["requires_trusted_reference_text"] is True
+    assert "no verification that the reference" in info["caveat"]
+    table = result["localization"]
+
+    def entries(node: Any) -> Any:
+        if isinstance(node, dict):
+            if "plain_diff" in node and "chunk" not in node:
+                yield node["plain_diff"]
+            for v in node.values():
+                yield from entries(v)
+
+    scored = list(entries(table))
+    assert scored
+    assert all(e["caveat"] == info["caveat"] for e in scored)
+    assert all("caveat" not in e for e in _other_methods(table))
+
+    run_eval.write_results(tmp_path, result, rows, [])
+    import csv
+
+    with (tmp_path / "localization.csv").open(encoding="utf-8") as fh:
+        plain = [r for r in csv.DictReader(fh) if r["method"] == "plain_diff"]
+    assert plain and all(r["caveat"] == info["caveat"] for r in plain)
+
+
+def _other_methods(node: Any) -> Any:
+    if isinstance(node, dict):
+        for m in ("localize", "positional"):
+            if m in node and isinstance(node[m], dict) and "tp" in node[m]:
+                yield node[m]
+        for v in node.values():
+            yield from _other_methods(v)
