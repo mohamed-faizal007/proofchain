@@ -50,8 +50,13 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
 }
 
-/** Endpoints where a 401 has domain meaning (bad credentials / restricted registration), not session expiry. */
-const AUTH_EXEMPT_SUFFIXES = ["/auth/login", "/auth/register"];
+/** Endpoints where a 401 must not trigger the global sign-out + redirect: it has a domain meaning
+ * (bad credentials, restricted registration) or the caller handles it itself. `/auth/me` runs on
+ * every page load with whatever token is stored, so an expired token there is dropped silently
+ * (AuthProvider) and must not bounce a visitor off the public /verify and /register pages;
+ * `/verify` is public, so its 401 (PUBLIC_VERIFY=false) is shown by the page. ProtectedRoute
+ * still redirects anonymous visitors on protected routes. */
+const AUTH_EXEMPT_SUFFIXES = ["/auth/login", "/auth/register", "/auth/me", "/verify"];
 
 function isAuthExempt(url: string | undefined): boolean {
   return url != null && AUTH_EXEMPT_SUFFIXES.some((suffix) => url.endsWith(suffix));

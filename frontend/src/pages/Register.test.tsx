@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AxiosAdapter, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
@@ -22,14 +23,16 @@ function fail(status: number, data: unknown): AxiosAdapter {
 
 function renderRegister(client: AxiosInstance) {
   return render(
-    <MemoryRouter future={routerFuture} initialEntries={["/register"]}>
-      <AuthProvider client={client}>
-        <Routes>
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<div>Login page</div>} />
-        </Routes>
-      </AuthProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter future={routerFuture} initialEntries={["/register"]}>
+        <AuthProvider client={client}>
+          <Routes>
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<div>Login page</div>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

@@ -85,4 +85,25 @@ describe("api client", () => {
     await client.post("/auth/register", {}).catch(() => {});
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it("does not invoke the unauthorized handler on a 401 from GET /auth/me (expired stored token)", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    const client = createClient({
+      adapter: fail(401, { error: { code: "AUTH_REQUIRED", message: "Token expired" } }),
+    });
+    const err = await client.get("/auth/me").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the unauthorized handler on a 401 from POST /verify", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    const client = createClient({
+      adapter: fail(401, { error: { code: "AUTH_REQUIRED", message: "Sign in" } }),
+    });
+    await client.post("/verify", new FormData()).catch(() => {});
+    expect(handler).not.toHaveBeenCalled();
+  });
 });

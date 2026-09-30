@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api, setAuthToken, setUnauthorizedHandler } from "../api/client";
 import type { LoginRequest, RegisterRequest, TokenResponse, User } from "../api/types";
@@ -34,12 +35,16 @@ export function AuthProvider({
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
+  // Cached server state belongs to the session that fetched it (documents, verification history,
+  // approvals, PDFs): drop all of it whenever a session ends or a new one starts.
   const logout = useCallback(() => {
     setStoredToken(null);
     setAuthToken(null);
     setUser(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,12 +85,14 @@ export function AuthProvider({
 
   const login = useCallback(
     async (credentials: LoginRequest) => {
+      // Also covers leftovers from a crash or a missed logout.
+      queryClient.clear();
       const res = await client.post<TokenResponse>("/auth/login", credentials);
       setStoredToken(res.data.access_token);
       setAuthToken(res.data.access_token);
       setUser(res.data.user);
     },
-    [client],
+    [client, queryClient],
   );
 
   const register = useCallback(

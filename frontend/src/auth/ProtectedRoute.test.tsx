@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { AxiosAdapter, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
@@ -22,21 +23,23 @@ function fail(status: number, data: unknown): AxiosAdapter {
 
 function renderProtected(client: AxiosInstance, initialEntry = "/secret") {
   return render(
-    <MemoryRouter future={routerFuture} initialEntries={[initialEntry]}>
-      <AuthProvider client={client}>
-        <Routes>
-          <Route path="/login" element={<div>Login page</div>} />
-          <Route
-            path="/secret"
-            element={
-              <ProtectedRoute>
-                <div>Secret content</div>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </AuthProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter future={routerFuture} initialEntries={[initialEntry]}>
+        <AuthProvider client={client}>
+          <Routes>
+            <Route path="/login" element={<div>Login page</div>} />
+            <Route
+              path="/secret"
+              element={
+                <ProtectedRoute>
+                  <div>Secret content</div>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AxiosAdapter, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
@@ -55,13 +56,15 @@ function Harness({ client }: { client: AxiosInstance }) {
   );
 }
 
-function renderHarness(client: AxiosInstance) {
+function renderHarness(client: AxiosInstance, queryClient = new QueryClient()) {
   return render(
-    <MemoryRouter future={routerFuture}>
-      <AuthProvider client={client}>
-        <Harness client={client} />
-      </AuthProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter future={routerFuture}>
+        <AuthProvider client={client}>
+          <Harness client={client} />
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -158,19 +161,85 @@ describe("AuthProvider", () => {
     });
 
     render(
-      <MemoryRouter future={routerFuture} initialEntries={["/secret"]}>
-        <AuthProvider client={client}>
-          <Routes>
-            <Route path="/login" element={<div>Login page</div>} />
-            <Route path="/secret" element={<Harness client={client} />} />
-          </Routes>
-        </AuthProvider>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter future={routerFuture} initialEntries={["/secret"]}>
+          <AuthProvider client={client}>
+            <Routes>
+              <Route path="/login" element={<div>Login page</div>} />
+              <Route path="/secret" element={<Harness client={client} />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("a@b.com"));
     await userEvent.click(screen.getByText("make-request"));
     await waitFor(() => expect(screen.getByText("Login page")).toBeInTheDocument());
     expect(getStoredToken()).toBeNull();
+  });
+});
+
+describe("AuthProvider: query cache isolation between sessions", () => {
+  const KEY = ["verifications", "recent"];
+
+  it("logout clears the query cache", async () => {
+    const queryClient = new QueryClient();
+    setStoredToken("tok");
+    renderHarness(createClient({ adapter: ok(USER) }), queryClient);
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("a@b.com"));
+    queryClient.setQueryData(KEY, "user A data");
+    await userEvent.click(screen.getByText("logout"));
+    expect(queryClient.getQueryData(KEY)).toBeUndefined();
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it("the global 401 handler clears the query cache", async () => {
+    const queryClient = new QueryClient();
+    setStoredToken("tok");
+    const client = createClient({
+      adapter: (config) =>
+        config.url?.endsWith("/auth/me")
+          ? ok(USER)(config)
+          : fail(401, { error: { code: "AUTH_REQUIRED", message: "Unauthorized" } })(config),
+    });
+    renderHarness(client, queryClient);
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("a@b.com"));
+    queryClient.setQueryData(KEY, "user A data");
+    await userEvent.click(screen.getByText("make-request"));
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("none"));
+    expect(queryClient.getQueryData(KEY)).toBeUndefined();
+  });
+
+  it("login clears leftovers from a crashed or missed-logout session BEFORE the request starts", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(KEY, "stale data from a previous session");
+    let cacheWhenLoginSent: unknown = "not called";
+    const client = createClient({
+      adapter: (config) => {
+        cacheWhenLoginSent = queryClient.getQueryData(KEY);
+        return ok({ access_token: "new-tok", token_type: "bearer", user: USER })(config);
+      },
+    });
+    renderHarness(client, queryClient);
+    await userEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("a@b.com"));
+    expect(cacheWhenLoginSent).toBeUndefined();
+  });
+
+  it("does not clear the cache when GET /auth/me merely rejects an expired token on mount", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(KEY, "anonymous-visible data");
+    setStoredToken("expired");
+    renderHarness(
+      createClient({
+        adapter: fail(401, { error: { code: "AUTH_REQUIRED", message: "expired" } }),
+      }),
+      queryClient,
+    );
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
+    expect(getStoredToken()).toBeNull();
+    // A silent token drop is not a logout of a real session; nothing user-specific was cached.
+    expect(queryClient.getQueryData(KEY)).toBe("anonymous-visible data");
   });
 });

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AxiosAdapter, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
@@ -34,15 +35,17 @@ function renderLogin(
   initialEntries: (string | { pathname: string; state?: unknown })[] = ["/login"],
 ) {
   return render(
-    <MemoryRouter future={routerFuture} initialEntries={initialEntries}>
-      <AuthProvider client={client}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<div>Dashboard page</div>} />
-          <Route path="/documents/42" element={<div>Document 42</div>} />
-        </Routes>
-      </AuthProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter future={routerFuture} initialEntries={initialEntries}>
+        <AuthProvider client={client}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<div>Dashboard page</div>} />
+            <Route path="/documents/42" element={<div>Document 42</div>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
