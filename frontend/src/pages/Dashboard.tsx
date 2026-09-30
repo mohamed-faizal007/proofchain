@@ -78,7 +78,10 @@ export function Dashboard(): ReactElement {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <RoleGate roles={["ISSUER"]}>
-          <Link to="/documents/new" className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+          <Link
+            to="/documents/new"
+            className="rounded bg-gray-900 px-4 py-2 text-sm text-white dark:bg-gray-100 dark:text-gray-900"
+          >
             New document
           </Link>
         </RoleGate>
@@ -86,11 +89,11 @@ export function Dashboard(): ReactElement {
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded border p-4">
-          <p className="text-sm text-gray-500">Documents</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Documents</p>
           {totalQuery.isLoading ? (
             <p className="mt-1 text-2xl font-semibold">…</p>
           ) : totalQuery.isError ? (
-            <p role="alert" className="mt-1 text-sm text-red-600">
+            <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
               {errorMessage(totalQuery.error)}
             </p>
           ) : (
@@ -99,11 +102,13 @@ export function Dashboard(): ReactElement {
         </div>
 
         <div className="rounded border p-4">
-          <p className="text-sm text-gray-500">Documents with a pending revision</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Documents with a pending revision
+          </p>
           {pendingQuery.isLoading ? (
             <p className="mt-1 text-2xl font-semibold">…</p>
           ) : pendingQuery.isError ? (
-            <p role="alert" className="mt-1 text-sm text-red-600">
+            <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
               {errorMessage(pendingQuery.error)}
             </p>
           ) : (
@@ -112,11 +117,11 @@ export function Dashboard(): ReactElement {
         </div>
 
         <div className="rounded border p-4">
-          <p className="text-sm text-gray-500">Your recent verifications</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Your recent verifications</p>
           {verificationsQuery.isLoading ? (
             <p className="mt-1 text-2xl font-semibold">…</p>
           ) : verificationsQuery.isError ? (
-            <p role="alert" className="mt-1 text-sm text-red-600">
+            <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
               {errorMessage(verificationsQuery.error)}
             </p>
           ) : verificationsQuery.data && verificationsQuery.data.items.length > 0 ? (
@@ -130,7 +135,7 @@ export function Dashboard(): ReactElement {
               ))}
             </ul>
           ) : (
-            <p className="mt-1 text-sm text-gray-500">No verifications yet.</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No verifications yet.</p>
           )}
         </div>
       </section>
@@ -175,17 +180,19 @@ export function Dashboard(): ReactElement {
 
         <div className="mt-4 overflow-x-auto">
           {listQuery.isLoading ? (
-            <p className="text-sm text-gray-500">Loading documents…</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading documents…</p>
           ) : listQuery.isError ? (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {errorMessage(listQuery.error)}
             </p>
           ) : listQuery.data && listQuery.data.items.length === 0 ? (
-            <p className="text-sm text-gray-500">No documents match these filters.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No documents match these filters.
+            </p>
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b text-gray-500">
+                <tr className="border-b text-gray-500 dark:text-gray-400">
                   <th className="py-2 pr-4">Title</th>
                   <th className="py-2 pr-4">Type</th>
                   <th className="py-2 pr-4">Latest version</th>

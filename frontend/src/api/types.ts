@@ -161,7 +161,7 @@ export interface Provenance {
 export interface VerificationSummary {
   id: string;
   at: string;
-  verdict: string;
+  verdict: Verdict;
   summary: string;
   document: DocumentRef | null;
   filename: string;
@@ -277,4 +277,13 @@ export interface VerificationReport {
   analysis: AnalysisItem[] | null;
   chain_check: ChainCheck | null;
   timings_ms: Record<string, number>;
+}
+
+/** GET /revisions/{id}/diff (04_API_SPEC, RevisionDiffOut): no verdict, steps or chain check. */
+export interface RevisionDiff {
+  revision_id: string;
+  against_revision_id: string;
+  localization: LocalizationResult;
+  /** null until NLP has run for the comparison. */
+  analysis: AnalysisItem[] | null;
 }

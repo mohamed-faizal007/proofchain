@@ -4,8 +4,8 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P8-06 done (Verify page + VerificationDetail). P8-01..P8-06 `[x]`. P0-P7 all `[x]`; tags `v0.1-P6` and `v0.1-P7` exist (P7 tag -> `e2ca461`, the P7-review commit; both pushed to origin).
-- Next task: P8-07 Verification history + revision diff view + polish
+- Phase: P8-07 done (history, revision diff, dark mode); P8 complete, phase review pending. P8-01..P8-07 `[x]`. P0-P7 all `[x]`; tags `v0.1-P6` and `v0.1-P7` exist (P7 tag -> `e2ca461`, the P7-review commit; both pushed to origin).
+- Next task: P8 phase review (`/phase-review`), then P9-01 Corpus generator
 - Blockers: none
 - Deployed contract (localhost): —
 - Deployed contract (sepolia): —
@@ -666,3 +666,17 @@
 - Done: the two NLP bugs and the favicon above (see Follow-ups, marked FIXED).
 - Tests: backend `python -m pytest -q` 1104 passed, 29 deselected (was 1073); ruff check + format, mypy (91 files) clean. Frontend lint 0 errors, build OK with `favicon.svg` in dist.
 - Next: P8-07
+
+### 2026-09-30 — P8-07 Verification history + revision diff view + polish
+- Done: `pages/VerificationHistory.tsx` (paginated via `?page=`, verdict pill, filename, document, summary, `HashBadge`, loading/empty/error, dims the list with `aria-busy` while the next page loads), `components/RevisionDiffPanel.tsx` (mounted in `DocumentDetail` as "Compare revisions"; candidate/reference selectors, side-by-side lazy viewers, `ChangeList`), `components/{VerdictPill,ThemeToggle,AppShell}.tsx`, `lib/theme.ts`, hooks `useVerificationsPage` / `useRevisionDiff`, `RevisionDiff` type. `AppShell` (header with nav + theme toggle) wraps all routes. `VerificationHistory` placeholder removed.
+- Dark mode: `dark:` variants added across existing components by a one-off script over className strings (116 literals), plus `body` colours and a `.dark *` border colour in `index.css`. Not audited screen by screen beyond history and the diff panel; `Verify`, `Dashboard`, `Approvals` were not visually checked in dark.
+- Diff panel reuse: it does NOT mount `VerificationReportView` (which needs verdict/steps/chain_check); it reuses `ChangeList`, `LazyPdfViewer` and `lib/regions` directly. A test feeds it a `RevisionDiffOut`-shaped response and asserts no verdict banner, pipeline, chain panel, empty headings or "undefined/null" text.
+- Type fix: `VerificationSummary.verdict` is now `Verdict` in `api/types.ts` (was `string`); nothing else broke. `verdictInfo` keeps a runtime grey fallback for an unrecognised string (test: `falls back to a grey pill ...`).
+- Revision selectors (decision): `docs/04_API_SPEC.md` says of the diff route "Any revision status may be diffed (approvers review PENDING ones here)" and only rejects other-document `against`, so NO status filtering; the status is shown in each option label (`v2 · REJECTED`). Default candidate = latest revision, reference = "Parent (default)" (no `against` param). A candidate without a parent (v1) needs an explicit reference; the panel says so and sends nothing.
+- Theme flash: real risk (React mounts after the bundle loads, so a stored dark choice would paint light first). `index.html` has a blocking inline script (same key `proofchain.theme`, same fallback to `prefers-color-scheme`, try/catch around storage) and `main.tsx` calls `initTheme()` as an idempotent backstop; `ThemeToggle` initialises from the class on `<html>`. Tests execute the inline script from the real `index.html` and check it agrees with `resolveTheme()`.
+- Tests added: `VerificationHistory.test` (7), `RevisionDiffPanel.test` (11), `theme.test` (10), `ThemeToggle.test` (2): 30 new, 229 total (was 199).
+- Results: lint 0 errors (1 pre-existing AuthContext warning), typecheck clean, build OK (entry 424.6 -> 435.4 kB; pdf.js still in its own chunk). `npm run test`: 229 passed on 8 consecutive runs before the dark-mode pass and once after it (33 files).
+- Live check (Chrome via playwright-core, real backend + Mongo + MinIO; a document with v1 APPROVED and v2 PENDING, plus 24 verifications): history shows 20 rows on page 1 and 4 on page 2 ("Page 2 of 2", `?page=2`), Previous/Next enable and disable at the bounds; diff panel defaults to v2 vs parent, both viewers rendered real non-blank canvases with highlights (MODIFIED + INSERTED), clicking a card sets `aria-pressed`, picking v1 as candidate shows the no-parent hint; dark and light screenshots inspected for history and the diff panel; with the React entry request blocked and `dark` stored, `<html>` already had the `dark` class. No console or page errors. Not exercised live: 409 canon-version conflict, an IDENTICAL diff, analysis present in the diff.
+- Issues: (1) During the final verification the whole test suite became slow and flaky (170-215 s versus ~25 s, 26-50 random failures such as `Login`/`App` tests). The untouched baseline (`git stash -u`, 199 tests) showed the same symptom at that time (136 s, 11 failed), so it is machine load rather than this change; earlier the same code passed 8/8. With `npx vitest run --maxWorkers=1 --no-file-parallelism` the final tree passes 229/229 (33 files, 138 s); only the parallel run was affected. Root cause of the machine slowdown not identified. (2) `keepPreviousData` shows the old page under the new page label until the fetch returns; now visibly dimmed.
+- Follow-ups added: dark-mode visual audit of Verify / Dashboard / Approvals / Login; consider a longer `asyncUtilTimeout` in `test/setup.ts` if load flakiness recurs.
+- Next: P8 phase review, then P9-01

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import type { Paginated, VerificationReport, VerificationSummary } from "../types";
 
@@ -12,6 +12,20 @@ export function useRecentVerifications(pageSize: number) {
       });
       return data;
     },
+  });
+}
+
+/** GET /verifications: one page of the history (VerificationHistory). */
+export function useVerificationsPage(page: number, pageSize: number) {
+  return useQuery({
+    queryKey: ["verifications", "page", page, pageSize],
+    queryFn: async () => {
+      const { data } = await api.get<Paginated<VerificationSummary>>("/verifications", {
+        params: { page, page_size: pageSize },
+      });
+      return data;
+    },
+    placeholderData: keepPreviousData,
   });
 }
 

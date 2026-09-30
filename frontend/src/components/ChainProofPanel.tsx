@@ -16,7 +16,7 @@ function TxReference({ check }: { check: ChainCheck }): ReactElement | null {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-mono text-xs text-blue-600 hover:underline"
+          className="font-mono text-xs text-blue-600 hover:underline dark:text-blue-400"
         >
           {truncateHash(check.tx_hash)}
         </a>
@@ -38,15 +38,19 @@ export function ChainProofPanel({
   let body: ReactElement;
   if (!check || !check.performed) {
     body = (
-      <p className="text-gray-600">
+      <p className="text-gray-600 dark:text-gray-300">
         Chain check not performed{check?.reason ? `: ${check.reason}` : "."}
       </p>
     );
   } else if (check.ok) {
-    body = <p className="font-medium text-green-800">✓ Matches the on-chain record.</p>;
+    body = (
+      <p className="font-medium text-green-800 dark:text-green-200">
+        ✓ Matches the on-chain record.
+      </p>
+    );
   } else {
     body = (
-      <div className="text-red-800">
+      <div className="text-red-800 dark:text-red-200">
         <p className="font-medium">✗ Does not match the on-chain record.</p>
         {check.reason && <p>{check.reason}</p>}
         {check.mismatches.length > 0 && (
@@ -65,7 +69,7 @@ export function ChainProofPanel({
       {body}
       {check && <TxReference check={check} />}
       {revision && (
-        <p className="mt-2 text-gray-600">
+        <p className="mt-2 text-gray-600 dark:text-gray-300">
           Checked against revision {revision.revision_no}
           {revision.version_no != null ? ` (v${revision.version_no})` : ""}.
         </p>

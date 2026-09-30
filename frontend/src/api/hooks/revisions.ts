@@ -1,6 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { Paginated, PendingRevision, Revision } from "../types";
+import type { Paginated, PendingRevision, Revision, RevisionDiff } from "../types";
+
+/** GET /revisions/{id}/diff?against=: `against` omitted means the candidate's parent. */
+export function useRevisionDiff(
+  revisionId: string | undefined,
+  againstId: string | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ["revisions", revisionId, "diff", againstId ?? null],
+    queryFn: async () => {
+      const { data } = await api.get<RevisionDiff>(`/revisions/${revisionId}/diff`, {
+        params: againstId ? { against: againstId } : undefined,
+      });
+      return data;
+    },
+    enabled: revisionId != null && (options?.enabled ?? true),
+    retry: false,
+  });
+}
 
 export interface DownloadRevisionFileInput {
   revisionId: string;

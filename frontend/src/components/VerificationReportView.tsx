@@ -28,7 +28,10 @@ export interface VerificationReportViewProps {
 
 function PaneMessage({ testId, children }: { testId: string; children: string }): ReactElement {
   return (
-    <p data-testid={testId} className="rounded border border-dashed p-4 text-sm text-gray-600">
+    <p
+      data-testid={testId}
+      className="rounded border border-dashed p-4 text-sm text-gray-600 dark:text-gray-300"
+    >
       {children}
     </p>
   );
@@ -79,7 +82,7 @@ export function VerificationReportView({
         <div
           role="note"
           data-testid="candidate-not-stored"
-          className="flex items-start justify-between gap-3 rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900"
+          className="flex items-start justify-between gap-3 rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
         >
           <p>{CANDIDATE_NOT_STORED_MESSAGE}</p>
           <button
@@ -103,14 +106,17 @@ export function VerificationReportView({
           <p>
             <HashBadge hash={report.candidate.text_root} label="text root" />
           </p>
-          <p className="text-gray-600">{report.candidate.page_count} pages</p>
+          <p className="text-gray-600 dark:text-gray-300">{report.candidate.page_count} pages</p>
           {report.document && (
             <p>
               Document:{" "}
               {isAnonymous ? (
                 (report.document.title ?? report.document.id)
               ) : (
-                <Link to={`/documents/${report.document.id}`} className="text-blue-600 underline">
+                <Link
+                  to={`/documents/${report.document.id}`}
+                  className="text-blue-600 underline dark:text-blue-400"
+                >
                   {report.document.title ?? report.document.id}
                 </Link>
               )}
@@ -127,14 +133,14 @@ export function VerificationReportView({
         <h3 className="font-semibold">Documents</h3>
         <div className={`grid gap-4 ${candidateFile ? "lg:grid-cols-2" : ""}`}>
           <div data-testid="viewer-reference" className="min-w-0 space-y-1">
-            <h4 className="text-sm font-medium text-gray-700">Reference</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Reference</h4>
             {referencePane}
           </div>
           {candidateFile && (
             <div data-testid="viewer-candidate" className="min-w-0 space-y-1">
-              <h4 className="text-sm font-medium text-gray-700">Uploaded</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Uploaded</h4>
               {isAnonymous && (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-300">
                   Change locations are not included in the public report.
                 </p>
               )}
@@ -158,7 +164,7 @@ export function VerificationReportView({
             onSelect={setSelectedId}
           />
         ) : (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             Nothing was compared, so there are no changes to list.
           </p>
         )}

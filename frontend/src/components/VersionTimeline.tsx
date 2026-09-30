@@ -7,10 +7,10 @@ import { formatDate } from "../lib/format";
 import { TxLink } from "./TxLink";
 
 const STATUS_CLASSES: Record<Revision["status"], string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-800",
-  REVOKED: "bg-gray-200 text-gray-700",
+  PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  APPROVED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  REJECTED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  REVOKED: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
 };
 
 function StatusPill({ status }: { status: Revision["status"] }): ReactElement {
@@ -27,7 +27,7 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   if (revisions.length === 0) {
-    return <p className="text-sm text-gray-500">No revisions yet.</p>;
+    return <p className="text-sm text-gray-500 dark:text-gray-400">No revisions yet.</p>;
   }
 
   async function handleDownload(revision: Revision): Promise<void> {
@@ -49,7 +49,7 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
   return (
     <div>
       {downloadError && (
-        <p role="alert" className="mb-2 text-sm text-red-600">
+        <p role="alert" className="mb-2 text-sm text-red-600 dark:text-red-400">
           {downloadError}
         </p>
       )}
@@ -63,16 +63,16 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
               </span>
               <StatusPill status={revision.status} />
             </div>
-            <p className="mt-1 text-gray-500">
+            <p className="mt-1 text-gray-500 dark:text-gray-400">
               Submitted {formatDate(revision.submitted_at)}
               {revision.change_note ? ` — ${revision.change_note}` : ""}
             </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-gray-500">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-gray-500 dark:text-gray-400">
               <span>Anchor: {revision.anchor.status}</span>
               <TxLink txHash={revision.anchor.tx_hash} />
             </div>
             {revision.revocation && (
-              <p className="mt-1 text-red-600">
+              <p className="mt-1 text-red-600 dark:text-red-400">
                 Revoked {formatDate(revision.revocation.at)}: {revision.revocation.reason}
               </p>
             )}

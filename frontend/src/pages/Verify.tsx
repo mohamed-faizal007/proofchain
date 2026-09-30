@@ -81,7 +81,10 @@ export function Verify(): ReactElement {
             Verify another file
           </button>
           {user && (
-            <Link to={`/verifications/${result.report.id}`} className="text-blue-600 underline">
+            <Link
+              to={`/verifications/${result.report.id}`}
+              className="text-blue-600 underline dark:text-blue-400"
+            >
               Open saved report
             </Link>
           )}
@@ -99,7 +102,7 @@ export function Verify(): ReactElement {
   return (
     <main className="mx-auto mt-10 max-w-lg p-6">
       <h1 className="text-2xl font-semibold">Verify</h1>
-      <p className="mt-1 text-sm text-gray-600">
+      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
         Upload a PDF to check it against the approved, chain-anchored versions.
       </p>
       <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)} noValidate>
@@ -115,7 +118,7 @@ export function Verify(): ReactElement {
               }}
             />
           </div>
-          {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
+          {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
         </div>
 
         {user && (
@@ -149,7 +152,7 @@ export function Verify(): ReactElement {
         </label>
 
         {formError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {formError}
           </p>
         )}
@@ -157,7 +160,7 @@ export function Verify(): ReactElement {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50"
+          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {busy ? "Verifying…" : "Verify"}
         </button>

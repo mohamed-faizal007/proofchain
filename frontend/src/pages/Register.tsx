@@ -45,7 +45,7 @@ export function Register(): ReactElement {
     return (
       <main className="mx-auto mt-16 max-w-sm p-6">
         <h1 className="text-2xl font-semibold">Register</h1>
-        <p className="mt-4 text-sm text-gray-600">
+        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
           Account created.{" "}
           <Link to="/login" className="underline">
             Sign in
@@ -72,7 +72,9 @@ export function Register(): ReactElement {
             {...register("full_name")}
           />
           {errors.full_name && (
-            <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+              {errors.full_name.message}
+            </p>
           )}
         </div>
         <div>
@@ -86,7 +88,9 @@ export function Register(): ReactElement {
             className="mt-1 w-full rounded border px-3 py-2"
             {...register("email")}
           />
-          {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
+          )}
         </div>
         <div>
           <label htmlFor="password" className="block text-sm font-medium">
@@ -100,23 +104,23 @@ export function Register(): ReactElement {
             {...register("password")}
           />
           {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
           )}
         </div>
         {formError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {formError}
           </p>
         )}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50"
+          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {isSubmitting ? "Creating…" : "Create account"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-gray-500">
+      <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
         Already have an account?{" "}
         <Link to="/login" className="underline">
           Sign in

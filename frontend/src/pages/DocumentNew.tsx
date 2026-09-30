@@ -63,7 +63,7 @@ export function DocumentNew(): ReactElement {
     return (
       <main className="p-6">
         <h1 className="text-2xl font-semibold">New document</h1>
-        <p role="alert" className="mt-4 text-sm text-red-600">
+        <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
           This page requires the ISSUER role.
         </p>
       </main>
@@ -113,7 +113,9 @@ export function DocumentNew(): ReactElement {
             className="mt-1 w-full rounded border px-3 py-2"
             {...register("title")}
           />
-          {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+          {errors.title && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title.message}</p>
+          )}
         </div>
 
         <div>
@@ -156,11 +158,11 @@ export function DocumentNew(): ReactElement {
               }}
             />
           </div>
-          {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
+          {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
         </div>
 
         {formError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {formError}
           </p>
         )}
@@ -168,7 +170,7 @@ export function DocumentNew(): ReactElement {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50"
+          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {busy ? "Uploading…" : "Create document"}
         </button>

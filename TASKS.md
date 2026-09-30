@@ -171,7 +171,7 @@ Deps: P8-03
 Deps: P8-01 · Refs: 07 Highlight overlay
 ### [x] P8-06 Verify page + VerificationDetail (banner, steps, side-by-side, change list, chain proof)
 Deps: P8-05, P6-04, P7-04
-### [ ] P8-07 Verification history + revision diff view + polish (empty/error states, dark mode)
+### [x] P8-07 Verification history + revision diff view + polish (empty/error states, dark mode)
 Deps: P8-06
 
 ---

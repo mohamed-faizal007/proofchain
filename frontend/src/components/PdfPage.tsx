@@ -77,7 +77,10 @@ export function PdfPage({
     >
       {visible && <canvas ref={canvasRef} className="h-full w-full" />}
       {renderError && (
-        <p role="alert" className="absolute inset-x-0 top-2 text-center text-xs text-red-700">
+        <p
+          role="alert"
+          className="absolute inset-x-0 top-2 text-center text-xs text-red-700 dark:text-red-300"
+        >
           Could not render page {index + 1}.
         </p>
       )}
@@ -89,7 +92,7 @@ export function PdfPage({
         <>
           <HighlightOverlay highlights={highlights} scale={scale} focusedId={focusedId} />
           {showEmptyHint && highlights.length === 0 && (
-            <p className="absolute inset-x-0 bottom-2 text-center text-xs text-gray-500">
+            <p className="absolute inset-x-0 bottom-2 text-center text-xs text-gray-500 dark:text-gray-400">
               No highlighted changes on this page.
             </p>
           )}

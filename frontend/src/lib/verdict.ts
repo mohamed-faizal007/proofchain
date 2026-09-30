@@ -18,8 +18,15 @@ export function verdictInfo(verdict: string): { label: string; tone: VerdictTone
 }
 
 export const TONE_CLASSES: Record<VerdictTone, string> = {
-  green: "border-green-600 bg-green-50 text-green-900",
-  amber: "border-amber-500 bg-amber-50 text-amber-900",
-  red: "border-red-600 bg-red-50 text-red-900",
-  grey: "border-gray-400 bg-gray-50 text-gray-800",
+  green: "border-green-600 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100",
+  amber: "border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
+  red: "border-red-600 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100",
+  grey: "border-gray-400 bg-gray-50 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
+};
+
+export const PILL_CLASSES: Record<VerdictTone, string> = {
+  green: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100",
+  amber: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100",
+  red: "bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100",
+  grey: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100",
 };

@@ -97,7 +97,7 @@ export default function PdfViewerWithHighlights({
     body = (
       <div
         role="alert"
-        className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800"
+        className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
       >
         Could not load the PDF: {pdf.error?.message ?? "unknown error"}{" "}
         <button type="button" className="underline" onClick={() => void pdf.refetch()}>
@@ -109,19 +109,23 @@ export default function PdfViewerWithHighlights({
     body = (
       <div
         role="alert"
-        className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800"
+        className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
       >
         This file is not a readable PDF.
       </div>
     );
   } else if (!pages) {
     body = (
-      <p role="status" className="p-6 text-center text-sm text-gray-500">
+      <p role="status" className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
         Loading PDF…
       </p>
     );
   } else if (pages.length === 0) {
-    body = <p className="p-6 text-center text-sm text-gray-500">This PDF has no pages.</p>;
+    body = (
+      <p className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+        This PDF has no pages.
+      </p>
+    );
   } else {
     body = (
       <div className="space-y-6 py-4">
@@ -171,7 +175,7 @@ export default function PdfViewerWithHighlights({
         </button>
         {highlights.length > 0 && <HighlightLegend />}
       </div>
-      <div ref={containerRef} className="overflow-x-auto bg-gray-100">
+      <div ref={containerRef} className="overflow-x-auto bg-gray-100 dark:bg-gray-800">
         {body}
       </div>
     </section>

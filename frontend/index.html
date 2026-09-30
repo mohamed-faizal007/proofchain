@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>ProofChain</title>
+    <script>
+      // Blocking on purpose: applies the theme before first paint, so a stored dark choice
+      // does not flash light while the bundle loads. Keep in step with src/lib/theme.ts.
+      (function () {
+        var t = null;
+        try {
+          t = localStorage.getItem("proofchain.theme");
+        } catch (e) {}
+        if (t !== "dark" && t !== "light") {
+          t =
+            window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        }
+        document.documentElement.classList.toggle("dark", t === "dark");
+        document.documentElement.style.colorScheme = t;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -108,7 +108,7 @@ export function ApprovalsQueue(): ReactElement {
     return (
       <main className="p-6">
         <h1 className="text-2xl font-semibold">Approvals</h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           This page requires the APPROVER role. ADMIN accounts can manage anchoring and user roles
           but are not approvers, so they cannot review revisions here.
         </p>
@@ -123,7 +123,7 @@ export function ApprovalsQueue(): ReactElement {
   return (
     <main className="mx-auto max-w-3xl p-6">
       <h1 className="text-2xl font-semibold">Approvals</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         Pending revisions across all documents, oldest first. You cannot review a revision you
         submitted yourself.
       </p>
@@ -131,7 +131,7 @@ export function ApprovalsQueue(): ReactElement {
       {statusMessage && (
         <p
           role="status"
-          className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800"
+          className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
         >
           {statusMessage}
         </p>
@@ -139,13 +139,13 @@ export function ApprovalsQueue(): ReactElement {
 
       <section className="mt-6">
         {queueQuery.isLoading ? (
-          <p className="text-sm text-gray-500">Loading approvals…</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading approvals…</p>
         ) : queueQuery.isError ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {errorMessage(queueQuery.error)}
           </p>
         ) : queueQuery.data && queueQuery.data.items.length === 0 ? (
-          <p className="text-sm text-gray-500">No pending revisions.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No pending revisions.</p>
         ) : (
           <ul className="space-y-4">
             {queueQuery.data?.items.map((item) => {
@@ -160,15 +160,15 @@ export function ApprovalsQueue(): ReactElement {
                     >
                       {item.document_title ?? "Untitled document"}
                     </Link>
-                    <span className="text-gray-500">v{item.revision_no}</span>
+                    <span className="text-gray-500 dark:text-gray-400">v{item.revision_no}</span>
                   </div>
-                  <p className="mt-1 text-gray-500">
+                  <p className="mt-1 text-gray-500 dark:text-gray-400">
                     Submitted {formatDate(item.submitted_at)} by {item.submitted_by}
                     {item.change_note ? ` — ${item.change_note}` : ""}
                   </p>
 
                   {ownSubmission ? (
-                    <p className="mt-2 text-gray-500">
+                    <p className="mt-2 text-gray-500 dark:text-gray-400">
                       You submitted this revision; another APPROVER must review it.
                     </p>
                   ) : (
@@ -189,7 +189,7 @@ export function ApprovalsQueue(): ReactElement {
                         {(comments[item.id] ?? "").length}/{MAX_COMMENT_LENGTH}
                       </p>
                       {rowErrors[item.id] && (
-                        <p role="alert" className="mt-1 text-sm text-red-600">
+                        <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
                           {rowErrors[item.id]}
                         </p>
                       )}

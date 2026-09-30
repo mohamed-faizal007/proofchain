@@ -20,7 +20,7 @@ export function HashBadge({ hash, label }: { hash: string; label?: string }): Re
 
   return (
     <span className="inline-flex items-center gap-1 font-mono text-xs" title={hash}>
-      {label ? <span className="text-gray-500">{label}:</span> : null}
+      {label ? <span className="text-gray-500 dark:text-gray-400">{label}:</span> : null}
       <span>{truncateHash(hash)}</span>
       <button
         type="button"
@@ -31,7 +31,7 @@ export function HashBadge({ hash, label }: { hash: string; label?: string }): Re
         ⧉
       </button>
       {copied && (
-        <span role="status" className="text-green-600">
+        <span role="status" className="text-green-600 dark:text-green-400">
           copied
         </span>
       )}

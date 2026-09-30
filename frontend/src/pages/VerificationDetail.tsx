@@ -22,17 +22,17 @@ export function VerificationDetail(): ReactElement {
     <main className="mx-auto max-w-6xl p-6">
       <h1 className="text-2xl font-semibold">Verification</h1>
       <p className="mt-1 text-sm">
-        <Link to="/verifications" className="text-blue-600 underline">
+        <Link to="/verifications" className="text-blue-600 underline dark:text-blue-400">
           All verifications
         </Link>
       </p>
       <div className="mt-4">
         {query.isLoading ? (
-          <p role="status" className="text-sm text-gray-500">
+          <p role="status" className="text-sm text-gray-500 dark:text-gray-400">
             Loading verification…
           </p>
         ) : query.isError ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {errorMessage(query.error)}
           </p>
         ) : query.data ? (

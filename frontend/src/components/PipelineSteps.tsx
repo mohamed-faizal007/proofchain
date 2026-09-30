@@ -11,11 +11,31 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<StepStatus, { text: string; symbol: string; cls: string }> = {
-  PASS: { text: "Pass", symbol: "✓", cls: "bg-green-100 text-green-900" },
-  FAIL: { text: "Fail", symbol: "✗", cls: "bg-red-100 text-red-900" },
-  WARN: { text: "Warning", symbol: "!", cls: "bg-amber-100 text-amber-900" },
-  DONE: { text: "Done", symbol: "•", cls: "bg-blue-100 text-blue-900" },
-  SKIPPED: { text: "Skipped", symbol: "–", cls: "bg-gray-100 text-gray-700" },
+  PASS: {
+    text: "Pass",
+    symbol: "✓",
+    cls: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-200",
+  },
+  FAIL: {
+    text: "Fail",
+    symbol: "✗",
+    cls: "bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-200",
+  },
+  WARN: {
+    text: "Warning",
+    symbol: "!",
+    cls: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200",
+  },
+  DONE: {
+    text: "Done",
+    symbol: "•",
+    cls: "bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100",
+  },
+  SKIPPED: {
+    text: "Skipped",
+    symbol: "–",
+    cls: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  },
 };
 
 /** The server's step order is the pipeline order (file hash → … → semantic); shown as sent. */
@@ -32,7 +52,9 @@ export function PipelineSteps({ steps }: { steps: VerificationStep[] }): ReactEl
             </span>
             <span>
               <span className="font-medium">{STEP_LABELS[step.name] ?? step.name}</span>
-              {step.detail && <span className="block text-gray-600">{step.detail}</span>}
+              {step.detail && (
+                <span className="block text-gray-600 dark:text-gray-300">{step.detail}</span>
+              )}
             </span>
           </li>
         );

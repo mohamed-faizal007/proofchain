@@ -2,25 +2,32 @@ import type { ReactElement } from "react";
 import type { AnalysisItem, ChangeRegion, DiffOp, EntityChange } from "../api/types";
 
 const SEVERITY_CLASSES: Record<string, string> = {
-  LOW: "bg-gray-100 text-gray-800",
-  MEDIUM: "bg-amber-100 text-amber-900",
-  HIGH: "bg-orange-200 text-orange-950",
-  CRITICAL: "bg-red-200 text-red-950",
+  LOW: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
+  MEDIUM: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200",
+  HIGH: "bg-orange-200 text-orange-950 dark:bg-orange-900 dark:text-orange-100",
+  CRITICAL: "bg-red-200 text-red-950 dark:bg-red-900 dark:text-red-100",
 };
 
 const pretty = (s: string): string => s.replace(/_/g, " ").toLowerCase();
 
 function TokenDiff({ ops }: { ops: DiffOp[] }): ReactElement {
   return (
-    <p aria-label="Token diff" className="rounded bg-gray-50 p-2 font-mono text-xs">
+    <p
+      aria-label="Token diff"
+      className="rounded bg-gray-50 p-2 font-mono text-xs dark:bg-gray-800"
+    >
       {ops.map((op, i) => (
         <span key={i}>
           {op.op === "equal" && `${op.after.join(" ")} `}
           {(op.op === "delete" || op.op === "replace") && (
-            <del className="bg-red-100 text-red-900">{op.before.join(" ")} </del>
+            <del className="bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-200">
+              {op.before.join(" ")}{" "}
+            </del>
           )}
           {(op.op === "insert" || op.op === "replace") && (
-            <ins className="bg-green-100 text-green-900 no-underline">{op.after.join(" ")} </ins>
+            <ins className="bg-green-100 text-green-900 no-underline dark:bg-green-900 dark:text-green-200">
+              {op.after.join(" ")}{" "}
+            </ins>
           )}
         </span>
       ))}
@@ -31,7 +38,7 @@ function TokenDiff({ ops }: { ops: DiffOp[] }): ReactElement {
 function Entity({ change }: { change: EntityChange }): ReactElement {
   return (
     <li>
-      <span className="text-gray-500">{pretty(change.type)}:</span>{" "}
+      <span className="text-gray-500 dark:text-gray-400">{pretty(change.type)}:</span>{" "}
       {change.before === null ? (
         <span>added {change.after}</span>
       ) : change.after === null ? (
@@ -70,7 +77,7 @@ export function ChangeCard({
         className="flex w-full flex-wrap items-center gap-2 text-left"
       >
         <span className="font-semibold">{region.type[0] + region.type.slice(1).toLowerCase()}</span>
-        {page != null && <span className="text-gray-600">page {page + 1}</span>}
+        {page != null && <span className="text-gray-600 dark:text-gray-300">page {page + 1}</span>}
         {analysis && (
           <>
             <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">

@@ -34,14 +34,18 @@ export function ChangeList({
   onSelect: (id: string) => void;
 }): ReactElement {
   if (regions.length === 0) {
-    return <p className="text-sm text-gray-600">No individual changes were located.</p>;
+    return (
+      <p className="text-sm text-gray-600 dark:text-gray-300">
+        No individual changes were located.
+      </p>
+    );
   }
   const byRegion = new Map((analysis ?? []).map((a) => [a.region_id, a]));
   return (
     <div className="space-y-4">
       {group(regions).map((g) => (
         <section key={g.key} aria-label={g.title}>
-          <h4 className="mb-1 text-sm font-semibold text-gray-700">{g.title}</h4>
+          <h4 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">{g.title}</h4>
           <ul className="space-y-2">
             {g.regions.map((r) => (
               <ChangeCard

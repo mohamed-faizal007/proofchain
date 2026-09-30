@@ -9,7 +9,11 @@ export function ProtectedRoute({ children }: { children: ReactElement }): ReactE
 
   if (isLoading) {
     return (
-      <div role="status" aria-live="polite" className="p-6 text-sm text-gray-500">
+      <div
+        role="status"
+        aria-live="polite"
+        className="p-6 text-sm text-gray-500 dark:text-gray-400"
+      >
         Loading…
       </div>
     );
