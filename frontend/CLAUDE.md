@@ -9,3 +9,4 @@
 - Never render user-supplied or server-supplied content with `dangerouslySetInnerHTML` (XSS). The JWT is kept in
   `localStorage` (see PROGRESS.md "P8-01" for the tradeoff), which is readable by any script on the page, so this
   rule is load-bearing, not stylistic.
+- Import the PDF viewer only via `components/LazyPdfViewer.tsx`, never `PdfViewerWithHighlights` or `pdfjs-dist` directly (keeps pdf.js out of the main bundle). Enforced by `src/chunkSplit.test.ts`.
