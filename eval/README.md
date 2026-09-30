@@ -13,6 +13,11 @@ eval/
 ```
 Rules: every script takes `--config` and `--seed`; no network access; results are reproducible.
 
+## Running the evaluation
+`python generate_corpus.py --config configs/default.yaml`, then `python tamper.py --config configs/default.yaml`,
+then `python run_eval.py --config configs/default.yaml` -> `results/seed<seed>/` (`metrics.json`, CSVs,
+`latency.*`). Only the latency files change between runs. Baseline definitions are in `baselines.py`.
+
 ## Setup and determinism
 `cd backend; pip install -e ".[dev,eval]"` (Faker is pinned exactly). Run from `eval/`:
 `python generate_corpus.py --config configs/default.yaml` and `python -m pytest -q`.

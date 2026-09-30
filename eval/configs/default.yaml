@@ -47,3 +47,11 @@ tamper:
     typo_fix: {rerender: 20}
     metadata_only: {resave: 20}
     multi_edit: {rerender: 40}
+
+# Evaluation runner (docs/08 C.3), run_eval.py. Results go to eval/results/<run-name> (gitignored).
+eval:
+  out_dir: results
+  # Latency vs page count on synthetic lease documents (median of `repeats` runs).
+  latency:
+    pages: [1, 5, 10, 25, 50, 100]
+    repeats: 5
