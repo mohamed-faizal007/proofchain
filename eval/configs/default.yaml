@@ -1,0 +1,24 @@
+# Corpus configuration (docs/08_TESTING_AND_EVAL.md C.1). Every value that shapes the corpus is here.
+seed: 20260930
+n_docs: 200
+corpus_dir: data/corpus
+
+# Doc types are assigned round-robin by document index (index % len), so shares are exactly
+# balanced for any n_docs (each type's share differs from 1/len by at most 1 document).
+doc_types: [lease, service_agreement, nda, invoice, certificate]
+
+# Upper page bound per type. A drawn page count is clamped into [1, cap] for the type
+# (an invoice or certificate cannot sensibly be 40 pages long).
+type_max_pages: {lease: 50, service_agreement: 50, nda: 50, invoice: 6, certificate: 2}
+
+# Named page-count function (registry in page_counts.py). "bucketed_skewed": pick a bucket by
+# weight, then draw the page count uniformly inside the bucket. The bucket is chosen by a
+# low-discrepancy sequence over the document index (stratified, not random), so realised bucket
+# shares track the weights closely for any n_docs. Weights are relative.
+page_count:
+  function: bucketed_skewed
+  params:
+    buckets:
+      - {name: short, min: 1, max: 3, weight: 50}
+      - {name: medium, min: 4, max: 12, weight: 30}
+      - {name: long, min: 13, max: 50, weight: 20}

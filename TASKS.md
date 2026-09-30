@@ -176,7 +176,7 @@ Deps: P8-06
 
 ---
 ## P9 — Evaluation (paper results)
-### [ ] P9-01 Corpus generator (templates, Faker en_IN, reportlab, JSON specs)
+### [x] P9-01 Corpus generator (templates, Faker en_IN, reportlab, JSON specs)
 Deps: P1-07 · Refs: 08 C.1
 ### [ ] P9-02 Tamper operations + ground truth
 Deps: P9-01 · Refs: 08 C.2
