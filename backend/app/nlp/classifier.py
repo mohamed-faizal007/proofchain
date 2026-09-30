@@ -144,7 +144,8 @@ def _location_prefix(region: ChangeRegion) -> str:
     if region.section_title:
         parts.append(f'Section "{region.section_title}"')
     if page is not None:
-        parts.append(f"page {page}")
+        # Stored pages are 0-based (02 §5); readers count from 1.
+        parts.append(f"page {page + 1}")
     if not parts:
         return "In this document"
     return "In " + ", ".join(parts)

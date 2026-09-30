@@ -97,7 +97,27 @@ def _is_bare_modal_may(matched_text: str) -> bool:
     return bool(_BARE_MAY_RE.search(matched_text)) and not _HAS_DIGIT_RE.search(matched_text)
 
 
-def _date_match_spans(text: str) -> list[tuple[int, int, str]]:
+_NUMBER_WORDS = (
+    "a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|"
+    "thirty|forty|forty-five|sixty|ninety|hundred"
+)
+# A duration ("60 days", "thirty (30) days", "6 months", "2 business weeks"). dateparser reads
+# these as relative dates ("60 days" -> some day in 1999), which is wrong for a contract term
+# and can also swallow a real date next to it ("within 30 days of 10 January 2024" yields no
+# date at all). Durations are blanked (same length, so spans stay valid) before searching.
+_DURATION_RE = re.compile(
+    rf"\b(?:\d+(?:\.\d+)?|{_NUMBER_WORDS})(?:\s*\(\d+\))?[\s-]*"
+    r"(?:(?:business|working|calendar)\s+)?(?:day|week|month|year)s?\b",
+    re.IGNORECASE,
+)
+
+
+def _mask_durations(text: str) -> str:
+    return _DURATION_RE.sub(lambda m: " " * len(m.group()), text)
+
+
+def _date_match_spans(original: str) -> list[tuple[int, int, str]]:
+    text = _mask_durations(original)
     matches = search_dates(text, languages=_DATE_LANGUAGES, settings=_DATEPARSER_SETTINGS) or []
     results: list[tuple[int, int, str]] = []
     search_from = 0

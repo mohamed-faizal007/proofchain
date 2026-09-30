@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from app.nlp.entities import (
     _DATEPARSER_SETTINGS,
     diff_entities,
@@ -99,3 +101,58 @@ def test_diff_entities_multiset_comparison_detects_added_removed_changed():
 def test_diff_entities_is_empty_for_identical_text():
     text = "Pay ₹50,000 within 30 days at 5% interest, dated 5th March 2024."
     assert diff_entities(text, text) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Either party may terminate with 60 days written notice.",
+        "with 10 days written notice",
+        "60 days",
+        "10 days",
+        "within 30 days of each invoice",
+        "thirty (30) days written notice",
+        "a period of six months",
+        "valid for 2 business days",
+        "a term of 5 years",
+    ],
+)
+def test_extract_dates_ignores_durations(text):
+    # Regression (P8-06 live check): dateparser reads "60 days" as a relative date (1999-11-02).
+    assert extract_dates(text) == []
+
+
+def test_durations_are_still_reported_as_numbers():
+    assert extract_numbers("with 60 days written notice") == ["60"]
+    assert extract_numbers("with 10 days written notice") == ["10"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("10 January 2024", ["2024-01-10"]),
+        ("Dated 5th March, 2024.", ["2024-03-05"]),
+        ("Effective from 01/02/2024.", ["2024-02-01"]),
+        ("March 2024", ["2024-03-01"]),
+        ("Jan 5, 2024", ["2024-01-05"]),
+        ("the 5th of May 2025", ["2025-05-05"]),
+        ("Renewal due next year.", ["2001-01-01"]),
+    ],
+)
+def test_extract_dates_still_detects_genuine_dates(text, expected):
+    assert extract_dates(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("within 30 days of 10 January 2024", ["2024-01-10"]),
+        ("10 days after 10 January 2024", ["2024-01-10"]),
+        ("valid for 12 months from 01/04/2024", ["2024-04-01"]),
+        ("Term of 5 years ending 31 March 2029", ["2029-03-31"]),
+        ("2 business days after 5th March, 2024", ["2024-03-05"]),
+    ],
+)
+def test_extract_dates_finds_the_real_date_next_to_a_duration(text, expected):
+    # Before the fix dateparser swallowed the duration and returned a wrong date or no date.
+    assert extract_dates(text) == expected

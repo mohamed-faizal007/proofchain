@@ -413,3 +413,91 @@ def test_hybrid_classifier_non_modified_regions_behave_like_rule_only_classifier
     inserted = _region(RegionType.INSERTED, cand_text="This clause clarifies delivery.")
     hybrid = HybridClassifier(ner_getter=lambda: None, embedder_getter=lambda: None)
     assert hybrid.analyze(inserted) == _classifier.analyze(inserted)
+
+
+def _explained(region: ChangeRegion) -> str:
+    return _classifier.analyze(region).explanation
+
+
+def test_explanation_shows_pages_one_based_for_internal_index_zero():
+    # ChangeRegion pages are 0-based (02 §5); the human-readable text counts from 1.
+    region = _region(
+        RegionType.MODIFIED,
+        ref_text="Pay Rs. 500 to the vendor.",
+        cand_text="Pay Rs. 800 to the vendor.",
+        ref_page=0,
+        cand_page=0,
+    )
+    text = _explained(region)
+    assert text.startswith('In Section "Payment Terms", page 1: ')
+    assert "page 0" not in text
+
+
+@pytest.mark.parametrize("internal_index", [1, 2, 9, 41])
+def test_explanation_page_is_internal_index_plus_one_across_pages(internal_index):
+    region = _region(
+        RegionType.MODIFIED,
+        ref_text="Pay Rs. 500 to the vendor.",
+        cand_text="Pay Rs. 800 to the vendor.",
+        ref_page=internal_index,
+        cand_page=internal_index,
+    )
+    assert f"page {internal_index + 1}:" in _explained(region)
+
+
+def test_explanation_page_number_for_every_region_type_and_page_source():
+    # MODIFIED prefers the candidate page; INSERTED only has cand_page; DELETED only ref_page.
+    modified_moved = _region(
+        RegionType.MODIFIED,
+        ref_text="Pay Rs. 500.",
+        cand_text="Pay Rs. 800.",
+        ref_page=0,
+        cand_page=2,
+    )
+    inserted = _region(RegionType.INSERTED, cand_text="New clause.", ref_page=None, cand_page=0)
+    deleted = _region(RegionType.DELETED, ref_text="Old clause.", ref_page=3, cand_page=None)
+    assert "page 3:" in _explained(modified_moved)  # cand_page 2 -> page 3, not ref_page 0
+    assert "page 1:" in _explained(inserted)
+    assert "page 4:" in _explained(deleted)
+
+
+def test_explanation_page_number_without_a_section_title():
+    region = _region(
+        RegionType.MODIFIED,
+        ref_text="Pay Rs. 500.",
+        cand_text="Pay Rs. 800.",
+        section_title=None,
+        ref_page=0,
+        cand_page=0,
+    )
+    assert _explained(region).startswith("In page 1: ")
+
+
+def test_analysis_does_not_mutate_the_region_page_indexing():
+    region = _region(
+        RegionType.MODIFIED,
+        ref_text="Pay Rs. 500.",
+        cand_text="Pay Rs. 800.",
+        ref_page=0,
+        cand_page=0,
+    )
+    _classifier.analyze(region)
+    assert (region.ref_page, region.cand_page) == (0, 0)
+
+
+def test_sixty_days_to_ten_days_is_a_number_change_not_a_date_change():
+    # Regression (P8-06 live check): dateparser read "60 days"/"10 days" as relative dates.
+    region = _region(
+        RegionType.MODIFIED,
+        ref_text="Either party may terminate this agreement with 60 days written notice.",
+        cand_text="Either party may terminate this agreement with 10 days written notice.",
+    )
+    result = _classifier.analyze(region)
+    assert Category.DATE_CHANGE not in result.categories
+    assert result.primary_category == Category.NUMBER_CHANGE
+    assert {(c.type, c.before, c.after) for c in result.entity_changes} == {
+        ("NUMBER", "60", None),
+        ("NUMBER", None, "10"),
+    }
+    assert "the number changed from 60 to 10" in result.explanation
+    assert "1999" not in result.explanation
