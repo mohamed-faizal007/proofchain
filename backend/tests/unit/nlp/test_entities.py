@@ -128,6 +128,47 @@ def test_durations_are_still_reported_as_numbers():
 
 
 @pytest.mark.parametrize(
+    "text",
+    [
+        "25%",
+        "10%",
+        "scored an aggregate of 25%.",
+        "The holder completed 12 modules over 6 months and scored an aggregate of 10%.",
+        "interest at 12.5% per annum",
+        "a rebate of 5 per cent",
+        "a rebate of 5 percent",
+        "30 % of the fee",
+    ],
+)
+def test_extract_dates_ignores_percentages(text):
+    # Regression (P9-04 eval): dateparser read "25%" / "10%" as the 25th / 10th of January
+    # (2000-01-25), so a PERCENTAGE_CHANGE also got DATE_CHANGE. Third dateparser-too-eager case
+    # after the modal "may" and durations; percentages are blanked before the search, like those.
+    assert extract_dates(text) == []
+
+
+def test_percentages_are_still_reported_as_percentages_not_numbers():
+    assert extract_percentages("scored 25%") == ["25.00%"]
+    assert extract_numbers("scored 25%") == []
+    assert extract_percentages("a rebate of 5 per cent") == ["5.00%"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("A 10% rebate applies until 15 March 2024.", ["2024-03-15"]),
+        ("On 10 January 2024 the rate rose to 25%.", ["2024-01-10"]),
+        ("Pay 5 per cent by 5th March, 2024.", ["2024-03-05"]),
+        ("Pay 10% by Jan 5, 2025.", ["2025-01-05"]),
+        ("Effective from 01/02/2024 at 12.5%.", ["2024-02-01"]),
+        ("within 30 days of 10 January 2024 at 25%", ["2024-01-10"]),
+    ],
+)
+def test_extract_dates_finds_real_dates_next_to_percentages(text, expected):
+    assert extract_dates(text) == expected
+
+
+@pytest.mark.parametrize(
     ("text", "expected"),
     [
         ("10 January 2024", ["2024-01-10"]),

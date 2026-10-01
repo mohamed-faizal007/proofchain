@@ -112,12 +112,21 @@ _DURATION_RE = re.compile(
 )
 
 
-def _mask_durations(text: str) -> str:
-    return _DURATION_RE.sub(lambda m: " " * len(m.group()), text)
+def _blank(text: str, pattern: re.Pattern[str]) -> str:
+    return pattern.sub(lambda m: " " * len(m.group()), text)
+
+
+def _mask_non_dates(text: str) -> str:
+    """Blank spans that are never dates before dateparser sees them (same length, spans stay
+    valid): durations, and percentages ("25%", "5 per cent"), which dateparser reads as a day of
+    the month (2000-01-25) and which would also swallow a real date next to them. A percentage
+    span is therefore never both a PERCENTAGE and a DATE candidate (06: mutually exclusive).
+    """
+    return _blank(_blank(text, _DURATION_RE), _PERCENT_RE)
 
 
 def _date_match_spans(original: str) -> list[tuple[int, int, str]]:
-    text = _mask_durations(original)
+    text = _mask_non_dates(original)
     matches = search_dates(text, languages=_DATE_LANGUAGES, settings=_DATEPARSER_SETTINGS) or []
     results: list[tuple[int, int, str]] = []
     search_from = 0
