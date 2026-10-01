@@ -112,17 +112,57 @@ _DURATION_RE = re.compile(
 )
 
 
+# Masked spans are filled with dots, not spaces: dateparser's search drops the real date that
+# follows a long run of whitespace ("a rebate of <11 spaces> on 3 May 2023" finds nothing).
+_MASK_CHAR = "."
+
+
 def _blank(text: str, pattern: re.Pattern[str]) -> str:
-    return pattern.sub(lambda m: " " * len(m.group()), text)
+    return pattern.sub(lambda m: _MASK_CHAR * len(m.group()), text)
+
+
+def _blank_spans(text: str, spans: list[tuple[int, int, str]]) -> str:
+    chars = list(text)
+    for start, end, _ in spans:
+        chars[start:end] = _MASK_CHAR * (end - start)
+    return "".join(chars)
+
+
+_DAY_BEFORE_RE = re.compile(r"\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?$", re.IGNORECASE)
+_YEAR_OR_DAY_AFTER_RE = re.compile(r"\s*,?\s*\d")
+
+
+def _modal_may_spans(text: str) -> list[tuple[int, int, str]]:
+    """Spans of "may" with no day before it ("5th of May") and no day or year after it ("May
+    2025", "May 5"): the modal verb (06's weak obligation modal), not the month. Left in, a
+    modal "may" in the same sentence as a real date makes dateparser's search return nothing.
+    """
+    if not _HAS_DIGIT_RE.search(text):
+        return []  # no numeric date to protect; `_is_bare_modal_may` still filters bare matches
+    return [
+        (m.start(), m.end(), "")
+        for m in _BARE_MAY_RE.finditer(text)
+        if not _DAY_BEFORE_RE.search(text[: m.start()])
+        and not _YEAR_OR_DAY_AFTER_RE.match(text[m.end() :])
+    ]
+
+
+# "before 9 May 2025" is parsed as 2025-01-01 (the day and month are lost); the word is never part
+# of a date expression here, so it is masked like the spans above.
+_BEFORE_RE = re.compile(r"\bbefore\b", re.IGNORECASE)
 
 
 def _mask_non_dates(text: str) -> str:
-    """Blank spans that are never dates before dateparser sees them (same length, spans stay
-    valid): durations, and percentages ("25%", "5 per cent"), which dateparser reads as a day of
-    the month (2000-01-25) and which would also swallow a real date next to them. A percentage
-    span is therefore never both a PERCENTAGE and a DATE candidate (06: mutually exclusive).
+    """Mask spans that are never dates before dateparser sees them (same length, spans stay
+    valid). Each of these makes it misread or drop a real date next to it:
+    durations ("60 days"), percentages ("25%" becomes 2000-01-25), money ("₹46,10,000" becomes the
+    year 2046), the modal verb "may" (a modal and a date in one sentence return nothing) and the
+    word "before" ("before 9 May 2025" becomes 2025-01-01). A money or percentage span is
+    therefore never both that entity and a DATE candidate (06: mutually exclusive); the money
+    spans are the very ones `extract_money` reports, so the two cannot disagree.
     """
-    return _blank(_blank(text, _DURATION_RE), _PERCENT_RE)
+    masked = _blank(_blank(_blank(text, _DURATION_RE), _PERCENT_RE), _BEFORE_RE)
+    return _blank_spans(masked, [*_money_match_spans(text), *_modal_may_spans(text)])
 
 
 def _date_match_spans(original: str) -> list[tuple[int, int, str]]:

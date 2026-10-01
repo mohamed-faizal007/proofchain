@@ -162,9 +162,108 @@ def test_percentages_are_still_reported_as_percentages_not_numbers():
         ("Pay 10% by Jan 5, 2025.", ["2025-01-05"]),
         ("Effective from 01/02/2024 at 12.5%.", ["2024-02-01"]),
         ("within 30 days of 10 January 2024 at 25%", ["2024-01-10"]),
+        ("a rebate of 5 per cent on 3 May 2023", ["2023-05-03"]),
+        ("a rebate of 12.5 percent on 3 May 2023", ["2023-05-03"]),
     ],
 )
 def test_extract_dates_finds_real_dates_next_to_percentages(text, expected):
+    assert extract_dates(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "pay a refundable security deposit of ₹46,10,000 on 3 May 2023, without interest.",
+            ["2023-05-03"],
+        ),
+        ("a fee of ₹99,05,000 was received in full on 9 June 2020.", ["2020-06-09"]),
+        ("Rs. 5,00,000 payable by 15 March 2024", ["2024-03-15"]),
+        ("INR 2500 due on 1 April 2025.", ["2025-04-01"]),
+        ("a sum of $1,200.50 on 10 January 2024", ["2024-01-10"]),
+        ("50 lakh rupees by 5th March, 2024", ["2024-03-05"]),
+        ("on 3 May 2023 the deposit of ₹46,10,000 was paid", ["2023-05-03"]),
+        ("₹46,10,000 on 3 May 2023 and 10% within 30 days", ["2023-05-03"]),
+    ],
+)
+def test_extract_dates_finds_the_real_date_next_to_an_amount(text, expected):
+    # Regression (P9-04 eval): digits inside "₹46,10,000" were read as a year (2046-01-01), which
+    # swallowed the real date, so a DATE_CHANGE was classified NUMBER_CHANGE. Fourth
+    # dateparser-too-eager case; money spans are blanked before the search.
+    assert extract_dates(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["a deposit of ₹46,10,000.", "Rs. 5,00,000", "₹99,05,000 and $1,200.50", "50 lakh rupees"],
+)
+def test_extract_dates_ignores_amounts(text):
+    assert extract_dates(text) == []
+
+
+def test_amounts_next_to_dates_are_still_extracted_once_as_money():
+    text = "deposit of ₹46,10,000 on 3 May 2023, balance Rs. 5 lakh by 15 March 2024"
+    assert extract_money(text) == ["INR:4610000.00", "INR:500000.00"]
+    assert extract_dates(text) == ["2023-05-03", "2024-03-15"]
+    assert extract_numbers(text) == []  # neither the amounts nor the dates leak into NUMBER
+
+
+def test_diff_entities_date_edit_beside_an_amount_is_a_date_change_only():
+    before = "deposit of ₹46,10,000 on 3 May 2023, without interest."
+    after = "deposit of ₹46,10,000 on 29 August 2023, without interest."
+    changes = diff_entities(before, after)
+    assert {c.type for c in changes} == {"DATE"}
+    assert {(c.before, c.after) for c in changes} == {("2023-05-03", None), (None, "2023-08-29")}
+
+
+def test_diff_entities_amount_edit_beside_a_date_is_an_amount_change_only():
+    before = "deposit of ₹46,10,000 on 3 May 2023, without interest."
+    after = "deposit of ₹46,15,000 on 3 May 2023, without interest."
+    changes = diff_entities(before, after)
+    assert {c.type for c in changes} == {"MONEY"}
+    assert {(c.before, c.after) for c in changes} == {
+        ("INR:4610000.00", None),
+        (None, "INR:4615000.00"),
+    }
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "This certificate is valid for 24 months from 2 December 2021 and may be renewed.",
+            ["2021-12-02"],
+        ),
+        (
+            "The Tenant shall take possession on 4 January 2023 and may renew this lease.",
+            ["2023-01-04"],
+        ),
+        ("understandings dated before 9 May 2025 and may be amended", ["2025-05-09"]),
+        ("dated 9 May 2025 and may be amended", ["2025-05-09"]),
+        ("The Tenant may pay on 3 June 2023.", ["2023-06-03"]),
+        ("on 5 January 2024 the Tenant may terminate, and may also renew", ["2024-01-05"]),
+        ("the 5th of May 2025 and may", ["2025-05-05"]),
+        ("May 5, 2025 and the Tenant may renew", ["2025-05-05"]),
+    ],
+)
+def test_extract_dates_finds_the_real_date_in_a_sentence_with_the_modal_may(text, expected):
+    # Regression (P9-04 eval): a date and the modal "may" in one sentence made dateparser's search
+    # return nothing at all, so 7 of 46 DATE_CHANGE cases were classified NUMBER_CHANGE. The
+    # modal is masked before the search unless a day or year digit marks it as the month.
+    assert extract_dates(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("understandings dated before 9 May 2025.", ["2025-05-09"]),
+        ("valid before 9 January 2025 and", ["2025-01-09"]),
+        ("Before 3 June 2023 the Tenant shall pay.", ["2023-06-03"]),
+    ],
+)
+def test_extract_dates_keeps_the_day_and_month_after_the_word_before(text, expected):
+    # Regression (P9-04 eval): "before 9 May 2025" parsed as 2025-01-01, so an edited date in such
+    # a clause was reported as NUMBER_CHANGE.
     assert extract_dates(text) == expected
 
 
@@ -188,6 +287,7 @@ def test_extract_dates_still_detects_genuine_dates(text, expected):
     ("text", "expected"),
     [
         ("within 30 days of 10 January 2024", ["2024-01-10"]),
+        ("thirty (30) business days after 3 May 2023", ["2023-05-03"]),
         ("10 days after 10 January 2024", ["2024-01-10"]),
         ("valid for 12 months from 01/04/2024", ["2024-04-01"]),
         ("Term of 5 years ending 31 March 2029", ["2029-03-31"]),
