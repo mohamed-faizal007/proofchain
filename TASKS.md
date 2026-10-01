@@ -182,7 +182,7 @@ Deps: P1-07 · Refs: 08 C.1
 Deps: P9-01 · Refs: 08 C.2
 ### [x] P9-03 Evaluation runner: detection, localization, efficiency, latency, baselines
 Deps: P9-02, P1-08 · Refs: 08 C.3
-### [ ] P9-04 Classification evaluation + ablation
+### [x] P9-04 Classification evaluation + ablation
 Deps: P9-03, P7-03
 ### [ ] P9-05 Gas & Sepolia latency measurement; figures + auto REPORT.md
 Deps: P9-03, P10-02

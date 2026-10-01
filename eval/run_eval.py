@@ -18,13 +18,16 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from app.nlp.classifier import ChangeClassifier
 from proofchain_core import build_integrity_tree, localize
 from proofchain_core.types import IntegrityTree
 
 import baselines
+import classification
 import efficiency
 import latency
 import metrics
+import nlp_arms
 from generate_corpus import generate_one, load_config
 from tamper import TamperRun
 
@@ -92,7 +95,12 @@ def _pages(ids: set[str]) -> set[int]:
 
 
 def evaluate_case(
-    cfg: dict[str, Any], record: dict[str, Any], ref: IntegrityTree, cand: IntegrityTree
+    cfg: dict[str, Any],
+    record: dict[str, Any],
+    ref: IntegrityTree,
+    cand: IntegrityTree,
+    classifiers: dict[str, ChangeClassifier] | None = None,
+    timings: dict[str, list[float]] | None = None,
 ) -> dict[str, Any]:
     if ref.file_hash != record["ref"]["file_hash"] or cand.file_hash != record["cand"]["file_hash"]:
         raise ValueError(f"stale tamper data for {record['case_id']}: re-run tamper.py")
@@ -114,7 +122,7 @@ def evaluate_case(
         ref_ids, cand_ids = fn(a, b)
         preds[name] = (ref_ids, cand_ids, _pages(ref_ids), _pages(cand_ids))
 
-    return {
+    row: dict[str, Any] = {
         "case_id": record["case_id"],
         "op": record["op"],
         "mode": record["mode"],
@@ -128,10 +136,19 @@ def evaluate_case(
         "page": {m: _counts(t_page, metrics.tagged(p[2], p[3])) for m, p in preds.items()},
         "efficiency": efficiency.case_efficiency(ref, cand, result),
     }
+    if classifiers:
+        row["classification"] = classification.classify_case(
+            record, result.regions, classifiers, timings
+        )
+    return row
 
 
 def evaluate_cases(
-    cfg: dict[str, Any], cases: Iterable[Case], corpus_dir: Path | None = None
+    cfg: dict[str, Any],
+    cases: Iterable[Case],
+    corpus_dir: Path | None = None,
+    classifiers: dict[str, ChangeClassifier] | None = None,
+    timings: dict[str, list[float]] | None = None,
 ) -> list[dict[str, Any]]:
     cache: dict[str, IntegrityTree] = {}
     return [
@@ -140,6 +157,8 @@ def evaluate_cases(
             record,
             _ref_tree(cfg, record["base_doc_id"], corpus_dir, cache),
             build_integrity_tree(pdf),
+            classifiers,
+            timings,
         )
         for record, pdf in cases
     ]
@@ -283,12 +302,24 @@ def run(
     pages: list[int] | None = None,
     repeats: int | None = None,
     corpus_dir: Path | None = None,
+    classifiers: dict[str, ChangeClassifier] | None = None,
 ) -> dict[str, Any]:
     lat = cfg["eval"]["latency"]
-    rows = evaluate_cases(cfg, cases, corpus_dir)
+    nlp_timings: dict[str, list[float]] = {}
+    rows = evaluate_cases(cfg, cases, corpus_dir, classifiers, nlp_timings)
     result = build_metrics(cfg, rows)
     timings = latency.measure(cfg, pages or lat["pages"], repeats or int(lat["repeats"]))
     write_results(out, result, rows, timings)
+    if classifiers:
+        scored = classification.score([r["classification"] for r in rows], list(classifiers))
+        classification.write(
+            out,
+            scored,
+            [r["classification"] for r in rows],
+            classification.latency_summary(nlp_timings),
+            nlp_arms.environment(),
+        )
+        result["classification"] = scored
     return result
 
 
@@ -300,6 +331,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--corpus-dir", type=Path, help="override corpus_dir (else regenerate refs)")
     ap.add_argument("--out", type=Path, help="override results/<run-name>")
     ap.add_argument("--run-name", help="results sub-directory (default seed<seed>)")
+    ap.add_argument(
+        "--no-classification",
+        action="store_true",
+        help="skip the P9-04 classification ablation (needs the [nlp] extras and models)",
+    )
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
@@ -312,7 +348,12 @@ def main(argv: list[str] | None = None) -> int:
     corpus_dir = args.corpus_dir or EVAL_DIR / cfg["corpus_dir"]
     name = args.run_name or f"seed{cfg['seed']}"
     out = args.out or EVAL_DIR / cfg["eval"]["out_dir"] / name
-    result = run(cfg, load_cases(tamper_dir), out, corpus_dir=corpus_dir)
+    try:
+        arms = None if args.no_classification else nlp_arms.build_arms()
+    except nlp_arms.ArmUnavailable as exc:
+        print(f"{exc} (or pass --no-classification)", file=sys.stderr)
+        return 2
+    result = run(cfg, load_cases(tamper_dir), out, corpus_dir=corpus_dir, classifiers=arms)
     d, loc = result["detection"], result["localization"]["overall"]["chunk"]["localize"]
     print(f"{result['n_cases']} cases -> {out}")
     print(
@@ -320,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         f"metadata-only FP {d['metadata_only']['text_root_false_positive_rate']:.0%}, "
         f"chunk F1 {loc['f1']:.3f}"
     )
+    for arm, a in result.get("classification", {}).get("arms", {}).items():
+        print(f"classification {arm}: macro-F1 {a['macro_f1']:.3f}, accuracy {a['accuracy']:.3f}")
     return 0
 
 

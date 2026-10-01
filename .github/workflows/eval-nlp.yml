@@ -1,0 +1,88 @@
+name: eval-nlp
+
+# The classification ablation (P9-04) needs the real spaCy + sentence-transformers models. They are
+# too heavy for every push (torch, ~2 GB of wheels, a model download, ~15 min), so this job runs
+# only when something that can change the numbers changes, on release tags, weekly, and on demand.
+# It is what makes the real-model results in the report reproducible by anyone re-running CI:
+# the job regenerates the corpus and tamper cases, runs the whole evaluation twice, requires
+# byte-identical classification outputs, and uploads them as the `eval-nlp-results` artifact.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+  push:
+    tags: ["v*"]
+    branches: [main]
+    paths:
+      - "eval/**"
+      - "backend/app/nlp/**"
+      - "backend/proofchain_core/**"
+      - "backend/pyproject.toml"
+      - ".github/workflows/eval-nlp.yml"
+
+concurrency:
+  group: eval-nlp-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  eval-nlp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: eval
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: CPU-only torch first (the default wheel pulls ~2 GB of CUDA libraries)
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e "../backend[dev,eval,nlp]"
+      - run: python -m spacy download en_core_web_sm
+      - name: Cache the sentence-transformers model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-all-MiniLM-L6-v2
+      - name: Versions behind the numbers
+        run: >
+          python -c "import spacy, sentence_transformers, torch, pymupdf;
+          print('spacy', spacy.__version__, '| sentence-transformers', sentence_transformers.__version__,
+          '| torch', torch.__version__, '| PyMuPDF', pymupdf.__version__)"
+      - run: python generate_corpus.py --config configs/default.yaml
+      - run: python tamper.py --config configs/default.yaml
+      - name: Real-model tests (pytest -m nlp)
+        run: python -m pytest -q -m nlp
+      - name: Full evaluation, run 1 (three-arm classification ablation, real models)
+        run: python run_eval.py --config configs/default.yaml --out results/a
+      - name: Full evaluation, run 2
+        run: python run_eval.py --config configs/default.yaml --out results/b
+      - name: Outputs are byte-identical between runs
+        run: |
+          for f in metrics.json detection.csv localization.csv efficiency.csv per_case.csv \
+                   classification.json classification.csv classification_regions.csv \
+                   confusion_rules.csv confusion_rules_ner.csv confusion_rules_ner_emb.csv; do
+            cmp "results/a/$f" "results/b/$f"
+          done
+      - name: Summary
+        run: |
+          python - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          r = json.load(open("results/a/classification.json"))
+          print("### Classification ablation (strict primary category)\n")
+          print("| arm | macro-F1 | accuracy | lenient accuracy |\n|---|---|---|---|")
+          for arm, a in r["arms"].items():
+              print(f"| {arm} | {a['macro_f1']:.3f} | {a['accuracy']:.3f} | {a['lenient_accuracy']:.3f} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-nlp-results
+          path: eval/results/a
+          retention-days: 30
