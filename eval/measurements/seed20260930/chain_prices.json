@@ -1,0 +1,16 @@
+{
+  "eth_inr": {
+    "source": "live: api.coingecko.com",
+    "value": 257048.0
+  },
+  "eth_usd": {
+    "source": "live: api.coingecko.com",
+    "value": 2673.9
+  },
+  "gas_price_gwei": {
+    "source": "live: eth.drpc.org",
+    "value": 0.08435536
+  },
+  "live": true,
+  "taken_at_utc": "2026-10-03T05:05:33Z"
+}

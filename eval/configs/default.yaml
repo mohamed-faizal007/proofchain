@@ -55,3 +55,19 @@ eval:
   latency:
     pages: [1, 5, 10, 25, 50, 100]
     repeats: 5
+
+# Chain metrics (docs/08 C.3, Chain), measure_chain.py. The ONLY part of the eval that spends gas.
+# Plan = `latency_samples` first versions (one per document) + `subsequent_versions` second versions
+# = 15 transactions. `max_transactions` is a hard cap: a plan above it is refused before the first
+# send, there is no retry, and the cap is re-checked against the sender's on-chain nonce afterwards.
+chain:
+  seed: 20260930
+  latency_samples: 10
+  subsequent_versions: 5
+  max_transactions: 20
+  min_balance_eth: 0.005  # refuse to start below this balance
+  confirmations: {local: 1, sepolia: 2}
+  measurements_dir: measurements  # committed: live Sepolia numbers cannot be regenerated
+  # FALLBACK ONLY: used when a live price lookup fails (prices.py). Illustrative, not current; the
+  # report says so when any field comes from here.
+  prices: {gas_price_gwei: 20.0, eth_usd: 3000.0, eth_inr: 250000.0}

@@ -1,0 +1,219 @@
+{
+  "aborted": null,
+  "balance": {
+    "after_wei": 9999996554645284268768,
+    "before_wei": 9999999037650390625000,
+    "fees_from_receipts_wei": 2483005106356232,
+    "matches_receipts": true,
+    "spent_wei": 2483005106356232
+  },
+  "chain_id": 31337,
+  "config": {
+    "latency_samples": 10,
+    "seed": 20260930,
+    "subsequent_versions": 5
+  },
+  "confirmations": 1,
+  "finished_at_utc": "2026-10-03T04:42:29Z",
+  "gas": {
+    "all": {
+      "max": 125813.0,
+      "mean": 122357.133333,
+      "median": 120634.0,
+      "min": 120622.0,
+      "n": 15,
+      "p95": 125813.0
+    },
+    "subsequent": {
+      "max": 125813.0,
+      "mean": 125810.6,
+      "median": 125813.0,
+      "min": 125801.0,
+      "n": 5,
+      "p95": 125813.0
+    },
+    "v1": {
+      "max": 120634.0,
+      "mean": 120630.4,
+      "median": 120634.0,
+      "min": 120622.0,
+      "n": 10,
+      "p95": 120634.0
+    }
+  },
+  "latency_s": {
+    "all": {
+      "max": 0.116,
+      "mean": 0.060067,
+      "median": 0.058,
+      "min": 0.045,
+      "n": 15,
+      "p95": 0.116
+    },
+    "subsequent": {
+      "max": 0.065,
+      "mean": 0.0612,
+      "median": 0.061,
+      "min": 0.058,
+      "n": 5,
+      "p95": 0.065
+    },
+    "v1": {
+      "max": 0.116,
+      "mean": 0.0595,
+      "median": 0.0515,
+      "min": 0.045,
+      "n": 10,
+      "p95": 0.116
+    }
+  },
+  "nonce": "local",
+  "registry": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "samples": [
+    {
+      "block_number": 2,
+      "effective_gas_price_wei": 1768793230,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.071,
+      "tx_hash": "0xfa24cb8726e95d5aeb7bb18256af5c6d26fa4f4f17c44f74bdfcf6f34285b6bb",
+      "version_no": 1
+    },
+    {
+      "block_number": 3,
+      "effective_gas_price_wei": 1673080504,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.116,
+      "tx_hash": "0x0428ec729c92a30c9200686d045e3f6acd4445cc6d95bd877640086c05b4a6bd",
+      "version_no": 1
+    },
+    {
+      "block_number": 4,
+      "effective_gas_price_wei": 1589283760,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.065,
+      "tx_hash": "0x1f248668d4b6714d0485260448cd20a2f4d975c35cc98086150ecc899a669901",
+      "version_no": 1
+    },
+    {
+      "block_number": 5,
+      "effective_gas_price_wei": 1515919489,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.052,
+      "tx_hash": "0x3160d7f1274dc14c178a0c53c759728440db17e48915dc111dcb308e58d26dfc",
+      "version_no": 1
+    },
+    {
+      "block_number": 6,
+      "effective_gas_price_wei": 1451688876,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.051,
+      "tx_hash": "0xb5011a202c741a8c60417eaf548e9aceb19b6d2016de97e68d7eae248c4f5ec3",
+      "version_no": 1
+    },
+    {
+      "block_number": 7,
+      "effective_gas_price_wei": 1395454805,
+      "gas_used": 120622,
+      "kind": "v1",
+      "latency_s": 0.047,
+      "tx_hash": "0x59b22464e2d08a2d35cffb637d2a1ab7a5e4fcb0471afc1acef26652b6c2c954",
+      "version_no": 1
+    },
+    {
+      "block_number": 8,
+      "effective_gas_price_wei": 1346221707,
+      "gas_used": 120622,
+      "kind": "v1",
+      "latency_s": 0.049,
+      "tx_hash": "0x81114c0d43a3a4534137c08bd9de8e6e66fca3c55ba3a652bb95f224d052457d",
+      "version_no": 1
+    },
+    {
+      "block_number": 9,
+      "effective_gas_price_wei": 1303118002,
+      "gas_used": 120622,
+      "kind": "v1",
+      "latency_s": 0.045,
+      "tx_hash": "0x37328958691c6d99480ede7fa673dd01f53dd0e81cab7c2b4bf5b060175bf830",
+      "version_no": 1
+    },
+    {
+      "block_number": 10,
+      "effective_gas_price_wei": 1265380597,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.047,
+      "tx_hash": "0xdfb217bc3341d14ad5b4b8906ae359526346268f71c5a785508f41292776b1f7",
+      "version_no": 1
+    },
+    {
+      "block_number": 11,
+      "effective_gas_price_wei": 1232341414,
+      "gas_used": 120634,
+      "kind": "v1",
+      "latency_s": 0.052,
+      "tx_hash": "0xab42a07a3636b0b7f0ec505f380267aeba4ac48f65b1319708ba0786cf80baa1",
+      "version_no": 1
+    },
+    {
+      "block_number": 12,
+      "effective_gas_price_wei": 1203415522,
+      "gas_used": 125801,
+      "kind": "subsequent",
+      "latency_s": 0.065,
+      "tx_hash": "0x09f512b2d4cab14cda12c73882a03726b1d0db58c9b093f670449917a98e6556",
+      "version_no": 2
+    },
+    {
+      "block_number": 13,
+      "effective_gas_price_wei": 1178095207,
+      "gas_used": 125813,
+      "kind": "subsequent",
+      "latency_s": 0.06,
+      "tx_hash": "0x65fa252ec8d7fca10e9e1b8b391ab0c4effbbaa84298da3eca4851857f5c5f12",
+      "version_no": 2
+    },
+    {
+      "block_number": 14,
+      "effective_gas_price_wei": 1155926668,
+      "gas_used": 125813,
+      "kind": "subsequent",
+      "latency_s": 0.061,
+      "tx_hash": "0x832f6138cd2fa329ecadecc596dc4596370a61616b05049886e5c744778b55ee",
+      "version_no": 2
+    },
+    {
+      "block_number": 15,
+      "effective_gas_price_wei": 1136517575,
+      "gas_used": 125813,
+      "kind": "subsequent",
+      "latency_s": 0.058,
+      "tx_hash": "0xee70d84f274e561a1f8c60fc5ca0943801219e1016ffcb409a544c2b5aac93f8",
+      "version_no": 2
+    },
+    {
+      "block_number": 16,
+      "effective_gas_price_wei": 1119524444,
+      "gas_used": 125813,
+      "kind": "subsequent",
+      "latency_s": 0.062,
+      "tx_hash": "0xec29ecc2405edc81084e4453a8bbaef162fa72e4890d38190196101cc451a274",
+      "version_no": 2
+    }
+  ],
+  "started_at_utc": "2026-10-03T04:42:28Z",
+  "target": "local",
+  "transactions": {
+    "cap": 20,
+    "cap_held": true,
+    "nonce_after": 16,
+    "nonce_before": 1,
+    "planned": 15,
+    "sent": 15
+  }
+}

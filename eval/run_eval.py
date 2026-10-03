@@ -28,6 +28,7 @@ import efficiency
 import latency
 import metrics
 import nlp_arms
+import report
 from generate_corpus import generate_one, load_config
 from tamper import TamperRun
 
@@ -336,6 +337,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="skip the P9-04 classification ablation (needs the [nlp] extras and models)",
     )
+    ap.add_argument(
+        "--report",
+        action="store_true",
+        help="after the run, write figures/ and REPORT.md (report.py; offline)",
+    )
+    ap.add_argument("--measurements-dir", type=Path, help="chain measurements for --report")
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
@@ -355,6 +362,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     result = run(cfg, load_cases(tamper_dir), out, corpus_dir=corpus_dir, classifiers=arms)
     d, loc = result["detection"], result["localization"]["overall"]["chunk"]["localize"]
+    if args.report:
+        meas = args.measurements_dir or EVAL_DIR / cfg["chain"]["measurements_dir"] / name
+        print(f"report -> {report.build(out, meas)}")
     print(f"{result['n_cases']} cases -> {out}")
     print(
         f"text-root detection {d['content_changing']['text_root_detection_rate']:.0%}, "

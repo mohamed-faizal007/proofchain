@@ -184,7 +184,7 @@ Deps: P9-01 · Refs: 08 C.2
 Deps: P9-02, P1-08 · Refs: 08 C.3
 ### [x] P9-04 Classification evaluation + ablation
 Deps: P9-03, P7-03
-### [ ] P9-05 Gas & Sepolia latency measurement; figures + auto REPORT.md
+### [x] P9-05 Gas & Sepolia latency measurement; figures + auto REPORT.md
 Deps: P9-03, P10-02
 
 ---
