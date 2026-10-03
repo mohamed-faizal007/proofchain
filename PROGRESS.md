@@ -799,3 +799,15 @@
 - Decisions: the live path is its own script, not a `run_eval.py` flag, so nothing spends gas by accident; `run_eval.py --report` only builds the offline report. Doc ids carry a per-run nonce (a rerun never lands on an anchored doc); hashes are deterministic. Chain measurement files live in `eval/measurements/` (committed) while `eval/results/` stays gitignored. No ADR (measurement method, no spec change).
 - Issues: the Sepolia key was loaded for the live run through the project's own `contracts/scripts/lib/env-lib.ts` by a temporary script (deleted); `.env` was not read or printed. Latency is one run on one network at one time of day (n=15, wide spread, p95 about 2x median): quote as indicative. `run_eval.py` is 380 lines (guideline ~300); splitting its CSV writers is still a follow-up.
 - Next: P9 phase review, then P10-01
+
+### 2026-10-03 — P9 phase review
+- Gate: P9-01..P9-05 all `[x]`. Backend 1148 passed (coverage 98 %), contracts 44 passed, frontend lint/format clean. Frontend vitest: 8 to 30 timeouts (5 s) when run under load, different files each run; the failing files pass when rerun alone (28/28). P9 did not touch the frontend (flaky under load, see Known issues). Eval tests: see the final run noted in the commit.
+- code-reviewer: no HIGH findings, no secrets committed, eval deterministic, "crypto decides, AI explains" holds. No spec drift found.
+- Known issues (MEDIUM, not fixed in this review):
+  - `backend/app/nlp/entities.py` `_MONEY_RE` symbol group (`Rs\.?|INR|USD`) has no word boundary: "Partners 5 May 2025" loses the day and yields a phantom MONEY. Fix: `(?<![A-Za-z])` before the symbol, plus regression tests. Explanatory only, no verdict impact.
+  - `_modal_may_spans`: "Tenant may 5 occupants on 3 May 2023" yields a phantom date; the modal check runs on unmasked text.
+  - `.github/workflows/eval-nlp.yml`: spaCy, sentence-transformers, `en_core_web_sm` and the HF model revision are unpinned, so the "byte-identical" check only covers one job; compare against a committed baseline.
+  - `ci.yml` eval job runs on ubuntu only; docs/08 B asks for ubuntu and windows determinism.
+  - Frontend vitest default 5 s timeout flakes under load (raise `testTimeout` or limit workers).
+- Known issues (LOW): `run_eval.py --seed` overrides the corpus seed and breaks "stale tamper data" (apply to latency only); `repeats or ...` / `pages or ...` treat 0 as unset; missing tests (confirmation-wait + revert, `ArmUnavailable` in eval-nlp, the entity cases above, Windows determinism); sepolia deployer = admin = anchorer (testnet only); `env-lib.ts` loads the whole root `.env` into hardhat (whitelist instead); workflow actions pinned to tags, `ci.yml` lacks a `permissions` block; Sepolia latency and prices are a snapshot, say so in REPORT.md; `run_eval.py` 380 lines.
+- Suggested tag: `git tag v0.1-P9`
