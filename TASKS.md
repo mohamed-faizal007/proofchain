@@ -191,7 +191,7 @@ Deps: P9-03, P10-02
 ## P10 — Hardening, deploy, docs, demo
 ### [ ] P10-01 Security pass (upload validation, rate limit on /verify & /auth/login, headers, secret scan) with code-reviewer subagent
 Deps: P6-04, P8-06
-### [ ] P10-02 Sepolia deployment + verified contract + backend config
+### [x] P10-02 Sepolia deployment + verified contract + backend config
 Deps: P4-02
 ### [ ] P10-03 Dockerfiles for backend/frontend, full compose profile `app`
 Deps: P8-07

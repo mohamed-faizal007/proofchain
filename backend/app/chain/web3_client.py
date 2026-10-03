@@ -207,9 +207,15 @@ class Web3RegistryClient:
 
     async def _wait_confirmations(self, block_number: int) -> None:
         target = block_number + self._confirmations - 1
-        async with asyncio.timeout(RECEIPT_TIMEOUT_SECONDS):
-            while await self._w3.eth.block_number < target:
-                await asyncio.sleep(1)
+        try:
+            async with asyncio.timeout(RECEIPT_TIMEOUT_SECONDS):
+                while await self._w3.eth.block_number < target:
+                    await asyncio.sleep(1)
+        except TimeoutError:
+            # The tx is already mined, so this is not "chain unavailable" (nothing written).
+            raise AnchorFailedError(
+                "Not enough confirmations in time; the transaction is mined"
+            ) from None
 
     async def _rpc(self, call: Awaitable[_T]) -> _T:
         try:

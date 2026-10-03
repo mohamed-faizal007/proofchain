@@ -22,7 +22,7 @@ from app.chain import web3_client
 from app.chain.types import ZERO_HASH, AnchorReceipt, OnChainVersion, TxReceipt
 from app.chain.web3_client import Web3RegistryClient
 from app.config import Settings
-from app.errors import AnchorFailedError, ChainUnavailableError
+from app.errors import AnchorFailedError
 
 PRIVATE_KEY = "0x" + "11" * 32
 SENDER = Account.from_key(PRIVATE_KEY).address
@@ -411,11 +411,11 @@ async def test_waits_until_the_confirmation_depth_is_reached(
     assert chain.blocks == [12]
 
 
-async def test_confirmation_timeout_maps_to_chain_unavailable_known_issue_m2(
+async def test_confirmation_timeout_after_mining_is_anchor_failed_not_unavailable(
     client: Web3RegistryClient, chain: FakeChain, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """KNOWN ISSUE (PROGRESS.md, P5 review M2), pinned, not endorsed: the tx is mined, but a
-    confirmation-wait timeout surfaces as CHAIN_UNAVAILABLE. Change this test with the fix."""
+    """P5 review M2: the tx is mined, so a confirmation-wait timeout must not be reported as
+    CHAIN_UNAVAILABLE ("nothing written"); it is an AnchorFailedError like TimeExhausted."""
     client._confirmations = 5
     chain.blocks = [10]  # the chain never advances
     monkeypatch.setattr(web3_client, "RECEIPT_TIMEOUT_SECONDS", 0.05)
@@ -424,7 +424,7 @@ async def test_confirmation_timeout_maps_to_chain_unavailable_known_issue_m2(
         await asyncio.sleep(0.01)  # the real one: this test module's global asyncio
 
     patch_sleep(monkeypatch, short_sleep)
-    with pytest.raises(ChainUnavailableError):
+    with pytest.raises(AnchorFailedError):
         await client.revoke_version(DOC, 1, "x")
     assert len(chain.sent) == 1  # the tx was sent and mined
 
