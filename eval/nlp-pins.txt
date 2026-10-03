@@ -1,0 +1,9 @@
+# Exact versions behind the reported real-model numbers (P9-review). Used by the eval-nlp workflow
+# as a pip constraints file (`pip install -c eval/nlp-pins.txt ...`). The two NLP model artifacts
+# are pinned in the workflow itself: en_core_web_sm by wheel URL + sha256, all-MiniLM-L6-v2 by
+# Hugging Face commit. Bump all of them together, then regenerate and re-commit the results.
+spacy==3.8.16
+sentence-transformers==6.1.0
+transformers==5.17.0
+huggingface_hub==1.33.0
+torch==2.14.0

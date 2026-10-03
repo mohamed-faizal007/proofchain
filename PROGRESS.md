@@ -804,10 +804,21 @@
 - Gate: P9-01..P9-05 all `[x]`. Backend 1148 passed (coverage 98 %), contracts 44 passed, frontend lint/format clean. Frontend vitest: 8 to 30 timeouts (5 s) when run under load, different files each run; the failing files pass when rerun alone (28/28). P9 did not touch the frontend (flaky under load, see Known issues). Eval: 137 passed, 1 deselected.
 - code-reviewer: no HIGH findings, no secrets committed, eval deterministic, "crypto decides, AI explains" holds. No spec drift found.
 - Known issues (MEDIUM, not fixed in this review):
-  - `backend/app/nlp/entities.py` `_MONEY_RE` symbol group (`Rs\.?|INR|USD`) has no word boundary: "Partners 5 May 2025" loses the day and yields a phantom MONEY. Fix: `(?<![A-Za-z])` before the symbol, plus regression tests. Explanatory only, no verdict impact.
-  - `_modal_may_spans`: "Tenant may 5 occupants on 3 May 2023" yields a phantom date; the modal check runs on unmasked text.
-  - `.github/workflows/eval-nlp.yml`: spaCy, sentence-transformers, `en_core_web_sm` and the HF model revision are unpinned, so the "byte-identical" check only covers one job; compare against a committed baseline.
+  - FIXED (P9-review follow-up): `backend/app/nlp/entities.py` `_MONEY_RE` symbol group (`Rs\.?|INR|USD`) has no word boundary: "Partners 5 May 2025" loses the day and yields a phantom MONEY. Fix: `(?<![A-Za-z])` before the symbol, plus regression tests. Explanatory only, no verdict impact.
+  - FIXED (P9-review follow-up): `_modal_may_spans`: "Tenant may 5 occupants on 3 May 2023" yields a phantom date; the modal check runs on unmasked text.
+  - FIXED (P9-review follow-up, model weights and library versions pinned; baseline-compare of result files not done): `.github/workflows/eval-nlp.yml`: spaCy, sentence-transformers, `en_core_web_sm` and the HF model revision are unpinned, so the "byte-identical" check only covers one job; compare against a committed baseline.
   - `ci.yml` eval job runs on ubuntu only; docs/08 B asks for ubuntu and windows determinism.
   - Frontend vitest default 5 s timeout flakes under load (raise `testTimeout` or limit workers).
 - Known issues (LOW): `run_eval.py --seed` overrides the corpus seed and breaks "stale tamper data" (apply to latency only); `repeats or ...` / `pages or ...` treat 0 as unset; missing tests (confirmation-wait + revert, `ArmUnavailable` in eval-nlp, the entity cases above, Windows determinism); sepolia deployer = admin = anchorer (testnet only); `env-lib.ts` loads the whole root `.env` into hardhat (whitelist instead); workflow actions pinned to tags, `ci.yml` lacks a `permissions` block; Sepolia latency and prices are a snapshot, say so in REPORT.md; `run_eval.py` 380 lines.
 - Suggested tag: `git tag v0.1-P9`
+
+### 2026-10-03 — P9 review follow-up: money/modal boundary bugs, eval-nlp pins
+- Fixed (tests first, 7 red): (1) `_MONEY_RE` symbols `Rs`/`INR`/`USD`/`US$` now need no letter before, and the alphabetic ones no letter after ("Partners 5 May 2025" keeps its day, no phantom MONEY). (2) modal "may": a "may" is the month only if a year ("May 2025") or a day not followed by a word ("May 5, 2025", "May 5th") follows; "may 5 occupants" / "may 20 times" is masked like the earlier four (duration, percentage, money, before). Modal detection now runs on the text with durations and money already blanked. Regression tests: `test_money_symbols_need_a_word_boundary`, `test_modal_may_before_a_number_is_not_a_date` (plus the whole existing modal-may suite, all green).
+- Pinned in `eval-nlp.yml` / `eval/nlp-pins.txt`: spaCy 3.8.16, sentence-transformers 6.1.0, transformers 5.17.0, huggingface_hub 1.33.0, torch 2.14.0 (CPU index); `en_core_web_sm` 3.8.0 by wheel URL with sha256 `1932429d...0fb85` (checked with `sha256sum -c`, no `spacy download`); `sentence-transformers/all-MiniLM-L6-v2` at Hugging Face commit `1110a243fdf4706b3f48f1d95db1a4f5529b4d41` (fetched by `snapshot_download(revision=...)`, asserted, `refs/main` set to it, then `HF_HUB_OFFLINE=1`; cache key includes the commit). These are the versions installed on the dev machine that produced the committed numbers.
+- Ablation re-run (real models, seed20260930): byte-identical to the previous run (classification.json, .csv, regions and all three confusion matrices `cmp`-equal). The corpus has no word-embedded "rs"/"inr" or modal "may <number>" text, so the numbers do not move.
+
+| arm | macro-F1 before | after | accuracy before | after | lenient before | after |
+|---|---|---|---|---|---|---|
+| rules | 0.824 | 0.824 | 0.836 | 0.836 | 0.836 | 0.836 |
+| rules_ner | 0.932 | 0.932 | 0.937 | 0.937 | 0.939 | 0.939 |
+| rules_ner_emb | 0.911 | 0.911 | 0.919 | 0.919 | 0.922 | 0.922 |

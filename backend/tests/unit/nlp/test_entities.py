@@ -297,3 +297,43 @@ def test_extract_dates_still_detects_genuine_dates(text, expected):
 def test_extract_dates_finds_the_real_date_next_to_a_duration(text, expected):
     # Before the fix dateparser swallowed the duration and returned a wrong date or no date.
     assert extract_dates(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "dates", "money"),
+    [
+        # P9-review: "rs"/"inr"/"usd" inside an ordinary word is not a currency symbol.
+        ("Partners 5 May 2025 meeting", ["2025-05-05"], []),
+        ("Orders 5 May 2025", ["2025-05-05"], []),
+        ("Letters dated 5 May 2025", ["2025-05-05"], []),
+        ("Rent of Rs. 5,000 due 5 May 2025", ["2025-05-05"], ["INR:5000.00"]),
+        ("Rent of Rs 5000 due 5 May 2025", ["2025-05-05"], ["INR:5000.00"]),
+        ("Fee INR 1,00,000 and USD 250", [], ["INR:100000.00", "USD:250.00"]),
+        ("Fee ₹46,10,000 on 3 May 2023", ["2023-05-03"], ["INR:4610000.00"]),
+        ("Pay $99.50 later", [], ["USD:99.50"]),
+        ("Pay Rs.5 later", [], ["INR:5.00"]),
+        ("(Rs. 7 lakh)", [], ["INR:700000.00"]),
+    ],
+)
+def test_money_symbols_need_a_word_boundary(text, dates, money):
+    assert extract_dates(text) == dates
+    assert extract_money(text) == money
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # P9-review: a modal "may" followed by a number is not the month May.
+        ("Tenant may 5 occupants on 3 May 2023", ["2023-05-03"]),
+        ("The Tenant may 20 occupants on 3 May 2023", ["2023-05-03"]),
+        ("Tenant may 30 days notice, from 3 May 2023", ["2023-05-03"]),
+        ("May 5, 2025 and the Tenant may 2 times renew", ["2025-05-05"]),
+        # real May dates are unaffected
+        ("May 5 2025", ["2025-05-05"]),
+        ("on May 5th, 2025", ["2025-05-05"]),
+        ("May 2025", ["2025-05-01"]),
+        ("the 5th of May 2025", ["2025-05-05"]),
+    ],
+)
+def test_modal_may_before_a_number_is_not_a_date(text, expected):
+    assert extract_dates(text) == expected

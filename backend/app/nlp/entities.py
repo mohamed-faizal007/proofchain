@@ -45,7 +45,7 @@ _MONEY_SYMBOL_CURRENCY = {
 }
 
 _MONEY_RE = re.compile(
-    r"(?P<symbol>₹|US\$|\$|Rs\.?|INR|USD)?\s*"
+    r"(?P<symbol>₹|(?<![A-Za-z])US\$|\$|(?<![A-Za-z])(?:Rs\.?|INR|USD)(?![A-Za-z]))?\s*"
     r"(?P<amount>\d[\d,]*(?:\.\d+)?)"
     r"\s*(?P<scale>lakh|lac|crore)?"
     r"\s*(?P<word>rupees?)?",
@@ -129,7 +129,9 @@ def _blank_spans(text: str, spans: list[tuple[int, int, str]]) -> str:
 
 
 _DAY_BEFORE_RE = re.compile(r"\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?$", re.IGNORECASE)
-_YEAR_OR_DAY_AFTER_RE = re.compile(r"\s*,?\s*\d")
+# What follows the month May: a year ("May 2025") or a day not followed by a word ("May 5, 2025",
+# "May 5th"). "may 5 occupants" / "may 20 times" is the modal verb and a count.
+_DATE_AFTER_MAY_RE = re.compile(r"\s*,?\s*(?:\d{4}\b|\d{1,2}(?:st|nd|rd|th)?\b(?!\s*[A-Za-z]))")
 
 
 def _modal_may_spans(text: str) -> list[tuple[int, int, str]]:
@@ -143,7 +145,7 @@ def _modal_may_spans(text: str) -> list[tuple[int, int, str]]:
         (m.start(), m.end(), "")
         for m in _BARE_MAY_RE.finditer(text)
         if not _DAY_BEFORE_RE.search(text[: m.start()])
-        and not _YEAR_OR_DAY_AFTER_RE.match(text[m.end() :])
+        and not _DATE_AFTER_MAY_RE.match(text[m.end() :])
     ]
 
 
@@ -162,7 +164,9 @@ def _mask_non_dates(text: str) -> str:
     spans are the very ones `extract_money` reports, so the two cannot disagree.
     """
     masked = _blank(_blank(_blank(text, _DURATION_RE), _PERCENT_RE), _BEFORE_RE)
-    return _blank_spans(masked, [*_money_match_spans(text), *_modal_may_spans(text)])
+    masked = _blank_spans(masked, _money_match_spans(text))
+    # last, on the text with durations/money already blanked: "may 30 days" is not a date either
+    return _blank_spans(masked, _modal_may_spans(masked))
 
 
 def _date_match_spans(original: str) -> list[tuple[int, int, str]]:
