@@ -801,7 +801,7 @@
 - Next: P9 phase review, then P10-01
 
 ### 2026-10-03 — P9 phase review
-- Gate: P9-01..P9-05 all `[x]`. Backend 1148 passed (coverage 98 %), contracts 44 passed, frontend lint/format clean. Frontend vitest: 8 to 30 timeouts (5 s) when run under load, different files each run; the failing files pass when rerun alone (28/28). P9 did not touch the frontend (flaky under load, see Known issues). Eval tests: see the final run noted in the commit.
+- Gate: P9-01..P9-05 all `[x]`. Backend 1148 passed (coverage 98 %), contracts 44 passed, frontend lint/format clean. Frontend vitest: 8 to 30 timeouts (5 s) when run under load, different files each run; the failing files pass when rerun alone (28/28). P9 did not touch the frontend (flaky under load, see Known issues). Eval: 137 passed, 1 deselected.
 - code-reviewer: no HIGH findings, no secrets committed, eval deterministic, "crypto decides, AI explains" holds. No spec drift found.
 - Known issues (MEDIUM, not fixed in this review):
   - `backend/app/nlp/entities.py` `_MONEY_RE` symbol group (`Rs\.?|INR|USD`) has no word boundary: "Partners 5 May 2025" loses the day and yields a phantom MONEY. Fix: `(?<![A-Za-z])` before the symbol, plus regression tests. Explanatory only, no verdict impact.
