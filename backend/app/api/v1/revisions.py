@@ -76,11 +76,14 @@ async def download_file(
     queries: QueryService = Depends(get_query_service),
 ) -> Response:
     """Streams the stored PDF (P8-03): avoids the `/file` presigned URL's internal-endpoint
-    limitation, so any authenticated client can download regardless of network topology."""
+    limitation, so any authenticated client can download regardless of network topology.
+
+    Only PDFs are ever stored, so the type is fixed rather than echoed from the upload's
+    client-supplied content type (P10-01); `nosniff` comes from the security-headers layer."""
     downloaded = await queries.download_file(revision_id)
     return Response(
         content=downloaded.content,
-        media_type=downloaded.content_type,
+        media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{downloaded.filename}"'},
     )
 

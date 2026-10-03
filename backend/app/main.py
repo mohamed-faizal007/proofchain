@@ -27,6 +27,8 @@ from app.nlp.classifier import ChangeClassifier, HybridClassifier, RuleOnlyClass
 from app.nlp.embeddings import get_embedding_model
 from app.nlp.ner import get_ner_model
 from app.nlp.warmup import warm_nlp_models
+from app.security.headers import BodySizeLimitMiddleware, SecurityHeadersMiddleware
+from app.security.ratelimit import RateLimitMiddleware, Rule
 from app.services.reconciler import run_startup_reconcile
 from app.storage import S3Storage
 
@@ -66,7 +68,13 @@ async def _validation_error_handler(_: Request, exc: Exception) -> Response:
 
 async def _http_error_handler(_: Request, exc: Exception) -> Response:
     assert isinstance(exc, StarletteHTTPException)
-    codes = {401: "UNAUTHORIZED", 403: "FORBIDDEN", 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED"}
+    codes = {
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        405: "METHOD_NOT_ALLOWED",
+        413: "FILE_TOO_LARGE",
+    }
     code = codes.get(exc.status_code, "HTTP_ERROR")
     return _with_request_id(_envelope(exc.status_code, code, str(exc.detail)))
 
@@ -171,6 +179,19 @@ def create_app(
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
 
+    # add_middleware: the first one added is innermost. Rate limit and size gate sit inside the
+    # request-id and CORS layers so their 429/413 carry X-Request-ID and CORS headers (a browser
+    # cannot read a response without them); security headers are outermost, on everything.
+    prefix = settings.api_prefix.rstrip("/")
+    app.add_middleware(
+        RateLimitMiddleware,
+        rules=[
+            Rule("POST", f"{prefix}/auth/login", "login", settings.login_rate_limit_per_min),
+            Rule("POST", f"{prefix}/verify", "verify", settings.verify_rate_limit_per_min),
+        ],
+    )
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_upload_mb * 1024 * 1024)
+
     @app.middleware("http")
     async def request_id_middleware(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -196,6 +217,8 @@ def create_app(
         allow_headers=["*"],
         expose_headers=[REQUEST_ID_HEADER],
     )
+
+    app.add_middleware(SecurityHeadersMiddleware, api_prefix=settings.api_prefix)
 
     app.include_router(v1_router, prefix=settings.api_prefix)
     return app

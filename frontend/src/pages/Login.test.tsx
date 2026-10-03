@@ -58,7 +58,7 @@ describe("Login page", () => {
   });
 
   it("shows the backend error message, never the password, on bad credentials", async () => {
-    const secretPassword = "definitely-secret-123";
+    const secretPassword = "definitely-secret-123"; // secret-scan: allow (test sentinel)
     renderLogin(
       createClient({
         adapter: fail(401, {

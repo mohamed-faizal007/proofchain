@@ -18,7 +18,7 @@ from app.repositories.users import UserRepository
 from app.schemas.auth import RegisterIn
 from app.security.passwords import MAX_PASSWORD_BYTES, hash_password
 
-DEV_DEFAULT_PASSWORD = "proofchain-demo-1"
+DEV_DEFAULT_PASSWORD = "proofchain-demo-1"  # secret-scan: allow (public dev demo password)
 MIN_PASSWORD_CHARS = 8  # mirrors RegisterIn.password
 
 

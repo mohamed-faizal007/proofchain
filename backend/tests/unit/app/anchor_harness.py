@@ -19,7 +19,7 @@ from app.services.reconciler import Reconciler
 from tests.unit.repositories.factories import make_document, make_revision
 
 CONTRACT = "0x" + "2" * 40
-SECRET = "SECRET-INTERNAL-DETAIL-hunter2"
+SECRET = "SECRET-INTERNAL-DETAIL-hunter2"  # secret-scan: allow (test sentinel)
 
 
 def h(*parts: object) -> str:

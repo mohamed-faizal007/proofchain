@@ -34,6 +34,8 @@ def clean_note(change_note: str | None) -> str | None:
 async def build_tree_from_upload(data: bytes, max_bytes: int) -> IntegrityTree:
     if len(data) > max_bytes:
         raise FileTooLargeError("File exceeds the upload limit", details={"max_bytes": max_bytes})
+    # The PDF spec lets the header sit anywhere in the first 1024 bytes (leading junk); a
+    # stricter byte-0 check would reject valid files. PyMuPDF below is the real validator.
     if b"%PDF-" not in data[:1024]:
         raise InvalidPdfError("File is not a PDF")
     try:

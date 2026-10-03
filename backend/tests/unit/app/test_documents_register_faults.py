@@ -21,7 +21,7 @@ from app.repositories.trees import TreeRepository
 from app.storage import S3Storage
 from tests.unit.app.docs_env import Env
 
-SECRET = "SECRET-INTERNAL-DETAIL-hunter2"
+SECRET = "SECRET-INTERNAL-DETAIL-hunter2"  # secret-scan: allow (test sentinel)
 SERVICE_LOGGER = "app.services.documents"
 
 # resource -> (class, method) that rolls it back

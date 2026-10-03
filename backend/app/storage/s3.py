@@ -96,6 +96,9 @@ class S3Storage:
             raise StorageError(f"failed to delete object {key}") from exc
 
     async def get(self, key: str, version_id: str | None = None) -> bytes:
+        """Whole object in memory (bounded by `max_upload_mb`). Raises `NotFoundError` for a
+        missing key or version, `StorageError` for anything else."""
+
         def read() -> bytes:
             resp = self._client.get_object(Bucket=self._bucket, Key=key, **_version(version_id))
             body: bytes = resp["Body"].read()

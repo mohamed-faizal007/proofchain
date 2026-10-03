@@ -189,13 +189,14 @@ Deps: P9-03, P10-02
 
 ---
 ## P10 — Hardening, deploy, docs, demo
-### [ ] P10-01 Security pass (upload validation, rate limit on /verify & /auth/login, headers, secret scan) with code-reviewer subagent
+### [x] P10-01 Security pass (upload validation, rate limit on /verify & /auth/login, headers, secret scan) with code-reviewer subagent
 Deps: P6-04, P8-06
 ### [x] P10-02 Sepolia deployment + verified contract + backend config
 Deps: P4-02
 ### [ ] P10-03 Dockerfiles for backend/frontend, full compose profile `app`
 Deps: P8-07
 Note: in-container backend uses http://minio:9000; presigned URLs must still be browser-reachable (PROGRESS.md Follow-ups, "Presigned URL host").
+Note: if a reverse proxy fronts the backend, per-IP rate limits (ADR-022) see only the proxy's address; configure trusted-proxy handling or accept and record the gap (PROGRESS.md Known issues, "P10-03 MUST DECIDE").
 ### [ ] P10-04 End-to-end demo script (`scripts/demo.ps1`) + seeded demo data (original, approved v2, tampered copies)
 Deps: P10-03
 ### [ ] P10-05 Final docs: README, architecture diagrams export, API examples, user guide; tag v1.0

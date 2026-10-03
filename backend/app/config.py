@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"  # comma-separated
     max_upload_mb: int = 25
     public_verify: bool = True
+    # Per client address, per minute; 0 disables. Rationale in ADR-022.
+    login_rate_limit_per_min: int = 10
+    verify_rate_limit_per_min: int = 20
 
     jwt_secret: str = DEFAULT_JWT_SECRET
     jwt_expire_minutes: int = 120

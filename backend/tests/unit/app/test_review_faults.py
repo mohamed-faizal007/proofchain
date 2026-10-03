@@ -20,7 +20,7 @@ from app.repositories.events import EventRepository
 from app.repositories.revisions import RevisionRepository
 from tests.unit.app.docs_env import Env
 
-SECRET = "SECRET-INTERNAL-DETAIL-hunter2"
+SECRET = "SECRET-INTERNAL-DETAIL-hunter2"  # secret-scan: allow (test sentinel)
 EVENT = {"approve": "REVISION_APPROVED", "reject": "REVISION_REJECTED"}
 FINAL = {"approve": "APPROVED", "reject": "REJECTED"}
 OK = {"approve": 202, "reject": 200}

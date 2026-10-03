@@ -18,7 +18,7 @@ from app.repositories.trees import TreeRepository
 from app.storage import S3Storage
 from tests.unit.app.docs_env import Env
 
-SECRET = "SECRET-INTERNAL-DETAIL-hunter2"
+SECRET = "SECRET-INTERNAL-DETAIL-hunter2"  # secret-scan: allow (test sentinel)
 STEPS: dict[str, tuple[type, str]] = {
     "s3_put": (S3Storage, "put"),
     "rev_insert": (RevisionRepository, "insert"),
