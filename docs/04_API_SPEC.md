@@ -59,7 +59,8 @@ Read routes (P5-05). "any" = any authenticated user (401 without a token); unkno
 - `GET /revisions/{id}/file`: `{url, expires_in}`; the URL pins the stored S3 object version. Known limit: it
   is signed for the backend's S3 endpoint (see PROGRESS.md "Presigned URL host") -- the frontend uses
   `/download` instead (P8-03), so this route's limitation no longer affects it; `/file` is kept as-is for any
-  other caller that wants a direct, time-limited S3 link.
+  other caller that wants a direct, time-limited S3 link. Accepted limitation (P10-03): in the Docker `app` profile the URL carries the in-container
+  `http://minio:9000` host, which a browser cannot resolve; use `/download`, the supported path.
 - `GET /revisions/{id}/download`: streams the exact bytes pinned to the revision's stored S3 object version
   (same source as `/file`) through the backend, so no client needs network access to the S3/MinIO endpoint.
   `Content-Disposition`'s filename is the revision's `original_filename`, sanitized (path stripped, ASCII

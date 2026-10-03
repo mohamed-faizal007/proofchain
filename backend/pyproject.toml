@@ -35,6 +35,7 @@ dev = [
     "reportlab==5.0.1",
     "ruff>=0.4",
     "mypy>=1.10",
+    "pyyaml>=6.0",
 ]
 eval = [
     "faker==40.1.0",

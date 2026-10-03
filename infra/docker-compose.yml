@@ -44,6 +44,59 @@ services:
     ports: ["127.0.0.1:8545:8545"]
     profiles: ["chain"]   # enable with: docker compose -f infra/docker-compose.yml --profile chain up -d
 
+  # ---- Full app: docker compose -f infra/docker-compose.yml --profile app up -d --build ----
+  # Browser -> backend directly on 127.0.0.1:8000 (no reverse proxy), so per-IP rate limits
+  # (ADR-022) see the TCP peer. Set JWT_SECRET (and SEED_PASSWORD, APP_ENV=prod) in the shell
+  # or a root .env.
+  backend:
+    profiles: ["app"]
+    build:
+      context: ../backend
+      args:
+        WITH_NLP: ${WITH_NLP:-1}
+      additional_contexts:
+        pins: ../eval
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      MONGO_URI: mongodb://mongo:27017
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: proofchain-docs
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      CHAIN_RPC_URL: ${CHAIN_RPC_URL:-http://hardhat:8545}
+      CHAIN_ID: ${CHAIN_ID:-31337}
+      REGISTRY_ADDRESS: ${REGISTRY_ADDRESS:-}
+      ANCHOR_PRIVATE_KEY: ${ANCHOR_PRIVATE_KEY:-}
+      CHAIN_CONFIRMATIONS: ${CHAIN_CONFIRMATIONS:-1}
+      EXPLORER_TX_URL: ${EXPLORER_TX_URL:-}
+      HF_HUB_OFFLINE: "1"
+    depends_on:
+      mongo: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      minio-init: {condition: service_completed_successfully}
+    ports: ["127.0.0.1:8000:8000"]
+    # /health is HTTP 200 even when degraded; the script exits 1 unless the body says "ok".
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.scripts.healthcheck"]
+      interval: 15s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: ../frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_EXPLORER_TX_URL: ${VITE_EXPLORER_TX_URL:-}
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ["127.0.0.1:8080:8080"]
+
 volumes:
   mongo-data:
   minio-data:
