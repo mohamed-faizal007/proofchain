@@ -904,3 +904,6 @@
 - `Login.tsx` only: background image and its overlay removed; `frontend/public/images/login-bg.jpg` deleted (no other references). Plain `.card` split layout with a faint accent tint on the left panel; stacks (form first) below `md`.
 - Left panel rewritten as a three-feature gist (Tamper detection, Change localization, On-chain proof) with eyebrow, title, tagline, footer note and tech chips. Form unchanged.
 - Verified light/dark at 1280/1440/1920 against the rebuilt container: no `login-bg` requests. Login tests 5 pass; typecheck clean; lint 0 errors.
+
+### 2026-10-07 - docs/PROJECT_EXPLAINED.md (presenter's guide)
+- Added `docs/PROJECT_EXPLAINED.md`, a 16-section explanation for the faculty presentation, written from the code, ADRs, specs and `eval/results/seed20260930`. No code changed. Code-vs-spec differences it flags: `07` names react-pdf and lucide-react but the frontend uses `pdfjs-dist` directly; `/chain/status` (04) is not implemented; the 12 MB tree-to-S3 fallback (03) is not implemented; embeddings stay enabled by default although the evaluation shows rules + NER scores higher (no ADR removes them).
