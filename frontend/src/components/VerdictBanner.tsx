@@ -2,9 +2,9 @@ import type { ReactElement } from "react";
 import { TONE_CLASSES, verdictInfo, type VerdictTone } from "../lib/verdict";
 
 const ICON_CLASSES: Record<VerdictTone, string> = {
-  green: "bg-green-600 text-white",
-  amber: "bg-amber-500 text-white",
-  red: "bg-red-600 text-white",
+  green: "bg-green-600 text-white shadow-[0_0_28px_rgb(34_197_94/0.45)]",
+  amber: "bg-amber-500 text-white shadow-[0_0_28px_rgb(245_158_11/0.45)]",
+  red: "bg-red-600 text-white shadow-[0_0_28px_rgb(239_68_68/0.5)]",
   grey: "bg-gray-500 text-white",
 };
 
@@ -23,7 +23,7 @@ export function VerdictBanner({
       aria-label="Verdict"
       data-verdict={verdict}
       data-tone={tone}
-      className={`flex items-center gap-5 rounded-xl border-l-8 p-6 shadow-sm ${TONE_CLASSES[tone]}`}
+      className={`flex items-center gap-5 rounded-2xl border border-l-8 p-7 shadow-lg ${TONE_CLASSES[tone]}`}
     >
       <span
         aria-hidden="true"
@@ -32,11 +32,11 @@ export function VerdictBanner({
         {ICON_SYMBOL[tone]}
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-widest opacity-80">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-80">
           {verdict.replace(/_/g, " ")}
         </p>
-        <h2 className="text-3xl font-bold leading-tight">{label}</h2>
-        <p className="mt-1 text-base">{summary}</p>
+        <h2 className="font-display text-4xl font-bold leading-tight tracking-tight">{label}</h2>
+        <p className="mt-2 text-base opacity-90">{summary}</p>
       </div>
     </section>
   );

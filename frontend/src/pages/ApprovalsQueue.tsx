@@ -107,7 +107,7 @@ export function ApprovalsQueue(): ReactElement {
   if (!isApprover) {
     return (
       <main className="p-6">
-        <h1 className="text-2xl font-semibold">Approvals</h1>
+        <h1 className="page-title">Approvals</h1>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           This page requires the APPROVER role. ADMIN accounts can manage anchoring and user roles
           but are not approvers, so they cannot review revisions here.
@@ -122,7 +122,7 @@ export function ApprovalsQueue(): ReactElement {
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-semibold">Approvals</h1>
+      <h1 className="page-title">Approvals</h1>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         Pending revisions across all documents, oldest first. You cannot review a revision you
         submitted yourself.
@@ -152,7 +152,7 @@ export function ApprovalsQueue(): ReactElement {
               const ownSubmission = user?.id === item.submitted_by;
               const busy = busyId === item.id;
               return (
-                <li key={item.id} className="rounded border p-4 text-sm">
+                <li key={item.id} className="card p-5 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Link
                       to={`/documents/${item.document_id}`}

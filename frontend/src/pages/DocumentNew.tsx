@@ -62,7 +62,7 @@ export function DocumentNew(): ReactElement {
   if (!user?.roles.includes("ISSUER")) {
     return (
       <main className="p-6">
-        <h1 className="text-2xl font-semibold">New document</h1>
+        <h1 className="page-title">New document</h1>
         <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
           This page requires the ISSUER role.
         </p>
@@ -101,7 +101,7 @@ export function DocumentNew(): ReactElement {
 
   return (
     <main className="mx-auto mt-10 max-w-lg p-6">
-      <h1 className="text-2xl font-semibold">New document</h1>
+      <h1 className="page-title">New document</h1>
       <form className="mt-6 space-y-4" onSubmit={handleFormSubmit} noValidate>
         <div>
           <label htmlFor="title" className="block text-sm font-medium">
@@ -167,11 +167,7 @@ export function DocumentNew(): ReactElement {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
-        >
+        <button type="submit" disabled={busy} className="btn-primary w-full">
           {busy ? "Uploading…" : "Create document"}
         </button>
       </form>

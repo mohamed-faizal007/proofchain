@@ -20,7 +20,7 @@ export function VerificationDetail(): ReactElement {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <h1 className="text-2xl font-semibold">Verification</h1>
+      <h1 className="page-title">Verification</h1>
       <p className="mt-1 text-sm">
         <Link to="/verifications" className="text-blue-600 underline dark:text-blue-400">
           All verifications

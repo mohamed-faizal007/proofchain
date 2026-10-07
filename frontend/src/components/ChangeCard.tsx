@@ -68,7 +68,7 @@ export function ChangeCard({
   return (
     <li
       data-testid={`change-${region.id}`}
-      className={`rounded-lg border bg-gray-50 p-4 text-sm dark:bg-gray-800 ${selected ? "border-blue-500 ring-2 ring-blue-300" : ""}`}
+      className={`rounded-xl border bg-gray-50 p-4 text-sm transition-colors dark:bg-gray-800/60 ${selected ? "border-blue-500 ring-2 ring-blue-400/50" : ""}`}
     >
       <button
         type="button"

@@ -20,7 +20,7 @@ export function DocumentDetail(): ReactElement {
   const provenanceQuery = useProvenance(id);
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
+    <main className="mx-auto max-w-4xl px-6 py-10">
       <section>
         {documentQuery.isLoading ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">Loading document…</p>
@@ -31,7 +31,7 @@ export function DocumentDetail(): ReactElement {
         ) : documentQuery.data ? (
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold">{documentQuery.data.document.title}</h1>
+              <h1 className="page-title">{documentQuery.data.document.title}</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {documentQuery.data.document.doc_type} · updated{" "}
                 {formatDate(documentQuery.data.document.updated_at)}
@@ -50,10 +50,7 @@ export function DocumentDetail(): ReactElement {
               )}
             </div>
             <RoleGate roles={["ISSUER"]}>
-              <Link
-                to={`/documents/${id}/revisions/new`}
-                className="rounded bg-gray-900 px-4 py-2 text-sm text-white dark:bg-gray-100 dark:text-gray-900"
-              >
+              <Link to={`/documents/${id}/revisions/new`} className="btn-primary">
                 Submit new revision
               </Link>
             </RoleGate>
@@ -63,8 +60,8 @@ export function DocumentDetail(): ReactElement {
         )}
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold">Revisions</h2>
+      <section className="mt-12">
+        <h2 className="section-title">Revisions</h2>
         <div className="mt-3">
           {revisionsQuery.isLoading ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading revisions…</p>
@@ -78,8 +75,8 @@ export function DocumentDetail(): ReactElement {
         </div>
       </section>
 
-      <section className="mt-8" aria-label="Compare revisions">
-        <h2 className="text-lg font-semibold">Compare revisions</h2>
+      <section className="mt-12" aria-label="Compare revisions">
+        <h2 className="section-title">Compare revisions</h2>
         <div className="mt-3">
           {revisionsQuery.isLoading ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading revisions…</p>
@@ -89,8 +86,8 @@ export function DocumentDetail(): ReactElement {
         </div>
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold">Provenance</h2>
+      <section className="mt-12">
+        <h2 className="section-title">Provenance</h2>
         <div className="mt-3">
           {provenanceQuery.isLoading ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading provenance…</p>

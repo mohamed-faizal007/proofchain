@@ -44,13 +44,13 @@ export function ChainProofPanel({
     );
   } else if (check.ok) {
     body = (
-      <p className="rounded-lg bg-green-100 px-4 py-3 text-base font-semibold text-green-900 dark:bg-green-950 dark:text-green-200">
+      <p className="rounded-lg bg-green-100 px-4 py-3 text-base font-semibold text-green-900 dark:bg-green-500/10 dark:text-green-300 dark:ring-1 dark:ring-inset dark:ring-green-500/30">
         ✓ Matches the on-chain record.
       </p>
     );
   } else {
     body = (
-      <div className="rounded-lg bg-red-100 px-4 py-3 text-red-900 dark:bg-red-950 dark:text-red-200">
+      <div className="rounded-lg bg-red-100 px-4 py-3 text-red-900 dark:bg-red-500/10 dark:text-red-300 dark:ring-1 dark:ring-inset dark:ring-red-500/30">
         <p className="text-base font-semibold">✗ Does not match the on-chain record.</p>
         {check.reason && <p>{check.reason}</p>}
         {check.mismatches.length > 0 && (
@@ -64,11 +64,8 @@ export function ChainProofPanel({
     );
   }
   return (
-    <section
-      aria-label="Chain proof"
-      className="rounded-xl border bg-white p-5 text-sm shadow-sm dark:bg-gray-900"
-    >
-      <h3 className="mb-3 text-base font-semibold">Chain proof</h3>
+    <section aria-label="Chain proof" className="card p-6 text-sm">
+      <h3 className="eyebrow mb-3">Chain proof</h3>
       {body}
       {check && <TxReference check={check} />}
       {revision && (

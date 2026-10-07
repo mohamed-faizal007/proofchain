@@ -24,7 +24,7 @@ export function VerificationHistory(): ReactElement {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      <h1 className="text-3xl font-bold tracking-tight">Verification history</h1>
+      <h1 className="page-title">Verification history</h1>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         Your past verifications, newest first.
       </p>
@@ -40,7 +40,7 @@ export function VerificationHistory(): ReactElement {
           <ul
             // keepPreviousData shows the old page while the next one loads; make that visible
             aria-busy={query.isPlaceholderData}
-            className={`divide-y overflow-hidden rounded-xl border bg-white shadow-sm dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-900 ${
+            className={`card divide-y overflow-hidden dark:divide-gray-700/70 ${
               query.isPlaceholderData ? "opacity-60" : ""
             }`}
           >

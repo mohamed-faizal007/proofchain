@@ -23,8 +23,12 @@ export function ThemeToggle(): ReactElement {
       type="button"
       aria-pressed={dark}
       onClick={toggle}
-      className="rounded border px-2 py-1 text-xs dark:border-gray-600"
+      className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-gray-600"
     >
+      <span
+        aria-hidden="true"
+        className={`h-2 w-2 rounded-full ${dark ? "bg-blue-400 shadow-[0_0_8px_rgb(148_132_255)]" : "bg-gray-400"}`}
+      />
       {dark ? "Dark mode: on" : "Dark mode: off"}
     </button>
   );

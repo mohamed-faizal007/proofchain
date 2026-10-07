@@ -55,7 +55,7 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
       )}
       <ul className="space-y-3">
         {[...revisions].reverse().map((revision) => (
-          <li key={revision.id} className="rounded border p-3 text-sm">
+          <li key={revision.id} className="card p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">
                 v{revision.revision_no}
@@ -80,7 +80,7 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
               type="button"
               onClick={() => void handleDownload(revision)}
               disabled={downloadingId === revision.id}
-              className="mt-2 rounded border px-3 py-1 text-xs disabled:opacity-50"
+              className="btn-secondary mt-3 text-xs"
             >
               {downloadingId === revision.id ? "Downloading…" : "Download file"}
             </button>

@@ -39,7 +39,7 @@ export function Login(): ReactElement {
 
   return (
     <main className="mx-auto mt-16 max-w-sm p-6">
-      <h1 className="text-2xl font-semibold">Login</h1>
+      <h1 className="page-title">Login</h1>
       <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate>
         <div>
           <label htmlFor="email" className="block text-sm font-medium">
@@ -76,11 +76,7 @@ export function Login(): ReactElement {
             {formError}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
-        >
+        <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
           {isSubmitting ? "Signing in…" : "Sign in"}
         </button>
       </form>

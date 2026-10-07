@@ -22,7 +22,7 @@ export function ProvenanceTimeline({
       )}
       <ul className="max-h-80 space-y-2 overflow-y-auto text-sm">
         {events.map((event) => (
-          <li key={event.id} className="rounded border p-2">
+          <li key={event.id} className="card p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">{event.type}</span>
               <span className="text-gray-500 dark:text-gray-400">{formatDate(event.at)}</span>

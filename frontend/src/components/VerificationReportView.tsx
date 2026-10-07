@@ -10,9 +10,10 @@ import LazyPdfViewer from "./LazyPdfViewer";
 import { PipelineSteps } from "./PipelineSteps";
 import { VerdictBanner } from "./VerdictBanner";
 
-const PANEL = "rounded-xl border bg-white p-5 shadow-sm dark:bg-gray-900";
-const PANEL_TITLE = "text-base font-semibold";
-const PANE_LABEL = "text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
+const PANEL = "card p-6";
+const PANEL_TITLE = "eyebrow";
+const PANE_LABEL =
+  "text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400";
 
 export const CANDIDATE_NOT_STORED_MESSAGE =
   "The uploaded file isn't stored -- this view shows the reference document and the detected changes, but not the original upload.";
@@ -87,7 +88,7 @@ export function VerificationReportView({
         <div
           role="note"
           data-testid="candidate-not-stored"
-          className="flex items-start justify-between gap-3 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
+          className="flex items-start justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100"
         >
           <p>{CANDIDATE_NOT_STORED_MESSAGE}</p>
           <button
@@ -118,10 +119,7 @@ export function VerificationReportView({
               {isAnonymous ? (
                 (report.document.title ?? report.document.id)
               ) : (
-                <Link
-                  to={`/documents/${report.document.id}`}
-                  className="text-blue-600 underline dark:text-blue-400"
-                >
+                <Link to={`/documents/${report.document.id}`} className="link">
                   {report.document.title ?? report.document.id}
                 </Link>
               )}
