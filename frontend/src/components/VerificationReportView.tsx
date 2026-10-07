@@ -10,6 +10,10 @@ import LazyPdfViewer from "./LazyPdfViewer";
 import { PipelineSteps } from "./PipelineSteps";
 import { VerdictBanner } from "./VerdictBanner";
 
+const PANEL = "rounded-xl border bg-white p-5 shadow-sm dark:bg-gray-900";
+const PANEL_TITLE = "text-base font-semibold";
+const PANE_LABEL = "text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
+
 export const CANDIDATE_NOT_STORED_MESSAGE =
   "The uploaded file isn't stored -- this view shows the reference document and the detected changes, but not the original upload.";
 
@@ -30,7 +34,7 @@ function PaneMessage({ testId, children }: { testId: string; children: string })
   return (
     <p
       data-testid={testId}
-      className="rounded border border-dashed p-4 text-sm text-gray-600 dark:text-gray-300"
+      className="rounded-lg border border-dashed p-6 text-center text-sm text-gray-600 dark:text-gray-300"
     >
       {children}
     </p>
@@ -75,14 +79,14 @@ export function VerificationReportView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <VerdictBanner verdict={report.verdict} summary={report.summary} />
 
       {!candidateFile && !bannerDismissed && (
         <div
           role="note"
           data-testid="candidate-not-stored"
-          className="flex items-start justify-between gap-3 rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
+          className="flex items-start justify-between gap-3 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
         >
           <p>{CANDIDATE_NOT_STORED_MESSAGE}</p>
           <button
@@ -97,8 +101,8 @@ export function VerificationReportView({
       )}
 
       <section aria-label="Details" className="grid gap-4 text-sm sm:grid-cols-2">
-        <div className="space-y-1">
-          <h3 className="font-semibold">Uploaded file</h3>
+        <div className={`${PANEL} space-y-1`}>
+          <h3 className={PANEL_TITLE}>Uploaded file</h3>
           {report.candidate.filename && <p>{report.candidate.filename}</p>}
           <p>
             <HashBadge hash={report.candidate.file_hash} label="file hash" />
@@ -123,22 +127,22 @@ export function VerificationReportView({
             </p>
           )}
         </div>
-        <div>
-          <h3 className="mb-1 font-semibold">Pipeline</h3>
+        <div className={PANEL}>
+          <h3 className={`${PANEL_TITLE} mb-3`}>Pipeline</h3>
           <PipelineSteps steps={report.steps} />
         </div>
       </section>
 
-      <section aria-label="Documents" className="space-y-2">
-        <h3 className="font-semibold">Documents</h3>
+      <section aria-label="Documents" className={`${PANEL} space-y-3`}>
+        <h3 className={PANEL_TITLE}>Documents</h3>
         <div className={`grid gap-4 ${candidateFile ? "lg:grid-cols-2" : ""}`}>
           <div data-testid="viewer-reference" className="min-w-0 space-y-1">
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Reference</h4>
+            <h4 className={PANE_LABEL}>Reference</h4>
             {referencePane}
           </div>
           {candidateFile && (
             <div data-testid="viewer-candidate" className="min-w-0 space-y-1">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Uploaded</h4>
+              <h4 className={PANE_LABEL}>Uploaded</h4>
               {isAnonymous && (
                 <p className="text-xs text-gray-600 dark:text-gray-300">
                   Change locations are not included in the public report.
@@ -154,8 +158,8 @@ export function VerificationReportView({
         </div>
       </section>
 
-      <section aria-label="Changes" className="space-y-2">
-        <h3 className="font-semibold">Changes</h3>
+      <section aria-label="Changes" className={`${PANEL} space-y-3`}>
+        <h3 className={PANEL_TITLE}>Changes</h3>
         {report.localization ? (
           <ChangeList
             regions={regions}

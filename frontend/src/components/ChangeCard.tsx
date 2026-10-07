@@ -68,7 +68,7 @@ export function ChangeCard({
   return (
     <li
       data-testid={`change-${region.id}`}
-      className={`rounded border p-3 text-sm ${selected ? "border-blue-500 ring-2 ring-blue-300" : ""}`}
+      className={`rounded-lg border bg-gray-50 p-4 text-sm dark:bg-gray-800 ${selected ? "border-blue-500 ring-2 ring-blue-300" : ""}`}
     >
       <button
         type="button"
@@ -80,11 +80,11 @@ export function ChangeCard({
         {page != null && <span className="text-gray-600 dark:text-gray-300">page {page + 1}</span>}
         {analysis && (
           <>
-            <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">
+            <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-900">
               {pretty(analysis.primary_category)}
             </span>
             <span
-              className={`rounded px-2 py-0.5 text-xs ${SEVERITY_CLASSES[analysis.severity] ?? ""}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${SEVERITY_CLASSES[analysis.severity] ?? ""}`}
             >
               {analysis.severity.toLowerCase()} severity
             </span>

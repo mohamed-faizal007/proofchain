@@ -43,21 +43,17 @@ export function Verify(): ReactElement {
   const [result, setResult] = useState<{ report: VerificationReport; file: File } | null>(null);
   const submittingRef = useRef(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
-    e.preventDefault();
+  async function runVerify(upload: File, againstDocumentId: string): Promise<void> {
     if (submittingRef.current) return;
-    const invalid = validatePdfFile(file);
-    setFileError(invalid);
-    if (invalid || !file) return;
     submittingRef.current = true;
     setFormError(null);
     try {
       const report = await verify.mutateAsync({
-        file,
-        documentId: documentId || undefined,
+        file: upload,
+        documentId: againstDocumentId || undefined,
         includeNlp,
       });
-      setResult({ report, file });
+      setResult({ report, file: upload });
     } catch (err) {
       setFormError(mapVerifyError(err));
     } finally {
@@ -65,14 +61,23 @@ export function Verify(): ReactElement {
     }
   }
 
+  async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    const invalid = validatePdfFile(file);
+    setFileError(invalid);
+    if (invalid || !file) return;
+    await runVerify(file, documentId);
+  }
+
+  const busy = verify.isPending;
   if (result) {
     return (
       <main className="mx-auto max-w-6xl p-6">
-        <h1 className="text-2xl font-semibold">Verify</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Verify</h1>
         <div className="my-4 flex items-center gap-4 text-sm">
           <button
             type="button"
-            className="rounded border px-3 py-1"
+            className="rounded-lg border bg-white px-4 py-2 font-medium shadow-sm hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800"
             onClick={() => {
               setResult(null);
               setFile(null);
@@ -89,6 +94,43 @@ export function Verify(): ReactElement {
             </Link>
           )}
         </div>
+        {user && result.report.verdict === "UNKNOWN_DOCUMENT" && (
+          <div className="mb-5 rounded-xl border bg-white p-5 text-sm shadow-sm dark:bg-gray-900">
+            <h2 className="text-base font-semibold">Which document is this file a copy of?</h2>
+            <p className="mt-1 text-gray-600 dark:text-gray-300">
+              A modified file can&apos;t be matched to a document on its own. Pick the document to
+              compare it against and the changes will be located.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <select
+                aria-label="Document to compare against"
+                value={documentId}
+                onChange={(e) => setDocumentId(e.target.value)}
+                className="min-w-64 rounded-lg border px-3 py-2 dark:bg-gray-800"
+              >
+                <option value="">Select a document…</option>
+                {documents.data?.items.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!documentId || busy}
+                onClick={() => void runVerify(result.file, documentId)}
+                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                {busy ? "Verifying…" : "Verify against this document"}
+              </button>
+            </div>
+            {formError && (
+              <p role="alert" className="mt-2 text-red-600 dark:text-red-400">
+                {formError}
+              </p>
+            )}
+          </div>
+        )}
         <VerificationReportView
           report={result.report}
           candidateFile={result.file}
@@ -98,14 +140,17 @@ export function Verify(): ReactElement {
     );
   }
 
-  const busy = verify.isPending;
   return (
-    <main className="mx-auto mt-10 max-w-lg p-6">
-      <h1 className="text-2xl font-semibold">Verify</h1>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+    <main className="mx-auto mt-10 max-w-xl p-6">
+      <h1 className="text-3xl font-bold tracking-tight">Verify</h1>
+      <p className="mt-2 text-gray-600 dark:text-gray-300">
         Upload a PDF to check it against the approved, chain-anchored versions.
       </p>
-      <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)} noValidate>
+      <form
+        className="mt-6 space-y-5 rounded-xl border bg-white p-6 shadow-sm dark:bg-gray-900"
+        onSubmit={(e) => void handleSubmit(e)}
+        noValidate
+      >
         <div>
           <span className="block text-sm font-medium">PDF file</span>
           <div className="mt-1">
@@ -130,7 +175,7 @@ export function Verify(): ReactElement {
               id="document_id"
               value={documentId}
               onChange={(e) => setDocumentId(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2"
+              className="mt-1 w-full rounded-lg border px-3 py-2 dark:bg-gray-800"
             >
               <option value="">Detect automatically</option>
               {documents.data?.items.map((d) => (
@@ -160,7 +205,7 @@ export function Verify(): ReactElement {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+          className="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
         >
           {busy ? "Verifying…" : "Verify"}
         </button>

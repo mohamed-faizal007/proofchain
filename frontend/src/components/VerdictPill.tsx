@@ -7,7 +7,7 @@ export function VerdictPill({ verdict }: { verdict: string }): ReactElement {
   return (
     <span
       data-tone={tone}
-      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${PILL_CLASSES[tone]}`}
+      className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${PILL_CLASSES[tone]}`}
     >
       {label}
     </span>

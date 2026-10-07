@@ -258,3 +258,44 @@ describe("Verify: fresh inline result (the uploaded File is still in memory)", (
     await waitFor(() => expect(screen.getByText(/drag and drop a pdf here/i)).toBeInTheDocument());
   });
 });
+
+describe("Verify: unknown document", () => {
+  const unknown = () => makeReport({ verdict: "UNKNOWN_DOCUMENT", document: null });
+
+  it("signed in: offers a document picker and re-verifies the same file against the pick", async () => {
+    verifyImpl = (config) => {
+      const documentId = (config.data as FormData).get("document_id");
+      return Promise.resolve(
+        reply(config, documentId ? makeReport({ verdict: "TAMPERED" }) : unknown()),
+      );
+    };
+    renderVerify(["VERIFIER"]);
+    await chooseFile();
+    await submit();
+    const picker = await screen.findByLabelText("Document to compare against");
+    await screen.findByRole("option", { name: "Lease Agreement" });
+    const rerun = screen.getByRole("button", { name: /verify against this document/i });
+    expect(rerun).toBeDisabled();
+    await userEvent.selectOptions(picker, "doc-1");
+    await userEvent.click(rerun);
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Verdict" })).toHaveAttribute(
+        "data-verdict",
+        "TAMPERED",
+      ),
+    );
+    expect(posts).toHaveLength(2);
+    expect(posts[1]?.documentId).toBe("doc-1");
+    expect(posts[1]?.file?.name).toBe("upload.pdf");
+    expect(screen.queryByLabelText("Document to compare against")).not.toBeInTheDocument();
+  });
+
+  it("anonymous: no picker (the document list needs a sign-in)", async () => {
+    verifyImpl = (config) => Promise.resolve(reply(config, unknown()));
+    renderVerify(null);
+    await chooseFile();
+    await submit();
+    await screen.findByRole("region", { name: "Verdict" });
+    expect(screen.queryByLabelText("Document to compare against")).not.toBeInTheDocument();
+  });
+});

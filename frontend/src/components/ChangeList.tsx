@@ -45,7 +45,9 @@ export function ChangeList({
     <div className="space-y-4">
       {group(regions).map((g) => (
         <section key={g.key} aria-label={g.title}>
-          <h4 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">{g.title}</h4>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {g.title}
+          </h4>
           <ul className="space-y-2">
             {g.regions.map((r) => (
               <ChangeCard

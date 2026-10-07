@@ -38,20 +38,20 @@ export function ChainProofPanel({
   let body: ReactElement;
   if (!check || !check.performed) {
     body = (
-      <p className="text-gray-600 dark:text-gray-300">
+      <p className="rounded-lg bg-gray-100 px-4 py-3 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
         Chain check not performed{check?.reason ? `: ${check.reason}` : "."}
       </p>
     );
   } else if (check.ok) {
     body = (
-      <p className="font-medium text-green-800 dark:text-green-200">
+      <p className="rounded-lg bg-green-100 px-4 py-3 text-base font-semibold text-green-900 dark:bg-green-950 dark:text-green-200">
         ✓ Matches the on-chain record.
       </p>
     );
   } else {
     body = (
-      <div className="text-red-800 dark:text-red-200">
-        <p className="font-medium">✗ Does not match the on-chain record.</p>
+      <div className="rounded-lg bg-red-100 px-4 py-3 text-red-900 dark:bg-red-950 dark:text-red-200">
+        <p className="text-base font-semibold">✗ Does not match the on-chain record.</p>
         {check.reason && <p>{check.reason}</p>}
         {check.mismatches.length > 0 && (
           <ul className="list-disc pl-5">
@@ -64,8 +64,11 @@ export function ChainProofPanel({
     );
   }
   return (
-    <section aria-label="Chain proof" className="rounded border p-4 text-sm">
-      <h3 className="mb-2 font-semibold">Chain proof</h3>
+    <section
+      aria-label="Chain proof"
+      className="rounded-xl border bg-white p-5 text-sm shadow-sm dark:bg-gray-900"
+    >
+      <h3 className="mb-3 text-base font-semibold">Chain proof</h3>
       {body}
       {check && <TxReference check={check} />}
       {revision && (

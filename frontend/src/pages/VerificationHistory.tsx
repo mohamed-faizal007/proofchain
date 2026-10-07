@@ -23,8 +23,8 @@ export function VerificationHistory(): ReactElement {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-semibold">Verification history</h1>
+    <main className="mx-auto max-w-4xl p-6">
+      <h1 className="text-3xl font-bold tracking-tight">Verification history</h1>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         Your past verifications, newest first.
       </p>
@@ -40,15 +40,21 @@ export function VerificationHistory(): ReactElement {
           <ul
             // keepPreviousData shows the old page while the next one loads; make that visible
             aria-busy={query.isPlaceholderData}
-            className={`divide-y rounded border dark:divide-gray-700 dark:border-gray-700 ${
+            className={`divide-y overflow-hidden rounded-xl border bg-white shadow-sm dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-900 ${
               query.isPlaceholderData ? "opacity-60" : ""
             }`}
           >
             {query.data.items.map((v) => (
-              <li key={v.id} className="space-y-1 p-3 text-sm">
+              <li
+                key={v.id}
+                className="space-y-1.5 p-4 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <VerdictPill verdict={v.verdict} />
-                  <Link to={`/verifications/${v.id}`} className="font-medium hover:underline">
+                  <Link
+                    to={`/verifications/${v.id}`}
+                    className="text-base font-semibold hover:underline"
+                  >
                     {v.filename}
                   </Link>
                   <span className="text-gray-500 dark:text-gray-400">{formatDate(v.at)}</span>
@@ -76,7 +82,7 @@ export function VerificationHistory(): ReactElement {
               type="button"
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
-              className="rounded border px-3 py-1 disabled:opacity-50 dark:border-gray-600"
+              className="rounded-lg border bg-white px-4 py-1.5 font-medium shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800"
             >
               Previous
             </button>
@@ -87,7 +93,7 @@ export function VerificationHistory(): ReactElement {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage(page + 1)}
-              className="rounded border px-3 py-1 disabled:opacity-50 dark:border-gray-600"
+              className="rounded-lg border bg-white px-4 py-1.5 font-medium shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800"
             >
               Next
             </button>

@@ -44,8 +44,10 @@ export function FileDropzone({
       }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
-      className={`cursor-pointer rounded border-2 border-dashed p-6 text-center text-sm ${
-        dragOver ? "border-gray-900 bg-gray-50" : "border-gray-300 text-gray-500"
+      className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center text-sm transition-colors ${
+        dragOver
+          ? "border-blue-600 bg-blue-50 text-gray-900"
+          : "border-gray-300 text-gray-500 hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
       }`}
     >
       <input
@@ -57,7 +59,7 @@ export function FileDropzone({
         onChange={(e) => onFileSelected(e.target.files?.[0] ?? null)}
       />
       {selectedFileName ? (
-        <p className="font-medium text-gray-900">{selectedFileName}</p>
+        <p className="text-base font-medium text-gray-900 dark:text-gray-100">{selectedFileName}</p>
       ) : (
         <p>Drag and drop a PDF here, or click to browse</p>
       )}
