@@ -899,3 +899,8 @@
 ### OPEN ITEM (decide after the demo): merge `frontend-work` into `main` and push
 - `main` has none of the 2026-10-07 frontend work. 4 commits exist only on local `frontend-work`: `b359d02` visual refresh + self-hosted fonts, `b5c3534` dark default, `8f377f9` Approvals nav link, `ea4422c` Login backdrop/intro. Nothing has been pushed to `origin` from this branch; `main` has no commits that `frontend-work` lacks, so a merge would fast-forward.
 - Decision pending: merge to `main` (and push), or keep on the branch. Intentionally NOT done before the demo.
+
+### 2026-10-07 - Login simplified
+- `Login.tsx` only: background image and its overlay removed; `frontend/public/images/login-bg.jpg` deleted (no other references). Plain `.card` split layout with a faint accent tint on the left panel; stacks (form first) below `md`.
+- Left panel rewritten as a three-feature gist (Tamper detection, Change localization, On-chain proof) with eyebrow, title, tagline, footer note and tech chips. Form unchanged.
+- Verified light/dark at 1280/1440/1920 against the rebuilt container: no `login-bg` requests. Login tests 5 pass; typecheck clean; lint 0 errors.
