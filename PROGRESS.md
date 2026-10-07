@@ -884,3 +884,9 @@
 - `lib/theme.ts` and the blocking script in `index.html` now fall back to dark when nothing is stored; `prefers-color-scheme` is no longer consulted. A stored choice (the toggle) still wins, so light stays one click away. Tests updated (244 pass).
 - Verified in headless Chrome with the system set to light and fresh storage: app comes up dark; toggling to light survives a reload.
 - Caveat: a browser that already has `proofchain.theme=light` stored (someone clicked the toggle earlier) will still open light. Click the toggle to dark once, or clear site data, before presenting.
+
+### 2026-10-07 - Nav: Approvals link for approvers
+- `AppShell` shows an "Approvals" link (to `/approvals`) only to users with the APPROVER role (via `RoleGate`, UX only; the route and backend still enforce roles). Previously the page was reachable only by typing the URL.
+- New `AppShell.test.tsx` (3): link + href for an approver, hidden for an issuer, hidden when signed out. Frontend suite 247 pass; lint/typecheck clean.
+- Browser check: approver sees the link and it lands on `/approvals`; issuer does not see it.
+- Decision: page width/top-spacing unevenness between pages left as is until after rehearsal.

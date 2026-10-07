@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { RoleGate } from "../auth/RoleGate";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINK =
@@ -34,6 +35,11 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
               History
             </Link>
           )}
+          <RoleGate roles={["APPROVER"]}>
+            <Link to="/approvals" className={NAV_LINK}>
+              Approvals
+            </Link>
+          </RoleGate>
         </nav>
         <ThemeToggle />
       </header>
