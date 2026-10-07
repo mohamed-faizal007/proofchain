@@ -52,9 +52,11 @@ jobs:
       - run: pip install -c nlp-pins.txt -e "../backend[dev,eval,nlp]"
       - name: spaCy model, pinned by wheel URL and sha256 (not `spacy download`)
         run: |
-          curl -fsSL -o en_core_web_sm.whl "$SPACY_MODEL_URL"
-          echo "$SPACY_MODEL_SHA256  en_core_web_sm.whl" | sha256sum -c -
-          pip install --no-deps en_core_web_sm.whl
+          # pip parses the wheel filename, so keep the real name from the URL
+          WHEEL="${SPACY_MODEL_URL##*/}"
+          curl -fsSL -o "$WHEEL" "$SPACY_MODEL_URL"
+          echo "$SPACY_MODEL_SHA256  $WHEEL" | sha256sum -c -
+          pip install --no-deps "$WHEEL"
       - name: Cache the sentence-transformers model
         uses: actions/cache@v4
         with:
