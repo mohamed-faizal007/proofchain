@@ -34,7 +34,8 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: backend/pyproject.toml
-      - run: pip install -e ".[dev]"
+      # eval extra (faker): the demo-data tests (P10-04) reuse eval/ and skip without it.
+      - run: pip install -e ".[dev,eval]"
       - name: Record PyMuPDF version (extraction determinism)
         run: python -c "import pymupdf; print('PyMuPDF', pymupdf.__version__)"
       - run: python -m ruff check .
