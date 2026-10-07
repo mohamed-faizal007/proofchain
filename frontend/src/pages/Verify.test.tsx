@@ -274,10 +274,9 @@ describe("Verify: unknown document", () => {
     await submit();
     const picker = await screen.findByLabelText("Document to compare against");
     await screen.findByRole("option", { name: "Lease Agreement" });
-    const rerun = screen.getByRole("button", { name: /verify against this document/i });
-    expect(rerun).toBeDisabled();
-    await userEvent.selectOptions(picker, "doc-1");
-    await userEvent.click(rerun);
+    // the only document is preselected, so the button is already enabled
+    await waitFor(() => expect(picker).toHaveValue("doc-1"));
+    await userEvent.click(screen.getByRole("button", { name: /verify against this document/i }));
     await waitFor(() =>
       expect(screen.getByRole("region", { name: "Verdict" })).toHaveAttribute(
         "data-verdict",

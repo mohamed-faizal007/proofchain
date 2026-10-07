@@ -70,6 +70,9 @@ export function Verify(): ReactElement {
   }
 
   const busy = verify.isPending;
+  // With exactly one document there is nothing to choose: preselect it in the "which document" prompt.
+  const items = documents.data?.items ?? [];
+  const pickedId = documentId || (items.length === 1 ? (items[0]?.id ?? "") : "");
   if (result) {
     return (
       <main className="mx-auto max-w-6xl p-6">
@@ -104,7 +107,7 @@ export function Verify(): ReactElement {
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <select
                 aria-label="Document to compare against"
-                value={documentId}
+                value={pickedId}
                 onChange={(e) => setDocumentId(e.target.value)}
                 className="min-w-64 rounded-lg border px-3 py-2 dark:bg-gray-800"
               >
@@ -117,8 +120,8 @@ export function Verify(): ReactElement {
               </select>
               <button
                 type="button"
-                disabled={!documentId || busy}
-                onClick={() => void runVerify(result.file, documentId)}
+                disabled={!pickedId || busy}
+                onClick={() => void runVerify(result.file, pickedId)}
                 className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
               >
                 {busy ? "Verifying…" : "Verify against this document"}

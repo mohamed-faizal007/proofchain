@@ -8,7 +8,13 @@ import { api } from "../api/client";
 import type { AnalysisItem, ChangeRegion, VerificationReport } from "../api/types";
 import type { PdfDocLike, PdfPageLike } from "../lib/pdfjs";
 import { routerFuture } from "../routerFuture";
-import { ANALYSIS_R1, localizationWith, makeReport, region } from "../test/verificationFixtures";
+import {
+  ANALYSIS_R1,
+  localizationWith,
+  makeReport,
+  REFERENCE,
+  region,
+} from "../test/verificationFixtures";
 import { CANDIDATE_NOT_STORED_MESSAGE, VerificationReportView } from "./VerificationReportView";
 
 // pdf.js is mocked; which fake document comes back depends on the bytes handed to openPdf, so
@@ -189,6 +195,21 @@ describe("reference viewer hidden: anonymous vs no reference are distinct", () =
     );
     expect(screen.queryByTestId("reference-hidden-anonymous")).not.toBeInTheDocument();
     expect(downloads).toEqual([]);
+  });
+});
+
+describe("exact match: the matched revision fills the reference pane", () => {
+  it("shows the matched revision instead of 'no reference'", async () => {
+    const report = makeReport({
+      verdict: "AUTHENTIC_LATEST",
+      reference_revision: null,
+      matched_revision: REFERENCE,
+      localization: null,
+    });
+    renderView({ report, file: candidateFile() });
+    expect(screen.queryByTestId("reference-hidden-no-reference")).not.toBeInTheDocument();
+    await within(screen.getByTestId("viewer-reference")).findByTestId("pdf-page-1");
+    expect(downloads).toEqual([`/revisions/${REFERENCE.id}/download`]);
   });
 });
 

@@ -51,7 +51,8 @@ export function VerificationReportView({
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const regions = report.localization?.regions ?? [];
-  const reference = report.reference_revision;
+  // An exact match has no separate reference; show the matched revision so the pane is not empty.
+  const reference = report.reference_revision ?? report.matched_revision;
 
   let referencePane: ReactElement;
   if (isAnonymous) {
