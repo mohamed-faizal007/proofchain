@@ -890,3 +890,12 @@
 - New `AppShell.test.tsx` (3): link + href for an approver, hidden for an issuer, hidden when signed out. Frontend suite 247 pass; lint/typecheck clean.
 - Browser check: approver sees the link and it lands on `/approvals`; issuer does not see it.
 - Decision: page width/top-spacing unevenness between pages left as is until after rehearsal.
+
+### 2026-10-07 - Login backdrop + project intro panel
+- `Login.tsx` only: mesh background (`frontend/public/images/login-bg.jpg`, served by the container, no external URL) under a dark gradient so text/form stay readable in both themes, plus a short ProofChain intro panel (pitch, what it does, "crypto decides, AI explains", tech chips). Form logic and fields unchanged; form shown first on mobile. No new dependency.
+- Verified in headless Chrome against the rebuilt container, light and dark, desktop and mobile: image 200 `image/jpeg`, no external requests, default dark kept, both fonts loaded. Full frontend suite 247 pass; lint/typecheck clean.
+- Source image is 736x414, slightly soft when stretched; a larger copy would sharpen it.
+
+### OPEN ITEM (decide after the demo): merge `frontend-work` into `main` and push
+- `main` has none of the 2026-10-07 frontend work. 4 commits exist only on local `frontend-work`: `b359d02` visual refresh + self-hosted fonts, `b5c3534` dark default, `8f377f9` Approvals nav link, `ea4422c` Login backdrop/intro. Nothing has been pushed to `origin` from this branch; `main` has no commits that `frontend-work` lacks, so a merge would fast-forward.
+- Decision pending: merge to `main` (and push), or keep on the branch. Intentionally NOT done before the demo.
