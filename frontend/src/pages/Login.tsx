@@ -44,64 +44,69 @@ export function Login(): ReactElement {
         style={{ backgroundImage: "url('/images/login-bg.jpg')" }}
       >
         {/* Dark overlay keeps the intro text and form readable in both themes. */}
-        <div className="grid items-center gap-8 bg-gradient-to-br from-gray-950/85 via-gray-950/50 to-blue-950/25 p-6 sm:p-10 lg:grid-cols-[1.15fr_1fr]">
+        <div className="grid bg-gradient-to-br from-gray-950/85 via-gray-950/50 to-blue-950/25 lg:grid-cols-[1.15fr_1fr]">
           <IntroPanel />
-          <div className="card order-first w-full max-w-sm justify-self-center p-6 lg:order-none lg:justify-self-end">
-            <h1 className="page-title">Login</h1>
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-              noValidate
-            >
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="username"
-                  className="mt-1 w-full rounded border px-3 py-2"
-                  {...register("email")}
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                    {errors.email.message}
+          <div className="order-first flex flex-col justify-center border-b border-white/10 bg-white/95 p-6 backdrop-blur-md sm:p-10 dark:bg-gray-950/75 lg:order-none lg:border-b-0 lg:border-l">
+            <div className="mx-auto w-full max-w-sm">
+              <h1 className="page-title">Login</h1>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Sign in to submit, approve and verify documents.
+              </p>
+              <form
+                className="mt-6 space-y-5"
+                onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+                noValidate
+              >
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="username"
+                    className="mt-1.5 w-full rounded border px-3 py-2.5"
+                    {...register("email")}
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    className="mt-1.5 w-full rounded border px-3 py-2.5"
+                    {...register("password")}
+                  />
+                  {errors.password && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+                {formError && (
+                  <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                    {formError}
                   </p>
                 )}
-              </div>
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  className="mt-1 w-full rounded border px-3 py-2"
-                  {...register("password")}
-                />
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-              {formError && (
-                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                  {formError}
-                </p>
-              )}
-              <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
-                {isSubmitting ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
-            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              No account?{" "}
-              <Link to="/register" className="underline">
-                Register
-              </Link>
-            </p>
+                <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+                  {isSubmitting ? "Signing in…" : "Sign in"}
+                </button>
+              </form>
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                No account?{" "}
+                <Link to="/register" className="underline">
+                  Register
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -113,7 +118,10 @@ const BUILT_WITH = ["FastAPI", "MongoDB", "Solidity", "React", "NLP"];
 
 function IntroPanel(): ReactElement {
   return (
-    <section aria-labelledby="intro-title" className="text-gray-100">
+    <section
+      aria-labelledby="intro-title"
+      className="flex flex-col justify-center p-6 text-gray-100 sm:p-10"
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-300">
         Document provenance
       </p>
