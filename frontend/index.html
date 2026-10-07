@@ -27,12 +27,7 @@
         try {
           t = localStorage.getItem("proofchain.theme");
         } catch (e) {}
-        if (t !== "dark" && t !== "light") {
-          t =
-            window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
-        }
+        if (t !== "dark" && t !== "light") t = "dark"; // default, not the OS setting
         document.documentElement.classList.toggle("dark", t === "dark");
         document.documentElement.style.colorScheme = t;
       })();

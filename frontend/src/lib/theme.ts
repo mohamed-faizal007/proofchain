@@ -12,15 +12,11 @@ function stored(): Theme | null {
   }
 }
 
-function system(): Theme {
-  return typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
+/** Used when nothing is stored. Deliberately NOT the OS preference, so a demo looks the same on any machine. */
+export const DEFAULT_THEME: Theme = "dark";
 
 export function resolveTheme(): Theme {
-  return stored() ?? system();
+  return stored() ?? DEFAULT_THEME;
 }
 
 export function applyTheme(theme: Theme): void {

@@ -879,3 +879,8 @@
 - Verified in headless Chrome against the rebuilt frontend container (playwright-core in a scratch dir, nothing added to the repo), light AND dark, with all non-localhost requests blocked: Dashboard, Verify form, Verify tampered, Verify authentic, Document detail. Both font files report `loaded` offline. lint (0 errors, the existing AuthContext warning), typecheck, 243 tests, build all green.
 - Not checked: Login, Register, New document, Approvals queue and Verification history pages in the browser (class changes only; unit tests pass). Narrow/mobile widths.
 - Follow-up: dark is not forced as the default; the theme still follows the system preference until the toggle is used.
+
+### 2026-10-07 - Theme defaults to dark (not the OS setting)
+- `lib/theme.ts` and the blocking script in `index.html` now fall back to dark when nothing is stored; `prefers-color-scheme` is no longer consulted. A stored choice (the toggle) still wins, so light stays one click away. Tests updated (244 pass).
+- Verified in headless Chrome with the system set to light and fresh storage: app comes up dark; toggling to light survives a reload.
+- Caveat: a browser that already has `proofchain.theme=light` stored (someone clicked the toggle earlier) will still open light. Click the toggle to dark once, or clear site data, before presenting.

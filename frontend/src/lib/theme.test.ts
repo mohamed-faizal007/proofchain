@@ -18,11 +18,11 @@ afterEach(() => {
 });
 
 describe("theme", () => {
-  it("defaults to the system preference when nothing is stored", () => {
+  it("defaults to dark when nothing is stored, whatever the system preference", () => {
     stubSystem(true);
     expect(resolveTheme()).toBe("dark");
     stubSystem(false);
-    expect(resolveTheme()).toBe("light");
+    expect(resolveTheme()).toBe("dark");
   });
 
   it("a stored choice wins over the system preference", () => {
@@ -34,7 +34,7 @@ describe("theme", () => {
   it("ignores a garbage stored value", () => {
     stubSystem(false);
     localStorage.setItem(THEME_KEY, "purple");
-    expect(resolveTheme()).toBe("light");
+    expect(resolveTheme()).toBe("dark");
   });
 
   it("applyTheme toggles the dark class and colour-scheme", () => {
@@ -61,7 +61,7 @@ describe("theme", () => {
 
   it("works when matchMedia is missing", () => {
     vi.stubGlobal("matchMedia", undefined);
-    expect(resolveTheme()).toBe("light");
+    expect(resolveTheme()).toBe("dark");
   });
 });
 
@@ -88,11 +88,18 @@ describe("index.html no-flash script", () => {
     expect(document.documentElement).toHaveClass("dark");
   });
 
-  it("falls back to the system preference and agrees with resolveTheme", () => {
-    stubSystem(true);
+  it("defaults to dark even when the system prefers light, and agrees with resolveTheme", () => {
+    stubSystem(false);
     runInline();
     expect(document.documentElement).toHaveClass("dark");
     expect(resolveTheme()).toBe("dark");
+  });
+
+  it("a stored light choice still wins", () => {
+    stubSystem(true);
+    localStorage.setItem(THEME_KEY, "light");
+    runInline();
+    expect(document.documentElement).not.toHaveClass("dark");
   });
 
   it("does not throw when storage is blocked", () => {
@@ -101,6 +108,6 @@ describe("index.html no-flash script", () => {
       throw new Error("blocked");
     });
     expect(runInline).not.toThrow();
-    expect(document.documentElement).not.toHaveClass("dark");
+    expect(document.documentElement).toHaveClass("dark");
   });
 });
