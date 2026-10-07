@@ -84,6 +84,7 @@ export function Verify(): ReactElement {
             onClick={() => {
               setResult(null);
               setFile(null);
+              setDocumentId("");
             }}
           >
             Verify another file

@@ -198,7 +198,7 @@ export function ApprovalsQueue(): ReactElement {
                           type="button"
                           disabled={busy}
                           onClick={() => void handleApprove(item)}
-                          className="rounded bg-green-700 px-3 py-1 text-xs text-white disabled:opacity-50"
+                          className="btn-primary"
                         >
                           {busy ? "Working…" : "Approve"}
                         </button>
@@ -206,7 +206,7 @@ export function ApprovalsQueue(): ReactElement {
                           type="button"
                           disabled={busy}
                           onClick={() => void handleReject(item)}
-                          className="rounded bg-red-700 px-3 py-1 text-xs text-white disabled:opacity-50"
+                          className="btn-secondary"
                         >
                           {busy ? "Working…" : "Reject"}
                         </button>
@@ -225,7 +225,7 @@ export function ApprovalsQueue(): ReactElement {
               type="button"
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
-              className="rounded border px-3 py-1 disabled:opacity-50"
+              className="btn-secondary"
             >
               Previous
             </button>
@@ -236,7 +236,7 @@ export function ApprovalsQueue(): ReactElement {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage(page + 1)}
-              className="rounded border px-3 py-1 disabled:opacity-50"
+              className="btn-secondary"
             >
               Next
             </button>
