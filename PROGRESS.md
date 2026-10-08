@@ -907,3 +907,6 @@
 
 ### 2026-10-07 - docs/PROJECT_EXPLAINED.md (presenter's guide)
 - Added `docs/PROJECT_EXPLAINED.md`, a 16-section explanation for the faculty presentation, written from the code, ADRs, specs and `eval/results/seed20260930`. No code changed. Code-vs-spec differences it flags: `07` names react-pdf and lucide-react but the frontend uses `pdfjs-dist` directly; `/chain/status` (04) is not implemented; the 12 MB tree-to-S3 fallback (03) is not implemented; embeddings stay enabled by default although the evaluation shows rules + NER scores higher (no ADR removes them).
+
+### 2026-10-08 - Demo-ready checkpoint
+- Demo-ready checkpoint: frontend restyle, Login simplification, storage walkthrough, project explainer doc; demo verified end to end on local Hardhat.
