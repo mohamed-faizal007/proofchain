@@ -4,7 +4,7 @@
 ```mermaid
 flowchart LR
   subgraph Client
-    FE[React SPA<br/>Vite + TS + Tailwind<br/>react-pdf viewer]
+    FE[React SPA<br/>Vite + TS + Tailwind<br/>pdf.js viewer]
   end
   subgraph Backend[FastAPI backend]
     API[Routers /api/v1]

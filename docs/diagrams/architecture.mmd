@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph Client
+    FE["React SPA<br/>Vite + TS + Tailwind<br/>pdf.js viewer"]
+  end
+  subgraph Backend["FastAPI backend"]
+    API["Routers /api/v1"]
+    SVC["Services<br/>documents · revisions · verification · provenance · auth"]
+    CORE["proofchain_core<br/>extract · canonicalize · chunk · hash · merkle · localize"]
+    NLP["nlp<br/>entity diff · similarity · classifier"]
+    CHAIN["chain client<br/>web3.py"]
+    STORE["storage client<br/>boto3"]
+    REPO["repositories<br/>Motor"]
+  end
+  FE -->|"JSON / multipart"| API --> SVC
+  SVC --> CORE
+  SVC --> NLP
+  SVC --> REPO --> MDB[("MongoDB<br/>trees, revisions, events")]
+  SVC --> STORE --> S3[("S3 / MinIO<br/>PDF files")]
+  SVC --> CHAIN --> BC[("ProofChainRegistry<br/>Hardhat / Sepolia<br/>hashes only")]

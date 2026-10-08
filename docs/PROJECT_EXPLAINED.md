@@ -61,7 +61,7 @@ Versions are exact only where the repository pins them. Elsewhere the repository
 | **torch 2.14.0** (CPU) | Needed by sentence-transformers | Pinned in `eval/nlp-pins.txt` |
 | **React 18.3, TypeScript ~5.6, Vite 6** | Web interface | Strict-mode TypeScript (`CLAUDE.md`) |
 | **Tailwind CSS 3.4** | Styling | Utility classes, theme tokens in `tailwind.config.ts` |
-| **pdf.js** (`pdfjs-dist ^5.6`) | Renders PDFs in the browser with highlight overlays | **[spec differs]** `07_FRONTEND_SPEC.md` names `react-pdf` and `lucide-react`; `package.json` contains neither. The code calls `pdfjs-dist` directly |
+| **pdf.js** (`pdfjs-dist ^5.6`) | Renders PDFs in the browser with highlight overlays | Called directly (no `react-pdf` wrapper); the frontend has no icon library, only Unicode glyphs and one inline SVG |
 | **TanStack Query, axios, react-hook-form, zod, react-router** | Data fetching, forms, validation, routing | Versions are caret ranges in `package.json` |
 | **Docker / Compose** | MongoDB, MinIO, Hardhat node, and (profile `app`) backend and frontend | One command starts the stack. Ports bind to `127.0.0.1` only |
 | **nginx** (`nginx-unprivileged:1.27-alpine`) | Serves the built frontend | Static files, SPA fallback, non-root |
@@ -702,6 +702,7 @@ Honest list from `PROGRESS.md`, the ADRs and `02_ALGORITHMS.md` section 13.
 - The backend Docker image is about 4.4 GB, and its build is fragile: any source change invalidates the large dependency layers (follow-up recorded).
 - PDF highlights assume unrotated pages with a zero-origin crop box.
 - Frontend token stored in `localStorage`.
+- The web page for submitting a new revision (`/documents/:id/revisions/new`) is a placeholder ("Not implemented yet"); revisions are submitted through the API, as `demo.ps1` does. Revoke and retry-anchor also have no UI.
 
 **Future work already on record:** an `ADMIN` abandon-anchor and cancel-approval tool; verdict handling for unanchored approvals; proxy-aware rate limiting and shared storage for limits; page rotation and crop-box support in the viewer; reducing the image build cost; revisiting the MINOR_EDIT gate (token-level or character-level similarity instead of embeddings); a canon-version migration plan.
 
