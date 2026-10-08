@@ -1,7 +1,8 @@
 # 07 — Frontend Spec
 
 Stack: React 18 + TypeScript (strict) + Vite, Tailwind CSS, React Router v6, TanStack Query v5, axios,
-react-hook-form + zod, `react-pdf` (pdf.js) for rendering, lucide-react icons, Vitest + Testing Library.
+react-hook-form + zod, `pdfjs-dist` (pdf.js, used directly, no `react-pdf` wrapper) for rendering, no icon library
+(Unicode glyphs such as ✓ ✗ ✕ and one inline SVG), Vitest + Testing Library.
 Theme: clean, light/dark; verdict colours: green AUTHENTIC, amber CONTENT_EQUIVALENT/SUPERSEDED, red TAMPERED/
 UNAUTHORIZED/RECORD_MISMATCH, grey UNKNOWN.
 
