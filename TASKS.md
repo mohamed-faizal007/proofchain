@@ -199,5 +199,5 @@ Note: in-container backend uses http://minio:9000; presigned URLs must still be 
 Note: if a reverse proxy fronts the backend, per-IP rate limits (ADR-022) see only the proxy's address; configure trusted-proxy handling or accept and record the gap (PROGRESS.md Known issues, "P10-03 MUST DECIDE").
 ### [x] P10-04 End-to-end demo script (`scripts/demo.ps1`) + seeded demo data (original, approved v2, tampered copies)
 Deps: P10-03
-### [ ] P10-05 Final docs: README, architecture diagrams export, API examples, user guide; tag v1.0
+### [x] P10-05 Final docs: README, architecture diagrams export, API examples, user guide; tag v1.0
 Deps: all

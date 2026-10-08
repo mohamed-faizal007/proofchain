@@ -19,7 +19,7 @@
   Public testnet instead of the local chain (spends test ETH; NOT exercised by the project tests):
       $env:ANCHOR_PRIVATE_KEY = '<funded Sepolia key>'; $env:CHAIN_RPC_URL = '<Sepolia RPC URL>'
       .\scripts\demo.ps1 -Network sepolia
-  Needs Docker Desktop, Node 20 (contracts) and backend\.venv (py -3.11 -m venv .venv; pip install -e ".[dev]").
+  Needs Docker Desktop, Node 20 (contracts) and backend\.venv (py -3.11 -m venv .venv; pip install -e ".[dev,eval]").
 #>
 [CmdletBinding()]
 param(
@@ -95,7 +95,7 @@ function Wait-Until([scriptblock]$Condition, [int]$TimeoutSec, [string]$What) {
 }
 
 if (-not (Test-Path $python)) {
-    throw "backend\.venv not found. From backend\: py -3.11 -m venv .venv ; .\.venv\Scripts\Activate.ps1 ; pip install -e '.[dev]'"
+    throw "backend\.venv not found. From backend\: py -3.11 -m venv .venv ; .\.venv\Scripts\Activate.ps1 ; pip install -e '.[dev,eval]'"
 }
 Invoke-Native { docker info --format '{{.ServerVersion}}' | Out-Null } 'docker (is Docker Desktop running?)'
 New-Item -ItemType Directory -Force -Path $demoDir | Out-Null
