@@ -9,5 +9,4 @@ function Placeholder({ title }: { title: string }): ReactElement {
   );
 }
 
-export const RevisionNew = () => <Placeholder title="New revision" />;
 export const NotFound = () => <Placeholder title="Page not found" />;

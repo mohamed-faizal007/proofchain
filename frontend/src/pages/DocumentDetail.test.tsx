@@ -169,6 +169,16 @@ describe("DocumentDetail page", () => {
     );
   });
 
+  it("hides 'Submit new revision' from an ISSUER who does not own the document", async () => {
+    renderDetail(["ISSUER"], {
+      "/documents/doc-1": ok({ ...DOCUMENT, document: { ...DOCUMENT.document, owner_id: "u9" } }),
+      "/revisions": ok(REVISIONS),
+      "/provenance": ok(PROVENANCE),
+    });
+    await screen.findByRole("heading", { name: "Lease Agreement" });
+    expect(screen.queryByRole("link", { name: /submit new revision/i })).not.toBeInTheDocument();
+  });
+
   it("hides 'Submit new revision' for a non-ISSUER", async () => {
     renderDetail(["VERIFIER"], {
       "/documents/doc-1": ok(DOCUMENT),

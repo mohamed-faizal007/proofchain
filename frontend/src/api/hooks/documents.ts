@@ -92,3 +92,30 @@ export function useCreateDocument() {
     },
   });
 }
+
+export interface SubmitRevisionInput {
+  documentId: string;
+  file: File;
+  change_note: string;
+}
+
+/** POST /documents/{id}/revisions (multipart): owner-only; creates the next PENDING revision. */
+export function useSubmitRevision() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: SubmitRevisionInput) => {
+      const form = new FormData();
+      form.append("file", input.file);
+      form.append("change_note", input.change_note);
+      const { data } = await api.post<DocumentCreateResponse>(
+        `/documents/${input.documentId}/revisions`,
+        form,
+      );
+      return data;
+    },
+    onSuccess: (_result, input) => {
+      void queryClient.invalidateQueries({ queryKey: ["documents", input.documentId] });
+      void queryClient.invalidateQueries({ queryKey: ["revisions", "pending"] });
+    },
+  });
+}

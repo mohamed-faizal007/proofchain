@@ -27,9 +27,12 @@ The person who submitted a revision can never approve it (maker is not checker).
 3. The document is created with revision 1 in status **PENDING**. Nothing is on the chain yet.
 
 To change a document later, submit a new revision with the updated PDF and a change note (required);
-it is also PENDING. **Known gap:** the web app's *Submit new revision* page is a placeholder ("Not
-implemented yet"). Submit revisions through the API (`POST /documents/{id}/revisions`, see
-[API_EXAMPLES.md](API_EXAMPLES.md)); `demo.ps1` does this for the amendment.
+it is also PENDING. On the document page, the owner (an Issuer) clicks *Submit new revision*, writes a
+change note, picks the PDF and submits; the page then shows the new revision as PENDING. Only the
+document's owner sees the button; a second pending revision, or a PDF whose text is identical to the
+latest approved one, is rejected with a message. The same thing is available through the API
+(`POST /documents/{id}/revisions`, see [API_EXAMPLES.md](API_EXAMPLES.md)); `demo.ps1` uses it for the
+amendment. Revoking and retrying an anchor remain API-only.
 
 ## 2. Approve and anchor (approver)
 

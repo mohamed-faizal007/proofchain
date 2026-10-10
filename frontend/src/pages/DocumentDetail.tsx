@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useDocument, useDocumentRevisions, useProvenance } from "../api/hooks/documents";
+import { useAuth } from "../auth/AuthContext";
 import { RoleGate } from "../auth/RoleGate";
 import { HashBadge } from "../components/HashBadge";
 import { RevisionDiffPanel } from "../components/RevisionDiffPanel";
@@ -15,6 +16,7 @@ function errorMessage(err: unknown): string {
 
 export function DocumentDetail(): ReactElement {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const documentQuery = useDocument(id);
   const revisionsQuery = useDocumentRevisions(id);
   const provenanceQuery = useProvenance(id);
@@ -49,11 +51,14 @@ export function DocumentDetail(): ReactElement {
                 </div>
               )}
             </div>
-            <RoleGate roles={["ISSUER"]}>
-              <Link to={`/documents/${id}/revisions/new`} className="btn-primary">
-                Submit new revision
-              </Link>
-            </RoleGate>
+            {/* Backend rule: ISSUER role and document owner (documents service, P5-02). */}
+            {user?.id === documentQuery.data.document.owner_id && (
+              <RoleGate roles={["ISSUER"]}>
+                <Link to={`/documents/${id}/revisions/new`} className="btn-primary">
+                  Submit new revision
+                </Link>
+              </RoleGate>
+            )}
           </div>
         ) : (
           <p className="text-sm text-gray-500 dark:text-gray-400">Document not found.</p>
