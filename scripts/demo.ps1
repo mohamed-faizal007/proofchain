@@ -153,7 +153,10 @@ Write-Step 'Starting the app (backend image includes the NLP models; built only 
 $phase.Restart()
 $buildFlag = if ($Build) { @('--build') } else { @() }
 Invoke-Compose @profiles up -d @buildFlag
-Wait-Until { (docker inspect -f '{{.State.Health.Status}}' proofchain-backend-1) -eq 'healthy' } $HealthTimeoutSec 'the backend container to become healthy'
+Wait-Until {
+    $backendId = (docker compose -f $composeFile @profiles ps -q backend | Select-Object -First 1)
+    $backendId -and ((docker inspect -f '{{.State.Health.Status}}' $backendId) -eq 'healthy')
+} $HealthTimeoutSec 'the backend container to become healthy'
 $timings['app up + backend healthy'] = $phase.Elapsed.TotalSeconds
 
 $health = Invoke-RestMethod -Uri "$apiBase/health" -TimeoutSec 10

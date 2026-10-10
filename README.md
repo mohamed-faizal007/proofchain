@@ -49,8 +49,8 @@ The generated test PDFs are in `demo/data`. Upload them on the **Verify** page t
 ### The first Docker build is large (read this first)
 
 The backend image bakes in spaCy, a sentence-embedding model and CPU PyTorch: **about 4.4 GB**. On a
-fresh clone the first `demo.ps1` run builds it, which takes **roughly 25 minutes on a fast link and up
-to 2 hours on a slow one**, and needs a stable connection (a dropped pip download fails the build;
+fresh clone the first `demo.ps1` run builds it, which takes **about 15 to 30 minutes, longer on a slow
+link** (measured: 14 min 39 s), and needs a stable connection (a dropped pip download fails the build;
 rerun to retry). Later runs reuse the image. Ports 27017, 8000, 8080, 8545, 9000 and 9001 must be free.
 
 - `.\scripts\demo.ps1 -Build` rebuilds the images after code changes (opt-in on purpose).

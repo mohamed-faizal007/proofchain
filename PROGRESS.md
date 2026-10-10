@@ -928,3 +928,8 @@
 - Side effect on local state: the API-example capture added one document, three verifications and one user to the demo database; `demo.ps1 -Reset` (run to restore the stack) wiped them.
 - Follow-ups: make `demo.ps1` derive the container name from the compose project instead of `proofchain-backend-1`; build the new-revision page and revoke / retry-anchor UI; push `main` and tag `v1.0`.
 - Tag: `v1.0` on the commit that contains this entry.
+
+### 2026-10-10 - Follow-ups 1, 2, 5 (one commit, not pushed)
+- `scripts/demo.ps1`: the backend health wait resolves the container with `docker compose -f <file> --profile app ps -q backend` instead of the hardcoded `proofchain-backend-1`, so it follows the compose project name. Line 73 (port-conflict check) still filters on the label `com.docker.compose.project=proofchain`; not changed.
+- `.github/workflows/ci.yml`, `eval-nlp.yml`: `ubuntu-latest` -> `ubuntu-24.04` (the `windows-latest` job is unchanged); actions pinned to full tags: checkout v4.4.0, setup-python v5.6.0, setup-node v4.4.0, cache v4.3.0, upload-artifact v4.6.2 (tags, not SHAs). Nothing else changed in the workflows; not yet run on GitHub.
+- README: first-build estimate now "about 15 to 30 minutes, longer on a slow link (measured: 14 min 39 s)".

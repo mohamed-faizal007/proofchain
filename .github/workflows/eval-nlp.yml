@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   eval-nlp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       # Model weights, pinned exactly. Library versions are in eval/nlp-pins.txt.
@@ -41,8 +41,8 @@ jobs:
       run:
         working-directory: eval
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
@@ -58,7 +58,7 @@ jobs:
           echo "$SPACY_MODEL_SHA256  $WHEEL" | sha256sum -c -
           pip install --no-deps "$WHEEL"
       - name: Cache the sentence-transformers model
-        uses: actions/cache@v4
+        uses: actions/cache@v4.3.0
         with:
           path: ~/.cache/huggingface
           key: hf-all-MiniLM-L6-v2-${{ env.HF_MODEL_REVISION }}
@@ -105,7 +105,7 @@ jobs:
           for arm, a in r["arms"].items():
               print(f"| {arm} | {a['macro_f1']:.3f} | {a['accuracy']:.3f} | {a['lenient_accuracy']:.3f} |")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: eval-nlp-results
           path: eval/results/a

@@ -14,22 +14,22 @@ concurrency:
 
 jobs:
   secret-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
       - run: python scripts/secret_scan.py
 
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
@@ -47,7 +47,7 @@ jobs:
     # Real Hardhat node + MongoDB, so `-m chain` / `-m mongo` run on every push, not by hand
     # (P5 review M5). The node runs as a background process, not a service container: it has to
     # be started from this checkout (contracts/) and the contract deployed from it.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       mongo:
@@ -59,13 +59,13 @@ jobs:
     env:
       MONGO_URI: mongodb://localhost:27017
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: contracts/package-lock.json
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
@@ -106,8 +106,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
@@ -116,13 +116,13 @@ jobs:
       - run: python -m pytest tests/unit/core -q
 
   contracts:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: contracts
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 20
           cache: npm
@@ -132,13 +132,13 @@ jobs:
       - run: npx hardhat test
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 20
           cache: npm
@@ -151,13 +151,13 @@ jobs:
 
   eval:
     # Corpus generator: determinism tests (pinned reportlab, PyMuPDF, Faker and DejaVu font).
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: eval
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
