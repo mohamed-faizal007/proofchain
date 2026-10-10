@@ -4,6 +4,7 @@ import { useDownloadRevisionFile } from "../api/hooks/revisions";
 import { ApiError } from "../api/client";
 import type { Revision } from "../api/types";
 import { formatDate } from "../lib/format";
+import { RevisionActions } from "./RevisionActions";
 import { TxLink } from "./TxLink";
 
 const STATUS_CLASSES: Record<Revision["status"], string> = {
@@ -76,6 +77,7 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
                 Revoked {formatDate(revision.revocation.at)}: {revision.revocation.reason}
               </p>
             )}
+            <RevisionActions revision={revision} />
             <button
               type="button"
               onClick={() => void handleDownload(revision)}

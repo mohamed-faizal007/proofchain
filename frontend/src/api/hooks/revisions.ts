@@ -53,24 +53,60 @@ export interface ReviewRevisionInput {
   comment?: string;
 }
 
-function useReviewMutation(action: "approve" | "reject") {
+function useInvalidateAfterChange() {
   const queryClient = useQueryClient();
+  return (revision: Revision): void => {
+    void queryClient.invalidateQueries({ queryKey: ["revisions", "pending"] });
+    void queryClient.invalidateQueries({ queryKey: ["documents"] });
+    void queryClient.invalidateQueries({
+      queryKey: ["documents", revision.document_id, "revisions"],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["documents", revision.document_id, "provenance"],
+    });
+  };
+}
+
+function useReviewMutation(action: "approve" | "reject") {
+  const invalidate = useInvalidateAfterChange();
   return useMutation({
     mutationFn: async ({ revisionId, comment }: ReviewRevisionInput) => {
       const body = comment !== undefined ? { comment } : undefined;
       const { data } = await api.post<Revision>(`/revisions/${revisionId}/${action}`, body);
       return data;
     },
-    onSuccess: (revision) => {
-      void queryClient.invalidateQueries({ queryKey: ["revisions", "pending"] });
-      void queryClient.invalidateQueries({ queryKey: ["documents"] });
-      void queryClient.invalidateQueries({
-        queryKey: ["documents", revision.document_id, "revisions"],
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["documents", revision.document_id, "provenance"],
-      });
+    onSuccess: invalidate,
+  });
+}
+
+export interface RevokeRevisionInput {
+  revisionId: string;
+  reason: string;
+}
+
+/** POST /revisions/{id}/revoke (04_API_SPEC): APPROVER; `reason` required (stored on-chain, so
+ * public); synchronous, 200 with the REVOKED revision once the on-chain revoke is confirmed. */
+export function useRevokeRevision() {
+  const invalidate = useInvalidateAfterChange();
+  return useMutation({
+    mutationFn: async ({ revisionId, reason }: RevokeRevisionInput) => {
+      const { data } = await api.post<Revision>(`/revisions/${revisionId}/revoke`, { reason });
+      return data;
     },
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /revisions/{id}/retry-anchor (04_API_SPEC): ADMIN; FAILED -> 202 and a new attempt in
+ * the background; already ANCHORED -> 200 no-op. */
+export function useRetryAnchor() {
+  const invalidate = useInvalidateAfterChange();
+  return useMutation({
+    mutationFn: async (revisionId: string) => {
+      const { data } = await api.post<Revision>(`/revisions/${revisionId}/retry-anchor`);
+      return data;
+    },
+    onSuccess: invalidate,
   });
 }
 

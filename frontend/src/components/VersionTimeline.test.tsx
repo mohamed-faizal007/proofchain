@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
 import { beforeEach, vi } from "vitest";
-import { api } from "../api/client";
+import { api, createClient } from "../api/client";
+import { MemoryRouter } from "react-router-dom";
+import { routerFuture } from "../routerFuture";
+import { AuthProvider } from "../auth/AuthContext";
+import { setStoredToken } from "../auth/storage";
 import type { Revision } from "../api/types";
 import { VersionTimeline } from "./VersionTimeline";
 
@@ -49,9 +53,32 @@ function renderTimeline(revisions: Revision[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  // RevisionActions reads the signed-in user; a VERIFIER sees no revoke / retry buttons.
+  setStoredToken("test-token");
+  const authClient = createClient({
+    adapter: (config: InternalAxiosRequestConfig) =>
+      Promise.resolve({
+        data: {
+          id: "u9",
+          email: "v@example.com",
+          full_name: "V",
+          is_active: true,
+          created_at: "2024-01-01T00:00:00Z",
+          roles: ["VERIFIER"],
+        },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      } as AxiosResponse),
+  });
   return render(
     <QueryClientProvider client={queryClient}>
-      <VersionTimeline revisions={revisions} />
+      <MemoryRouter future={routerFuture}>
+        <AuthProvider client={authClient}>
+          <VersionTimeline revisions={revisions} />
+        </AuthProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

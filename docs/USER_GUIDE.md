@@ -14,7 +14,7 @@ toggle in the header switches to light.
 | Role | Can do |
 |---|---|
 | **Issuer** | Register documents, submit new revisions, view their own history |
-| **Approver** | Approve or reject pending revisions submitted by someone else; revoke an anchored revision (API only) |
+| **Approver** | Approve or reject pending revisions submitted by someone else; revoke an anchored revision (document page) |
 | **Admin** | Retry a failed anchor (API only) |
 | **Anyone, signed in or not** | Verify a PDF (anonymous reports are redacted) |
 
@@ -32,7 +32,7 @@ change note, picks the PDF and submits; the page then shows the new revision as 
 document's owner sees the button; a second pending revision, or a PDF whose text is identical to the
 latest approved one, is rejected with a message. The same thing is available through the API
 (`POST /documents/{id}/revisions`, see [API_EXAMPLES.md](API_EXAMPLES.md)); `demo.ps1` uses it for the
-amendment. Revoking and retrying an anchor remain API-only.
+amendment.
 
 ## 2. Approve and anchor (approver)
 
@@ -41,7 +41,7 @@ amendment. Revoking and retrying an anchor remain API-only.
 3. On approval the revision becomes **APPROVED** and is anchored in the background. Its status moves
    from ANCHORING to **ANCHORED** once the transaction is confirmed (a few seconds on the local chain).
    Only the hashes are written to the chain, never the document.
-4. If anchoring fails the revision shows FAILED; an admin retries it through the API (`POST /revisions/{id}/retry-anchor`).
+4. If anchoring fails the revision shows FAILED; an admin presses *Retry anchor* on that revision on the document page (API: `POST /revisions/{id}/retry-anchor`).
 
 The document page shows every revision, its status, the transaction hash and the provenance events.
 
@@ -84,7 +84,7 @@ reported as tampering.
 ## 4. History and revocation
 
 - **History** lists your past verifications with their verdicts.
-- An approver can revoke an anchored revision through the API (`POST /revisions/{id}/revoke`; there is no button yet). After that, its file is reported `UNAUTHORIZED_VERSION`.
+- An approver can revoke an approved, anchored revision with the *Revoke* button on its card on the document page. A confirmation step asks for a reason (required, up to 500 characters; it is written to the blockchain, so it is public) and the action cannot be undone. The API equivalent is `POST /revisions/{id}/revoke`. After that, the revision's file is reported `UNAUTHORIZED_VERSION` with the reason.
 
 ## Try it with the demo files
 

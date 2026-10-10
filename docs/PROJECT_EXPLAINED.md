@@ -702,7 +702,7 @@ Honest list from `PROGRESS.md`, the ADRs and `02_ALGORITHMS.md` section 13.
 - The backend Docker image is about 4.4 GB, and its build is fragile: any source change invalidates the large dependency layers (follow-up recorded).
 - PDF highlights assume unrotated pages with a zero-origin crop box.
 - Frontend token stored in `localStorage`.
-- The web page for submitting a new revision (`/documents/:id/revisions/new`) exists (ISSUER and document owner only, change note required, redirects to the document page showing the PENDING revision); `demo.ps1` still uses the API. Revoke and retry-anchor have no UI (API-only).
+- The web page for submitting a new revision (`/documents/:id/revisions/new`) exists (ISSUER and document owner only, change note required, redirects to the document page showing the PENDING revision); `demo.ps1` still uses the API. Revoke (APPROVER, approved and anchored revisions, reason required, inline confirmation) and Retry anchor (ADMIN, failed anchors) are buttons on each revision card of the document page (`RevisionActions`).
 
 **Future work already on record:** an `ADMIN` abandon-anchor and cancel-approval tool; verdict handling for unanchored approvals; proxy-aware rate limiting and shared storage for limits; page rotation and crop-box support in the viewer; reducing the image build cost; revisiting the MINOR_EDIT gate (token-level or character-level similarity instead of embeddings); a canon-version migration plan.
 
