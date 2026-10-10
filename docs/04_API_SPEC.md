@@ -137,7 +137,9 @@ P6-04 notes:
 ## System
 | GET | /health | public | `{status, mongo, s3, chain, nlp, canon_version}` |
 |---|---|---|---|
-| GET | /chain/status | any | `{chain_id, contract, latest_block, anchor_account, balance_eth}` |
+| GET | /chain/status | any authenticated | `{configured, healthy, chain_id, contract, latest_block}` |
+
+`/chain/status` (implemented as built, narrower than the first draft of this row): needs a valid token, any role; always HTTP 200. `configured` is false when no registry client exists (all other fields `null`); `healthy` is the registry client's `health()` result (RPC answers, chain id matches, contract code present) under the same per-probe timeout as `/health`, and a probe failure is `healthy=false` with no exception text. `chain_id`, `contract` (registry address) and `latest_block` come from that probe and are `null` when it fails or the client has none (the in-memory fake has no address). The earlier `anchor_account` and `balance_eth` fields are NOT exposed (they would need new client calls and add nothing the demo uses); no secrets are returned.
 
 `/health`: `canon_version` is an integer (the `CANON_VERSION` constant of `proofchain_core`). `mongo`/`s3` are `"ok"` or `"down"`; `chain` is `"ok"`/`"down"` from the registry client's `health()` (checked concurrently with a per-probe timeout, no exception text) or `"not_configured"` when no registry client is configured, which does not degrade `status`; `nlp` is `"not_configured"` until implemented; `status` is `"ok"` or `"degraded"` and the HTTP status stays 200.
 

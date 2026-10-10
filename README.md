@@ -104,7 +104,7 @@ Full list in [docs/PROJECT_EXPLAINED.md](docs/PROJECT_EXPLAINED.md) section 15 a
 - **Classification:** CLAUSE_MODIFIED recall is 0.571 and the evaluation corpus is synthetic.
 - **Operations:** rate limits are per client address, in memory and keyed on the TCP peer (not
   proxy-aware); no account lockout; one backend anchor wallet; the JWT is kept in `localStorage`.
-- **Not implemented:** `/chain/status` (in the API spec), the 12 MB tree-to-S3 fallback, and any web UI for revoking a revision or retrying a failed anchor (both are API-only: `POST /revisions/{id}/revoke` and `/retry-anchor`). New revisions can be submitted from the document page (*Submit new revision*, document owner only) or through the API.
+- **Not implemented:** the 12 MB tree-to-S3 fallback, and any web UI for revoking a revision or retrying a failed anchor (both are API-only: `POST /revisions/{id}/revoke` and `/retry-anchor`). New revisions can be submitted from the document page (*Submit new revision*, document owner only) or through the API.
 - **Demo caveats:** the Sepolia path of `demo.ps1` was not exercised by the tests; the `app` Docker
   profile has no reverse proxy, and `/health` reports `nlp` as a static `not_configured`.
 

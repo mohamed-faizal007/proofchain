@@ -70,7 +70,10 @@ function Assert-PortsAvailable {
     $ports = @(27017, 9000, 9001, 8000, 8080)
     if ($Network -eq 'localhost') { $ports += 8545 }
     # docker ps prints single ports ("127.0.0.1:8000->8000/tcp") and ranges ("127.0.0.1:9000-9001->9000-9001/tcp").
-    $published = (docker ps --filter 'label=com.docker.compose.project=proofchain' --format '{{.Ports}}') -join ' '
+    # The compose project name comes from compose itself (the file's name: or COMPOSE_PROJECT_NAME), not a literal.
+    $project = (docker compose -f $composeFile config --format json | ConvertFrom-Json).name
+    if (-not $project) { throw 'Could not resolve the compose project name from infra\docker-compose.yml.' }
+    $published = (docker ps --filter "label=com.docker.compose.project=$project" --format '{{.Ports}}') -join ' '
     $ours = @()
     foreach ($m in [regex]::Matches($published, ':(\d+)(?:-(\d+))?->')) {
         $low = [int]$m.Groups[1].Value

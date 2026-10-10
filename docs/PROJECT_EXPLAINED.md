@@ -698,7 +698,7 @@ Honest list from `PROGRESS.md`, the ADRs and `02_ALGORITHMS.md` section 13.
 - No account lockout; rate limits are per process and in memory.
 - One backend anchor wallet; on Sepolia the same address is deployer, admin and anchorer.
 - A permanently failing anchor for one version blocks later versions of that document, with no admin escape hatch yet (PROGRESS, P5 review M4).
-- `/chain/status` is in the API spec but is not implemented **[spec differs]**. `/health` always reports `nlp: "not_configured"` (a static field). The `GET /revisions/{id}/file` presigned URL does not work inside the Docker `app` profile (`/download` is the supported path). The spec's 12 MB tree-size fallback to S3 is not implemented in the repository **[spec differs]**.
+- `GET /chain/status` is implemented (authenticated; `{configured, healthy, chain_id, contract, latest_block}`) but narrower than the first spec draft, which also listed `anchor_account` and `balance_eth` **[spec differs]**. `/health` always reports `nlp: "not_configured"` (a static field). The `GET /revisions/{id}/file` presigned URL does not work inside the Docker `app` profile (`/download` is the supported path). The spec's 12 MB tree-size fallback to S3 is not implemented in the repository **[spec differs]**.
 - The backend Docker image is about 4.4 GB, and its build is fragile: any source change invalidates the large dependency layers (follow-up recorded).
 - PDF highlights assume unrotated pages with a zero-origin crop box.
 - Frontend token stored in `localStorage`.
