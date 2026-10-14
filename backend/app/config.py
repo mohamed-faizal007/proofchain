@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     nlp_enabled: bool = True
     nlp_spacy_model: str = "en_core_web_sm"
-    nlp_embeddings_enabled: bool = True
+    nlp_embeddings_enabled: bool = False
     nlp_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     nlp_llm_explanations: bool = False
     anthropic_api_key: str = ""

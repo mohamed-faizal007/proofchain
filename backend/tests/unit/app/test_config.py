@@ -58,3 +58,7 @@ def test_env_example_parses_without_leaking_inline_comments() -> None:
     for name, value in settings.model_dump().items():
         if isinstance(value, str):
             assert "#" not in value, f"{name} contains a stray '#': {value!r}"
+
+
+def test_embeddings_default_off_per_adr_023() -> None:
+    assert Settings(app_env="test", _env_file=None).nlp_embeddings_enabled is False

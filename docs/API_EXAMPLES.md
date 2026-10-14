@@ -627,7 +627,7 @@ Response `200`:
         }
       ],
       "explanation": "In Section \"Preamble\", page 1: the amount changed from INR:10000.00 to INR:90000.00.",
-      "method": "RULES+EMBEDDINGS"
+      "method": "RULES"
     }
   ],
   "chain_check": {
