@@ -71,8 +71,10 @@ when the version was found already revoked on-chain (a retried revoke after the 
   "sections": [ { "id": "S1", "title": "1. Definitions", "chunk_ids": ["p0-c1", "…"], "hash": "hex" } ],
   "page_levels": [["hex", "…"], ["hex"]] }
 ```
-Chunk text is stored (ADR-010) so NLP can compare without re-downloading PDFs. Size guard: if a tree
-document would exceed 12 MB, store it as JSON in S3 (`trees/{rev}.json`) and keep only roots here.
+Chunk text is stored (ADR-010) so NLP can compare without re-downloading PDFs. Size guard (**not implemented, out of scope**):
+the intended fallback was to store a tree document over 12 MB as JSON in S3 (`trees/{rev}.json`) and keep only
+roots here. The code always keeps the whole tree in this collection, so a text-based PDF whose tree exceeds
+MongoDB's 16 MB document limit would fail to register.
 
 ## provenance_events  (append-only; never update or delete)
 ```jsonc

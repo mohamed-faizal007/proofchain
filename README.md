@@ -57,7 +57,17 @@ rerun to retry). Later runs reuse the image. Ports 27017, 8000, 8080, 8545, 9000
 - `.\scripts\demo.ps1 -Reset` wipes the demo database and object store (use it after the chain container is recreated).
 - `docker build --build-arg WITH_NLP=0 ...` gives a slim, rule-only image (no `PARTY_CHANGE`
   detection, no embeddings).
-- `.\scripts\demo.ps1 -Network sepolia` targets the Sepolia testnet (needs a funded key; not covered by the project tests).
+- `.\scripts\demo.ps1 -Network sepolia` targets the Sepolia testnet (not exercised by the project tests). Dry-run checklist:
+  1. Needs, from your shell only (never a file): `$env:ANCHOR_PRIVATE_KEY` (a Sepolia key with test ETH that holds
+     `ANCHOR_ROLE`; the deployer in `contracts\deployments\sepolia.json` does) and `$env:CHAIN_RPC_URL` (a Sepolia RPC URL).
+     The registry address and chain id come from `contracts\deployments\sepolia.json` (committed). Optional:
+     `$env:EXPLORER_TX_URL` (defaults to `https://sepolia.etherscan.io/tx/`).
+  2. Docker Desktop running, `backend\.venv` present, ports free, no Hardhat container needed.
+  3. If the demo data came from a local run, use `-Reset` first (the script refuses to mix chains).
+  4. The script then checks, read-only, before starting anything: RPC chain id is 11155111, the registry has code, the key is valid
+     and the wallet has a non-zero balance (it warns if the wallet is not the deployer, since it must hold `ANCHOR_ROLE`).
+  5. Expect each anchor to wait for Sepolia confirmation (seconds to a minute); the demo spends a few transactions of test ETH.
+  6. Transaction links in the UI need the frontend image built with `VITE_EXPLORER_TX_URL` (a build argument); otherwise tx hashes show as plain text.
 
 ## Using it
 

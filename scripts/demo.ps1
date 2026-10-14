@@ -59,9 +59,9 @@ function Invoke-Compose {
     Invoke-Native { docker compose -f $composeFile @composeArgs } "docker compose $($composeArgs -join ' ')"
 }
 
-function Invoke-Rpc([string]$Method, [object[]]$Params = @()) {
+function Invoke-Rpc([string]$Method, [object[]]$Params = @(), [string]$Url = $rpcUrl) {
     $body = @{ jsonrpc = '2.0'; id = 1; method = $Method; params = $Params } | ConvertTo-Json -Compress
-    (Invoke-RestMethod -Uri $rpcUrl -Method Post -Body $body -ContentType 'application/json' -TimeoutSec 5).result
+    (Invoke-RestMethod -Uri $Url -Method Post -Body $body -ContentType 'application/json' -TimeoutSec 5).result
 }
 
 function Assert-PortsAvailable {
@@ -119,7 +119,9 @@ if ($Network -eq 'localhost') {
 
     $address = $null
     if (Test-Path $statePath) {
-        $address = (Get-Content -Raw $statePath | ConvertFrom-Json).address
+        $recorded = Get-Content -Raw $statePath | ConvertFrom-Json
+        if ($recorded.network -ne 'localhost') { throw "The demo data was seeded on the '$($recorded.network)' chain. Rerun with -Reset to use the local chain." }
+        $address = $recorded.address
         if ((Invoke-Rpc 'eth_getCode' @($address, 'latest')) -eq '0x') {
             throw "The chain was reset: no contract at $address any more, but the database may still hold anchors for it. Rerun with -Reset to start the demo data from scratch."
         }
@@ -139,13 +141,32 @@ if ($Network -eq 'localhost') {
     }
     $env:REGISTRY_ADDRESS = $address
     $env:ANCHOR_PRIVATE_KEY = $hardhatDevKey
+    # Drop Sepolia settings left in this shell by an earlier -Network sepolia run; compose then uses its local defaults.
+    foreach ($name in 'CHAIN_RPC_URL', 'CHAIN_ID', 'EXPLORER_TX_URL') { Remove-Item "env:$name" -ErrorAction SilentlyContinue }
 } else {
     # The anchoring key comes from this shell only (never a file); the address from the committed record.
     foreach ($name in 'ANCHOR_PRIVATE_KEY', 'CHAIN_RPC_URL') {
         if (-not (Get-Item "env:$name" -ErrorAction SilentlyContinue)) { throw "Set `$env:$name in this shell before using -Network sepolia." }
     }
-    $env:REGISTRY_ADDRESS = (Get-Content -Raw (Join-Path $root 'contracts\deployments\sepolia.json') | ConvertFrom-Json).address
+    $deployment = Get-Content -Raw (Join-Path $root 'contracts\deployments\sepolia.json') | ConvertFrom-Json
+    if ($deployment.chainId -ne 11155111) { throw 'contracts\deployments\sepolia.json is not a Sepolia deployment (chainId).' }
+    if (Test-Path $statePath) {
+        $recorded = Get-Content -Raw $statePath | ConvertFrom-Json
+        if ($recorded.network -ne 'sepolia') { throw "The demo data was seeded on the '$($recorded.network)' chain; its anchors do not exist on Sepolia. Rerun with -Reset." }
+    }
+    # Pre-flight (read-only): right network, registry deployed, anchor wallet funded and known to be the deployer or warned about.
+    $chainId = [Convert]::ToInt64((Invoke-Rpc 'eth_chainId' @() $env:CHAIN_RPC_URL), 16)
+    if ($chainId -ne 11155111) { throw "CHAIN_RPC_URL points at chain $chainId, not Sepolia (11155111)." }
+    if ((Invoke-Rpc 'eth_getCode' @($deployment.address, 'latest') $env:CHAIN_RPC_URL) -eq '0x') { throw "No contract at $($deployment.address) on this RPC." }
+    $wallet = (& $python -I -c "import os; from eth_account import Account; print(Account.from_key(os.environ['ANCHOR_PRIVATE_KEY']).address)").Trim()
+    if ($LASTEXITCODE -ne 0 -or $wallet -notmatch '^0x[0-9a-fA-F]{40}$') { throw 'ANCHOR_PRIVATE_KEY is not a valid private key.' }
+    if ((Invoke-Rpc 'eth_getBalance' @($wallet, 'latest') $env:CHAIN_RPC_URL) -eq '0x0') { throw "Anchor wallet $wallet has 0 Sepolia ETH." }
+    if ($wallet -ne $deployment.deployer -and $wallet -ne $deployment.anchorer) { Write-Warning "Wallet $wallet is not the deployer ($($deployment.deployer)); it must hold ANCHOR_ROLE on the registry or every anchor will revert." }
+    Write-Host "Anchor wallet $wallet"
+    $env:REGISTRY_ADDRESS = $deployment.address
     $env:CHAIN_ID = '11155111'
+    if (-not $env:EXPLORER_TX_URL) { $env:EXPLORER_TX_URL = 'https://sepolia.etherscan.io/tx/' }
+    @{ address = $deployment.address; network = $Network } | ConvertTo-Json | Set-Content -Encoding UTF8 $statePath
     Write-Step "Starting MongoDB and MinIO; anchoring to Sepolia registry $($env:REGISTRY_ADDRESS)"
     Invoke-Compose up -d mongo minio minio-init
 }

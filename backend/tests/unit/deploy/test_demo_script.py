@@ -82,3 +82,15 @@ def test_demo_script_parses_without_syntax_errors() -> None:
     )
     out = subprocess.run([exe, "-NoProfile", "-Command", probe], capture_output=True, text=True)
     assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_demo_sepolia_preflight_and_chain_mismatch_guards(text: str) -> None:
+    # Read-only checks before anything is started: network, registry code, funded wallet.
+    for needle in ("eth_chainId", "11155111", "eth_getBalance", "ANCHOR_ROLE"):
+        assert needle in text
+    # Data seeded on one chain must not be reused on the other.
+    assert text.count("Rerun with -Reset") >= 3
+
+
+def test_demo_local_run_drops_leftover_sepolia_settings(text: str) -> None:
+    assert re.search(r"'CHAIN_RPC_URL',\s*'CHAIN_ID',\s*'EXPLORER_TX_URL'", text)
