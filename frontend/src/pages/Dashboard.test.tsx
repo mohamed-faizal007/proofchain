@@ -59,7 +59,16 @@ describe("Dashboard", () => {
     expect(await screen.findByText("10")).toBeInTheDocument(); // Documents
     expect(await screen.findByText("2")).toBeInTheDocument(); // pending
     expect(await screen.findByText(/no verifications yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no documents yet/i)).toBeInTheDocument();
+  });
+
+  it("explains an empty result under filters and offers to clear them", async () => {
+    api.defaults.adapter = makeAdapter([]);
+    renderDashboard(["/?status=PENDING"]);
+
     expect(await screen.findByText(/no documents match these filters/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /clear filters/i }));
+    expect(await screen.findByText(/no documents yet/i)).toBeInTheDocument();
   });
 
   it("shows a per-section error without hiding the rest of the page", async () => {

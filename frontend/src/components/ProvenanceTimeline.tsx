@@ -1,6 +1,8 @@
 import type { ReactElement } from "react";
 import type { ProvenanceEvent } from "../api/types";
 import { formatDate } from "../lib/format";
+import { Alert } from "./Alert";
+import { EmptyState } from "./EmptyState";
 
 export function ProvenanceTimeline({
   events,
@@ -10,17 +12,21 @@ export function ProvenanceTimeline({
   chainValid: boolean;
 }): ReactElement {
   if (events.length === 0) {
-    return <p className="text-sm text-gray-500 dark:text-gray-400">No provenance events yet.</p>;
+    return (
+      <div className="card">
+        <EmptyState title="No provenance events yet">
+          Every upload, approval and anchoring step is recorded here as it happens.
+        </EmptyState>
+      </div>
+    );
   }
 
   return (
     <div>
       {!chainValid && (
-        <p role="alert" className="mb-2 text-sm font-medium text-red-600 dark:text-red-400">
-          The provenance hash chain for this document is broken.
-        </p>
+        <Alert className="mb-3">The provenance hash chain for this document is broken.</Alert>
       )}
-      <ul className="max-h-80 space-y-2 overflow-y-auto text-sm">
+      <ul className="stagger max-h-80 space-y-2 overflow-y-auto text-sm">
         {events.map((event) => (
           <li key={event.id} className="card p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

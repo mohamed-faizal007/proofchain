@@ -202,6 +202,15 @@ describe("Verify: form", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(pattern);
   });
 
+  it("flags a non-PDF as soon as it is chosen, before submit", async () => {
+    renderVerify(null);
+    fireEvent.change(await screen.findByLabelText("Choose PDF file"), {
+      target: { files: [new File(["x"], "notes.txt", { type: "text/plain" })] },
+    });
+    expect(await screen.findByText(/must be a \.pdf file/i)).toBeInTheDocument();
+    expect(posts).toHaveLength(0);
+  });
+
   it("shows the busy state and sends exactly one request on a double click", async () => {
     let release: (r: AxiosResponse) => void = () => {};
     verifyImpl = (config) =>
@@ -214,6 +223,9 @@ describe("Verify: form", () => {
     fireEvent.click(button);
     fireEvent.click(button);
     expect(await screen.findByRole("button", { name: /verifying/i })).toBeDisabled();
+    // A clear working state: progress bar + status text while the request is in flight.
+    expect(screen.getByRole("progressbar", { name: /verification progress/i })).toBeInTheDocument();
+    expect(screen.getByText(/uploading/i)).toBeInTheDocument();
     expect(posts).toHaveLength(1);
     release(reply({} as InternalAxiosRequestConfig, null));
     await screen.findByRole("region", { name: "Verdict" });

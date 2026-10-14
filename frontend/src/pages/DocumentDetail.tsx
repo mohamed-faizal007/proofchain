@@ -4,7 +4,9 @@ import { ApiError } from "../api/client";
 import { useDocument, useDocumentRevisions, useProvenance } from "../api/hooks/documents";
 import { useAuth } from "../auth/AuthContext";
 import { RoleGate } from "../auth/RoleGate";
+import { Alert } from "../components/Alert";
 import { HashBadge } from "../components/HashBadge";
+import { CardsSkeleton, LoadingRegion, Skeleton } from "../components/Skeleton";
 import { RevisionDiffPanel } from "../components/RevisionDiffPanel";
 import { ProvenanceTimeline } from "../components/ProvenanceTimeline";
 import { VersionTimeline } from "../components/VersionTimeline";
@@ -25,11 +27,13 @@ export function DocumentDetail(): ReactElement {
     <main className="mx-auto max-w-4xl px-6 py-10">
       <section>
         {documentQuery.isLoading ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading document…</p>
+          <LoadingRegion label="Loading document…" className="space-y-3">
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-1/2" />
+          </LoadingRegion>
         ) : documentQuery.isError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {errorMessage(documentQuery.error)}
-          </p>
+          <Alert>{errorMessage(documentQuery.error)}</Alert>
         ) : documentQuery.data ? (
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -69,11 +73,9 @@ export function DocumentDetail(): ReactElement {
         <h2 className="section-title">Revisions</h2>
         <div className="mt-3">
           {revisionsQuery.isLoading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading revisions…</p>
+            <CardsSkeleton label="Loading revisions…" count={2} />
           ) : revisionsQuery.isError ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {errorMessage(revisionsQuery.error)}
-            </p>
+            <Alert>{errorMessage(revisionsQuery.error)}</Alert>
           ) : (
             <VersionTimeline revisions={revisionsQuery.data ?? []} />
           )}
@@ -84,7 +86,9 @@ export function DocumentDetail(): ReactElement {
         <h2 className="section-title">Compare revisions</h2>
         <div className="mt-3">
           {revisionsQuery.isLoading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading revisions…</p>
+            <LoadingRegion label="Loading revisions…">
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </LoadingRegion>
           ) : revisionsQuery.isError ? null : (
             <RevisionDiffPanel revisions={revisionsQuery.data ?? []} />
           )}
@@ -95,11 +99,9 @@ export function DocumentDetail(): ReactElement {
         <h2 className="section-title">Provenance</h2>
         <div className="mt-3">
           {provenanceQuery.isLoading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading provenance…</p>
+            <CardsSkeleton label="Loading provenance…" count={2} />
           ) : provenanceQuery.isError ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {errorMessage(provenanceQuery.error)}
-            </p>
+            <Alert>{errorMessage(provenanceQuery.error)}</Alert>
           ) : (
             <ProvenanceTimeline
               events={provenanceQuery.data?.events ?? []}

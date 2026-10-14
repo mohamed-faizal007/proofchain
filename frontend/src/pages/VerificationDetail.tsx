@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useVerification } from "../api/hooks/verifications";
+import { Alert } from "../components/Alert";
+import { LoadingRegion, Skeleton } from "../components/Skeleton";
 import { VerificationReportView } from "../components/VerificationReportView";
 
 function errorMessage(err: unknown): string {
@@ -22,19 +24,21 @@ export function VerificationDetail(): ReactElement {
     <main className="mx-auto max-w-6xl p-6">
       <h1 className="page-title">Verification</h1>
       <p className="mt-1 text-sm">
-        <Link to="/verifications" className="text-blue-600 underline dark:text-blue-400">
+        <Link to="/verifications" className="link underline">
           All verifications
         </Link>
       </p>
       <div className="mt-4">
         {query.isLoading ? (
-          <p role="status" className="text-sm text-gray-500 dark:text-gray-400">
-            Loading verification…
-          </p>
+          <LoadingRegion label="Loading verification…" className="space-y-5">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Skeleton className="h-36 w-full rounded-2xl" />
+              <Skeleton className="h-36 w-full rounded-2xl" />
+            </div>
+          </LoadingRegion>
         ) : query.isError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {errorMessage(query.error)}
-          </p>
+          <Alert>{errorMessage(query.error)}</Alert>
         ) : query.data ? (
           <VerificationReportView report={query.data} isAnonymous={false} />
         ) : null}

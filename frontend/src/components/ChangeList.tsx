@@ -48,7 +48,7 @@ export function ChangeList({
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
             {g.title}
           </h4>
-          <ul className="space-y-2">
+          <ul className="stagger space-y-2">
             {g.regions.map((r) => (
               <ChangeCard
                 key={r.id}

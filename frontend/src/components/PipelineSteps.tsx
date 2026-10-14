@@ -41,7 +41,7 @@ const STATUS_STYLES: Record<StepStatus, { text: string; symbol: string; cls: str
 /** The server's step order is the pipeline order (file hash → … → semantic); shown as sent. */
 export function PipelineSteps({ steps }: { steps: VerificationStep[] }): ReactElement {
   return (
-    <ol aria-label="Verification pipeline" className="space-y-2">
+    <ol aria-label="Verification pipeline" className="stagger space-y-2">
       {steps.map((step) => {
         const style = STATUS_STYLES[step.status] ?? STATUS_STYLES.SKIPPED;
         return (

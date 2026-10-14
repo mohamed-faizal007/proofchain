@@ -1,8 +1,11 @@
-import type { ReactElement } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import type { MouseEvent, ReactElement } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useVerificationsPage } from "../api/hooks/verifications";
+import { Alert } from "../components/Alert";
+import { EmptyState } from "../components/EmptyState";
 import { HashBadge } from "../components/HashBadge";
+import { RowsSkeleton } from "../components/Skeleton";
 import { VerdictPill } from "../components/VerdictPill";
 import { formatDate } from "../lib/format";
 
@@ -12,6 +15,14 @@ export function VerificationHistory(): ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const query = useVerificationsPage(page, PAGE_SIZE);
+  const navigate = useNavigate();
+
+  // Whole-row click is a pointer convenience; the filename link stays the keyboard/AT target.
+  function openRow(e: MouseEvent<HTMLElement>, to: string): void {
+    if ((e.target as HTMLElement).closest("a,button,input,select,textarea")) return;
+    navigate(to);
+  }
+
   const totalPages = Math.max(1, Math.ceil((query.data?.total ?? 0) / PAGE_SIZE));
 
   function setPage(next: number): void {
@@ -31,23 +42,26 @@ export function VerificationHistory(): ReactElement {
 
       <section className="mt-4">
         {query.isLoading ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading verifications…</p>
+          <div className="card">
+            <RowsSkeleton label="Loading verifications…" rows={5} />
+          </div>
         ) : query.isError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <Alert>
             {query.error instanceof ApiError ? query.error.message : "Something went wrong."}
-          </p>
+          </Alert>
         ) : query.data && query.data.items.length > 0 ? (
           <ul
             // keepPreviousData shows the old page while the next one loads; make that visible
             aria-busy={query.isPlaceholderData}
-            className={`card divide-y overflow-hidden dark:divide-gray-700/70 ${
+            className={`stagger card divide-y overflow-hidden transition-opacity duration-200 dark:divide-gray-700/70 ${
               query.isPlaceholderData ? "opacity-60" : ""
             }`}
           >
             {query.data.items.map((v) => (
               <li
                 key={v.id}
-                className="space-y-1.5 p-4 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                onClick={(e) => openRow(e, `/verifications/${v.id}`)}
+                className="cursor-pointer space-y-1.5 p-4 text-sm transition-colors hover:bg-blue-50/60 focus-within:bg-blue-50/60 dark:hover:bg-blue-500/10 dark:focus-within:bg-blue-500/10"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <VerdictPill verdict={v.verdict} />
@@ -68,11 +82,17 @@ export function VerificationHistory(): ReactElement {
             ))}
           </ul>
         ) : (
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            <p>No verifications yet.</p>
-            <Link to="/verify" className="text-blue-600 underline dark:text-blue-400">
-              Verify a document
-            </Link>
+          <div className="card">
+            <EmptyState
+              title="No verifications yet"
+              action={
+                <Link to="/verify" className="btn-primary">
+                  Verify a document
+                </Link>
+              }
+            >
+              Every document you check is saved here with its verdict and file hash.
+            </EmptyState>
           </div>
         )}
 
@@ -82,7 +102,7 @@ export function VerificationHistory(): ReactElement {
               type="button"
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
-              className="rounded-lg border bg-white px-4 py-1.5 font-medium shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800"
+              className="btn-secondary"
             >
               Previous
             </button>
@@ -93,7 +113,7 @@ export function VerificationHistory(): ReactElement {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage(page + 1)}
-              className="rounded-lg border bg-white px-4 py-1.5 font-medium shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800"
+              className="btn-secondary"
             >
               Next
             </button>

@@ -1,16 +1,18 @@
 import type { ReactElement, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { RoleGate } from "../auth/RoleGate";
 import { ThemeToggle } from "./ThemeToggle";
+import { ToastProvider } from "./Toast";
 
 const NAV_LINK =
   "rounded-lg px-3 py-1.5 font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white";
 
 export function AppShell({ children }: { children: ReactNode }): ReactElement {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   return (
-    <>
+    <ToastProvider>
       <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white/80 px-6 py-3 text-sm backdrop-blur-md dark:border-gray-700/70 dark:bg-gray-950/70">
         <nav aria-label="Main" className="flex items-center gap-1">
           <Link
@@ -43,7 +45,10 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
         </nav>
         <ThemeToggle />
       </header>
-      {children}
-    </>
+      {/* Keyed by path so each route change replays the short fade-and-rise. */}
+      <div key={pathname} className="animate-page-in">
+        {children}
+      </div>
+    </ToastProvider>
   );
 }

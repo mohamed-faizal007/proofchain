@@ -4,8 +4,10 @@ import { ApiError } from "../api/client";
 import { useRevisionDiff } from "../api/hooks/revisions";
 import type { Revision } from "../api/types";
 import { candidateHighlights, referenceHighlights } from "../lib/regions";
+import { Alert } from "./Alert";
 import { ChangeList } from "./ChangeList";
 import LazyPdfViewer from "./LazyPdfViewer";
+import { Skeleton, LoadingRegion } from "./Skeleton";
 
 const label = (r: Revision): string => `v${r.revision_no} · ${r.status}`;
 
@@ -94,11 +96,12 @@ export function RevisionDiffPanel({ revisions }: { revisions: Revision[] }): Rea
           This revision has no parent, so choose a reference revision to compare against.
         </p>
       ) : diffQuery.isLoading ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Comparing revisions…</p>
+        <LoadingRegion label="Comparing revisions…" className="space-y-2">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-40 w-full rounded-lg" />
+        </LoadingRegion>
       ) : diffQuery.isError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {diffErrorMessage(diffQuery.error)}
-        </p>
+        <Alert>{diffErrorMessage(diffQuery.error)}</Alert>
       ) : diff ? (
         <>
           <div className="grid gap-4 lg:grid-cols-2">

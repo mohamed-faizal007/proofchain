@@ -7,6 +7,8 @@ import { z } from "zod";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { safeRedirectPath } from "../auth/redirect";
+import { Alert } from "../components/Alert";
+import { Spinner } from "../components/Spinner";
 
 const schema = z.object({
   email: z.string().min(1, "Email is required"),
@@ -86,12 +88,9 @@ export function Login(): ReactElement {
                   </p>
                 )}
               </div>
-              {formError && (
-                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                  {formError}
-                </p>
-              )}
+              {formError && <Alert>{formError}</Alert>}
               <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+                {isSubmitting && <Spinner />}
                 {isSubmitting ? "Signing in…" : "Sign in"}
               </button>
             </form>

@@ -8,7 +8,10 @@ import { ApiError } from "../api/client";
 import { useCreateDocument } from "../api/hooks/documents";
 import type { DocType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { Alert } from "../components/Alert";
 import { FileDropzone } from "../components/FileDropzone";
+import { Spinner } from "../components/Spinner";
+import { useToast } from "../components/useToast";
 import { validatePdfFile } from "../lib/pdfFile";
 
 const DOC_TYPES: DocType[] = ["CONTRACT", "CERTIFICATE", "INVOICE", "LEGAL", "OTHER"];
@@ -43,6 +46,7 @@ function mapUploadError(err: unknown): string {
 export function DocumentNew(): ReactElement {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { notify } = useToast();
   const createDocument = useCreateDocument();
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -63,9 +67,7 @@ export function DocumentNew(): ReactElement {
     return (
       <main className="p-6">
         <h1 className="page-title">New document</h1>
-        <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
-          This page requires the ISSUER role.
-        </p>
+        <Alert className="mt-4">This page requires the ISSUER role.</Alert>
       </main>
     );
   }
@@ -82,6 +84,7 @@ export function DocumentNew(): ReactElement {
         doc_type: values.doc_type,
         change_note: values.change_note || undefined,
       });
+      notify(`Created "${result.document.title}". Version 1 is waiting for approval.`);
       navigate(`/documents/${result.document.id}`, { replace: true });
     } catch (err) {
       setFormError(mapUploadError(err));
@@ -152,22 +155,27 @@ export function DocumentNew(): ReactElement {
             <FileDropzone
               accept="application/pdf,.pdf"
               selectedFileName={file?.name}
+              selectedFileSize={file?.size}
+              invalid={!!fileError}
+              describedBy="file-error"
               onFileSelected={(f) => {
                 setFile(f);
-                setFileError(null);
+                // Validate on selection, so a wrong type or oversize file is flagged before submit.
+                setFileError(f ? validatePdfFile(f) : null);
               }}
             />
           </div>
-          {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
+          {fileError && (
+            <p id="file-error" className="mt-1 text-sm text-red-600 dark:text-red-400">
+              {fileError}
+            </p>
+          )}
         </div>
 
-        {formError && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {formError}
-          </p>
-        )}
+        {formError && <Alert>{formError}</Alert>}
 
         <button type="submit" disabled={busy} className="btn-primary w-full">
+          {busy && <Spinner />}
           {busy ? "Uploading…" : "Create document"}
         </button>
       </form>

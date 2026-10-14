@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { LoadingRegion, Skeleton } from "../components/Skeleton";
 import { useAuth } from "./AuthContext";
 
 /** Gates a route to signed-in users. UX only: the server enforces the real authorization. */
@@ -9,13 +10,10 @@ export function ProtectedRoute({ children }: { children: ReactElement }): ReactE
 
   if (isLoading) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="p-6 text-sm text-gray-500 dark:text-gray-400"
-      >
-        Loading…
-      </div>
+      <LoadingRegion label="Loading…" className="mx-auto max-w-6xl space-y-4 px-6 py-10">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+      </LoadingRegion>
     );
   }
 

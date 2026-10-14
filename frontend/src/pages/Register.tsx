@@ -6,6 +6,8 @@ import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { Alert } from "../components/Alert";
+import { Spinner } from "../components/Spinner";
 
 const schema = z.object({
   full_name: z.string().min(1, "Full name is required").max(200),
@@ -107,12 +109,9 @@ export function Register(): ReactElement {
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
           )}
         </div>
-        {formError && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {formError}
-          </p>
-        )}
+        {formError && <Alert>{formError}</Alert>}
         <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+          {isSubmitting && <Spinner />}
           {isSubmitting ? "Creating…" : "Create account"}
         </button>
       </form>

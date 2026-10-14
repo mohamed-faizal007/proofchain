@@ -1,11 +1,14 @@
-import type { ReactElement, ReactNode } from "react";
+import type { MouseEvent, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useDocuments } from "../api/hooks/documents";
 import { useRecentVerifications } from "../api/hooks/verifications";
 import type { DocType, RevisionStatus } from "../api/types";
 import { RoleGate } from "../auth/RoleGate";
+import { Alert } from "../components/Alert";
+import { EmptyState } from "../components/EmptyState";
+import { LoadingRegion, RowsSkeleton, Skeleton } from "../components/Skeleton";
 import { formatDate } from "../lib/format";
 
 const ICON_DOCS = "M7 3h7l5 5v13H7z M14 3v5h5";
@@ -110,6 +113,15 @@ export function Dashboard(): ReactElement {
     page_size: PAGE_SIZE,
   });
 
+  const navigate = useNavigate();
+  const filtered = !!(q || docType || status);
+
+  // Whole-row click is a pointer convenience; the title link stays the keyboard/AT target.
+  function openRow(e: MouseEvent<HTMLElement>, to: string): void {
+    if ((e.target as HTMLElement).closest("a,button,input,select,textarea")) return;
+    navigate(to);
+  }
+
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
 
   return (
@@ -126,11 +138,11 @@ export function Dashboard(): ReactElement {
       <section className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatTile icon={ICON_DOCS} label="Documents">
           {totalQuery.isLoading ? (
-            <p className="mt-4 font-display text-5xl font-bold tabular-nums">…</p>
+            <LoadingRegion label="Loading document count…">
+              <Skeleton className="mt-4 h-12 w-20" />
+            </LoadingRegion>
           ) : totalQuery.isError ? (
-            <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
-              {errorMessage(totalQuery.error)}
-            </p>
+            <Alert className="mt-4">{errorMessage(totalQuery.error)}</Alert>
           ) : (
             <p className="mt-4 font-display text-5xl font-bold tabular-nums">
               {totalQuery.data?.total ?? 0}
@@ -140,11 +152,11 @@ export function Dashboard(): ReactElement {
 
         <StatTile icon={ICON_PENDING} label="Pending revision">
           {pendingQuery.isLoading ? (
-            <p className="mt-4 font-display text-5xl font-bold tabular-nums">…</p>
+            <LoadingRegion label="Loading pending count…">
+              <Skeleton className="mt-4 h-12 w-20" />
+            </LoadingRegion>
           ) : pendingQuery.isError ? (
-            <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
-              {errorMessage(pendingQuery.error)}
-            </p>
+            <Alert className="mt-4">{errorMessage(pendingQuery.error)}</Alert>
           ) : (
             <p className="mt-4 font-display text-5xl font-bold tabular-nums">
               {pendingQuery.data?.total ?? 0}
@@ -154,13 +166,13 @@ export function Dashboard(): ReactElement {
 
         <StatTile icon={ICON_SHIELD} label="Recent verifications">
           {verificationsQuery.isLoading ? (
-            <p className="mt-4 font-display text-5xl font-bold tabular-nums">…</p>
+            <LoadingRegion label="Loading recent verifications…">
+              <Skeleton className="mt-4 h-12 w-20" />
+            </LoadingRegion>
           ) : verificationsQuery.isError ? (
-            <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
-              {errorMessage(verificationsQuery.error)}
-            </p>
+            <Alert className="mt-4">{errorMessage(verificationsQuery.error)}</Alert>
           ) : verificationsQuery.data && verificationsQuery.data.items.length > 0 ? (
-            <ul className="mt-4 max-h-[6.125rem] space-y-1.5 overflow-y-auto pr-1 text-xs leading-5">
+            <ul className="stagger mt-4 max-h-[6.125rem] space-y-1.5 overflow-y-auto pr-1 text-xs leading-5">
               {verificationsQuery.data.items.map((v) => (
                 <li key={v.id}>
                   <Link
@@ -173,7 +185,12 @@ export function Dashboard(): ReactElement {
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">No verifications yet.</p>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              No verifications yet.{" "}
+              <Link to="/verify" className="link">
+                Verify a document
+              </Link>
+            </p>
           )}
         </StatTile>
       </section>
@@ -218,15 +235,43 @@ export function Dashboard(): ReactElement {
 
         <div className="card mt-5 overflow-x-auto">
           {listQuery.isLoading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading documents…</p>
+            <RowsSkeleton label="Loading documents…" rows={5} />
           ) : listQuery.isError ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {errorMessage(listQuery.error)}
-            </p>
+            <Alert className="m-4">{errorMessage(listQuery.error)}</Alert>
           ) : listQuery.data && listQuery.data.items.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No documents match these filters.
-            </p>
+            filtered ? (
+              <EmptyState
+                title="No documents match these filters"
+                action={
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setSearchInput("");
+                      setSearchParams({});
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                }
+              >
+                Try a different search term, type or status.
+              </EmptyState>
+            ) : (
+              <EmptyState
+                title="No documents yet"
+                action={
+                  <RoleGate roles={["ISSUER"]}>
+                    <Link to="/documents/new" className="btn-primary">
+                      New document
+                    </Link>
+                  </RoleGate>
+                }
+              >
+                Register a PDF to anchor its fingerprint on the blockchain and start tracking
+                revisions.
+              </EmptyState>
+            )
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
@@ -238,11 +283,12 @@ export function Dashboard(): ReactElement {
                   <th className="eyebrow px-5 py-3.5">Updated</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="stagger">
                 {listQuery.data?.items.map((doc) => (
                   <tr
                     key={doc.id}
-                    className="border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-500/10"
+                    onClick={(e) => openRow(e, `/documents/${doc.id}`)}
+                    className="cursor-pointer border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 focus-within:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-500/10 dark:focus-within:bg-blue-500/10"
                   >
                     <td className="px-5 py-4">
                       <Link

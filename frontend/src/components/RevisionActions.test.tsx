@@ -8,6 +8,7 @@ import type { Revision, Role } from "../api/types";
 import { MemoryRouter } from "react-router-dom";
 import { routerFuture } from "../routerFuture";
 import { AuthProvider } from "../auth/AuthContext";
+import { ToastProvider } from "./Toast";
 import { setStoredToken } from "../auth/storage";
 import { RevisionActions } from "./RevisionActions";
 
@@ -64,7 +65,7 @@ function fail(status: number, code: string, message: string): AxiosAdapter {
     );
 }
 
-function renderActions(roles: Role[], rev: Revision, post?: AxiosAdapter) {
+function renderActions(roles: Role[], rev: Revision, post?: AxiosAdapter, toasts = false) {
   setStoredToken("test-token");
   api.defaults.adapter = post ?? ok({});
   const authClient = createClient({ adapter: ok({ ...ME, roles }) });
@@ -75,7 +76,13 @@ function renderActions(roles: Role[], rev: Revision, post?: AxiosAdapter) {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter future={routerFuture}>
         <AuthProvider client={authClient}>
-          <RevisionActions revision={rev} />
+          {toasts ? (
+            <ToastProvider>
+              <RevisionActions revision={rev} />
+            </ToastProvider>
+          ) : (
+            <RevisionActions revision={rev} />
+          )}
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -142,6 +149,19 @@ describe("RevisionActions: revoke", () => {
     await waitFor(() => expect(url).toBe("/revisions/r1/revoke"));
     expect(JSON.parse(body)).toEqual({ reason: "Signed by mistake" });
     await waitFor(() => expect(screen.queryByText(/cannot be undone/i)).not.toBeInTheDocument());
+  });
+
+  it("confirms a successful revoke with a toast", async () => {
+    renderActions(
+      ["APPROVER"],
+      revision(),
+      (config) => ok(revision({ status: "REVOKED" }))(config),
+      true,
+    );
+    await userEvent.click(await revokeButton());
+    await userEvent.type(screen.getByLabelText(/reason/i), "Signed by mistake");
+    await userEvent.click(screen.getByRole("button", { name: /confirm revoke/i }));
+    expect(await screen.findByText(/version 2 revoked on-chain/i)).toBeInTheDocument();
   });
 
   it.each([

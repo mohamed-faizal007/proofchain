@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { truncateHash } from "../lib/format";
+import { CopyButton } from "./CopyButton";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const HTTP_URL_RE = /^https?:\/\//;
@@ -21,17 +22,26 @@ export function TxLink({
   }
   const hasValidBase = typeof explorerBaseUrl === "string" && HTTP_URL_RE.test(explorerBaseUrl);
   const hasValidHash = TX_HASH_RE.test(txHash);
+  const copy = <CopyButton value={txHash} label="Copy transaction hash" />;
   if (!hasValidBase || !hasValidHash) {
-    return <span className="font-mono text-xs">{truncateHash(txHash)}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 font-mono text-xs" title={txHash}>
+        {truncateHash(txHash)}
+        {copy}
+      </span>
+    );
   }
   return (
-    <a
-      href={`${explorerBaseUrl}${txHash}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-mono text-xs text-blue-600 hover:underline dark:text-blue-400"
-    >
-      {truncateHash(txHash)}
-    </a>
+    <span className="inline-flex items-center gap-1">
+      <a
+        href={`${explorerBaseUrl}${txHash}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-mono text-xs text-blue-600 hover:underline dark:text-blue-400"
+      >
+        {truncateHash(txHash)}
+      </a>
+      {copy}
+    </span>
   );
 }

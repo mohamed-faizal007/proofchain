@@ -4,7 +4,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useDocument, useSubmitRevision } from "../api/hooks/documents";
 import { useAuth } from "../auth/AuthContext";
+import { Alert } from "../components/Alert";
 import { FileDropzone } from "../components/FileDropzone";
+import { LoadingRegion, Skeleton } from "../components/Skeleton";
+import { Spinner } from "../components/Spinner";
+import { useToast } from "../components/useToast";
 import { validatePdfFile } from "../lib/pdfFile";
 
 function mapSubmitError(err: unknown): string {
@@ -35,9 +39,7 @@ function Notice({ children }: { children: string }): ReactElement {
   return (
     <main className="p-6">
       <h1 className="page-title">New revision</h1>
-      <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-400">
-        {children}
-      </p>
+      <Alert className="mt-4">{children}</Alert>
     </main>
   );
 }
@@ -46,6 +48,7 @@ export function RevisionNew(): ReactElement {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { notify } = useToast();
   const documentQuery = useDocument(id);
   const submitRevision = useSubmitRevision();
   const [file, setFile] = useState<File | null>(null);
@@ -60,9 +63,14 @@ export function RevisionNew(): ReactElement {
 
   if (documentQuery.isLoading) {
     return (
-      <main className="p-6">
+      <main className="mx-auto mt-10 max-w-lg p-6">
         <h1 className="page-title">New revision</h1>
-        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading document…</p>
+        <LoadingRegion label="Loading document…" className="mt-6 space-y-4">
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-36 w-full rounded-2xl" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </LoadingRegion>
       </main>
     );
   }
@@ -82,6 +90,8 @@ export function RevisionNew(): ReactElement {
     return <Notice>Only the owner of this document can submit revisions.</Notice>;
   }
 
+  const documentTitle = document.title;
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     if (submittingRef.current || !id) return;
@@ -98,6 +108,7 @@ export function RevisionNew(): ReactElement {
         file: file as File,
         change_note: note.trim(),
       });
+      notify(`Revision submitted for "${documentTitle}". It is waiting for approval.`);
       navigate(`/documents/${id}`, { replace: true });
     } catch (err) {
       setFormError(mapSubmitError(err));
@@ -140,22 +151,27 @@ export function RevisionNew(): ReactElement {
             <FileDropzone
               accept="application/pdf,.pdf"
               selectedFileName={file?.name}
+              selectedFileSize={file?.size}
+              invalid={!!fileError}
+              describedBy="file-error"
               onFileSelected={(f) => {
                 setFile(f);
-                setFileError(null);
+                // Validate on selection, so a wrong type or oversize file is flagged before submit.
+                setFileError(f ? validatePdfFile(f) : null);
               }}
             />
           </div>
-          {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
+          {fileError && (
+            <p id="file-error" className="mt-1 text-sm text-red-600 dark:text-red-400">
+              {fileError}
+            </p>
+          )}
         </div>
 
-        {formError && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {formError}
-          </p>
-        )}
+        {formError && <Alert>{formError}</Alert>}
 
         <button type="submit" disabled={submitRevision.isPending} className="btn-primary w-full">
+          {submitRevision.isPending && <Spinner />}
           {submitRevision.isPending ? "Uploading…" : "Submit revision"}
         </button>
       </form>

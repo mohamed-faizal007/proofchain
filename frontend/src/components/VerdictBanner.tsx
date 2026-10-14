@@ -23,11 +23,11 @@ export function VerdictBanner({
       aria-label="Verdict"
       data-verdict={verdict}
       data-tone={tone}
-      className={`flex items-center gap-5 rounded-2xl border border-l-8 p-7 shadow-lg ${TONE_CLASSES[tone]}`}
+      className={`animate-banner-in flex items-center gap-5 rounded-2xl border border-l-8 p-7 shadow-lg ${TONE_CLASSES[tone]}`}
     >
       <span
         aria-hidden="true"
-        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-4xl font-bold ${ICON_CLASSES[tone]}`}
+        className={`animate-pop-in flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-4xl font-bold ${ICON_CLASSES[tone]}`}
       >
         {ICON_SYMBOL[tone]}
       </span>

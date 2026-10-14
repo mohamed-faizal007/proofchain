@@ -5,6 +5,10 @@ import { useApproveRevision, usePendingRevisions, useRejectRevision } from "../a
 import { ApiError } from "../api/client";
 import type { PendingRevision } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { Alert } from "../components/Alert";
+import { EmptyState } from "../components/EmptyState";
+import { CardsSkeleton } from "../components/Skeleton";
+import { Spinner } from "../components/Spinner";
 import { formatDate } from "../lib/format";
 
 const PAGE_SIZE = 20;
@@ -38,6 +42,7 @@ export function ApprovalsQueue(): ReactElement {
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"approve" | "reject" | null>(null);
   // Synchronous guard: React state updates are not visible until the next render, so two clicks
   // dispatched back-to-back (a genuine double click) must be caught here, not by `disabled` alone.
   const busyRef = useRef<Set<string>>(new Set());
@@ -58,6 +63,7 @@ export function ApprovalsQueue(): ReactElement {
     if (busyRef.current.has(item.id)) return;
     busyRef.current.add(item.id);
     setBusyId(item.id);
+    setBusyAction("approve");
     setStatusMessage(null);
     setRowErrors((prev) => ({ ...prev, [item.id]: "" }));
     try {
@@ -74,6 +80,7 @@ export function ApprovalsQueue(): ReactElement {
     } finally {
       busyRef.current.delete(item.id);
       setBusyId(null);
+      setBusyAction(null);
     }
   }
 
@@ -86,6 +93,7 @@ export function ApprovalsQueue(): ReactElement {
     }
     busyRef.current.add(item.id);
     setBusyId(item.id);
+    setBusyAction("reject");
     setStatusMessage(null);
     setRowErrors((prev) => ({ ...prev, [item.id]: "" }));
     try {
@@ -101,6 +109,7 @@ export function ApprovalsQueue(): ReactElement {
     } finally {
       busyRef.current.delete(item.id);
       setBusyId(null);
+      setBusyAction(null);
     }
   }
 
@@ -129,25 +138,24 @@ export function ApprovalsQueue(): ReactElement {
       </p>
 
       {statusMessage && (
-        <p
-          role="status"
-          className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
-        >
+        <Alert variant="success" className="mt-4">
           {statusMessage}
-        </p>
+        </Alert>
       )}
 
       <section className="mt-6">
         {queueQuery.isLoading ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading approvals…</p>
+          <CardsSkeleton label="Loading approvals…" count={3} />
         ) : queueQuery.isError ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {errorMessage(queueQuery.error)}
-          </p>
+          <Alert>{errorMessage(queueQuery.error)}</Alert>
         ) : queueQuery.data && queueQuery.data.items.length === 0 ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No pending revisions.</p>
+          <div className="card">
+            <EmptyState title="No pending revisions.">
+              You&apos;re all caught up. New revisions submitted by issuers will queue up here.
+            </EmptyState>
+          </div>
         ) : (
-          <ul className="space-y-4">
+          <ul className="stagger space-y-4">
             {queueQuery.data?.items.map((item) => {
               const ownSubmission = user?.id === item.submitted_by;
               const busy = busyId === item.id;
@@ -188,11 +196,7 @@ export function ApprovalsQueue(): ReactElement {
                       <p className="text-xs text-gray-400">
                         {(comments[item.id] ?? "").length}/{MAX_COMMENT_LENGTH}
                       </p>
-                      {rowErrors[item.id] && (
-                        <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {rowErrors[item.id]}
-                        </p>
-                      )}
+                      {rowErrors[item.id] && <Alert className="mt-2">{rowErrors[item.id]}</Alert>}
                       <div className="mt-2 flex gap-2">
                         <button
                           type="button"
@@ -200,6 +204,7 @@ export function ApprovalsQueue(): ReactElement {
                           onClick={() => void handleApprove(item)}
                           className="btn-primary"
                         >
+                          {busy && busyAction === "approve" && <Spinner />}
                           {busy ? "Working…" : "Approve"}
                         </button>
                         <button
@@ -208,6 +213,7 @@ export function ApprovalsQueue(): ReactElement {
                           onClick={() => void handleReject(item)}
                           className="btn-secondary"
                         >
+                          {busy && busyAction === "reject" && <Spinner />}
                           {busy ? "Working…" : "Reject"}
                         </button>
                       </div>

@@ -4,7 +4,10 @@ import { useDownloadRevisionFile } from "../api/hooks/revisions";
 import { ApiError } from "../api/client";
 import type { Revision } from "../api/types";
 import { formatDate } from "../lib/format";
+import { Alert } from "./Alert";
+import { EmptyState } from "./EmptyState";
 import { RevisionActions } from "./RevisionActions";
+import { Spinner } from "./Spinner";
 import { TxLink } from "./TxLink";
 
 const STATUS_CLASSES: Record<Revision["status"], string> = {
@@ -28,7 +31,13 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   if (revisions.length === 0) {
-    return <p className="text-sm text-gray-500 dark:text-gray-400">No revisions yet.</p>;
+    return (
+      <div className="card">
+        <EmptyState title="No revisions yet">
+          The first revision appears here once a PDF has been uploaded.
+        </EmptyState>
+      </div>
+    );
   }
 
   async function handleDownload(revision: Revision): Promise<void> {
@@ -49,12 +58,8 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
 
   return (
     <div>
-      {downloadError && (
-        <p role="alert" className="mb-2 text-sm text-red-600 dark:text-red-400">
-          {downloadError}
-        </p>
-      )}
-      <ul className="space-y-3">
+      {downloadError && <Alert className="mb-3">{downloadError}</Alert>}
+      <ul className="stagger space-y-3">
         {[...revisions].reverse().map((revision) => (
           <li key={revision.id} className="card p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -84,6 +89,7 @@ export function VersionTimeline({ revisions }: { revisions: Revision[] }): React
               disabled={downloadingId === revision.id}
               className="btn-secondary mt-3 text-xs"
             >
+              {downloadingId === revision.id && <Spinner />}
               {downloadingId === revision.id ? "Downloading…" : "Download file"}
             </button>
           </li>

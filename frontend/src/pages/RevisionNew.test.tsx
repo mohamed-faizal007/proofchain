@@ -7,6 +7,7 @@ import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { api, createClient } from "../api/client";
 import type { Role } from "../api/types";
 import { AuthProvider } from "../auth/AuthContext";
+import { ToastProvider } from "../components/Toast";
 import { ProtectedRoute } from "../auth/ProtectedRoute";
 import { setStoredToken } from "../auth/storage";
 import { routerFuture } from "../routerFuture";
@@ -64,17 +65,19 @@ function renderPage(roles: Role[], submit: AxiosAdapter, document: unknown = DOC
     <QueryClientProvider client={queryClient}>
       <MemoryRouter future={routerFuture} initialEntries={["/documents/doc-1/revisions/new"]}>
         <AuthProvider client={authClient}>
-          <Routes>
-            <Route
-              path="/documents/:id/revisions/new"
-              element={
-                <ProtectedRoute>
-                  <RevisionNew />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/documents/:id" element={<DetailProbe />} />
-          </Routes>
+          <ToastProvider>
+            <Routes>
+              <Route
+                path="/documents/:id/revisions/new"
+                element={
+                  <ProtectedRoute>
+                    <RevisionNew />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/documents/:id" element={<DetailProbe />} />
+            </Routes>
+          </ToastProvider>
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -146,6 +149,8 @@ describe("RevisionNew page", () => {
     await fillValidForm();
     await userEvent.click(submitButton());
     expect(await screen.findByText("Document detail doc-1")).toBeInTheDocument();
+    // The redirect alone says nothing, so a toast confirms what happened.
+    expect(await screen.findByText(/revision submitted for/i)).toBeInTheDocument();
     expect(sent?.get("change_note")).toBe("Raised the rent");
     expect((sent?.get("file") as File).name).toBe("lease-v2.pdf");
   });

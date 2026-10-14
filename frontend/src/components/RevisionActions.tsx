@@ -4,6 +4,10 @@ import { ApiError } from "../api/client";
 import { useRetryAnchor, useRevokeRevision } from "../api/hooks/revisions";
 import type { Revision } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { Alert } from "./Alert";
+import { Collapse } from "./Collapse";
+import { Spinner } from "./Spinner";
+import { useToast } from "./useToast";
 
 const MAX_REASON = 500;
 
@@ -36,6 +40,7 @@ function retryErrorMessage(err: unknown): string {
  * revision. Role and state checks only hide buttons; the backend is the authority. */
 export function RevisionActions({ revision }: { revision: Revision }): ReactElement | null {
   const { user } = useAuth();
+  const { notify } = useToast();
   const revoke = useRevokeRevision();
   const retry = useRetryAnchor();
   const [confirming, setConfirming] = useState(false);
@@ -66,6 +71,7 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
       await revoke.mutateAsync({ revisionId: revision.id, reason: trimmed });
       setConfirming(false);
       setReason("");
+      notify(`Version ${revision.revision_no} revoked on-chain.`);
     } catch (err) {
       setError(revokeErrorMessage(err));
     }
@@ -77,6 +83,7 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
     try {
       await retry.mutateAsync(revision.id);
       setNotice("Retry queued. The anchor status will update shortly.");
+      notify(`Anchoring retry queued for version ${revision.revision_no}.`);
     } catch (err) {
       setError(retryErrorMessage(err));
     }
@@ -85,7 +92,7 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
   return (
     <div className="mt-3 space-y-2">
       {revision.anchor.status === "FAILED" && revision.anchor.error && canRetry && (
-        <p className="text-red-600 dark:text-red-400">Anchoring failed: {revision.anchor.error}</p>
+        <Alert live={false}>Anchoring failed: {revision.anchor.error}</Alert>
       )}
       <div className="flex flex-wrap gap-2">
         {canRetry && (
@@ -95,6 +102,7 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
             disabled={retry.isPending}
             onClick={() => void retryAnchor()}
           >
+            {retry.isPending && <Spinner />}
             {retry.isPending ? "Retrying…" : "Retry anchor"}
           </button>
         )}
@@ -112,9 +120,9 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
         )}
       </div>
 
-      {canRevoke && confirming && (
+      <Collapse open={canRevoke && confirming}>
         <form
-          className="space-y-2 rounded border border-red-300 p-3 dark:border-red-800"
+          className="space-y-2 rounded-lg border border-red-300 p-3 dark:border-red-800"
           onSubmit={(e) => {
             e.preventDefault();
             void confirmRevoke();
@@ -141,6 +149,7 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
           {reasonError && <p className="text-red-600 dark:text-red-400">{reasonError}</p>}
           <div className="flex gap-2">
             <button type="submit" className="btn-primary text-xs" disabled={revoke.isPending}>
+              {revoke.isPending && <Spinner />}
               {revoke.isPending ? "Revoking…" : "Confirm revoke"}
             </button>
             <button
@@ -158,18 +167,10 @@ export function RevisionActions({ revision }: { revision: Revision }): ReactElem
             </button>
           </div>
         </form>
-      )}
+      </Collapse>
 
-      {error && (
-        <p role="alert" className="text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p role="status" className="text-gray-500 dark:text-gray-400">
-          {notice}
-        </p>
-      )}
+      {error && <Alert>{error}</Alert>}
+      {notice && <Alert variant="success">{notice}</Alert>}
     </div>
   );
 }
