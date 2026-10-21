@@ -70,7 +70,7 @@ Versions are exact only where the repository pins them. Elsewhere the repository
 | **ruff, mypy, eslint, prettier** | Lint, format, types | Backend and frontend gates |
 | **reportlab 5.0.1, Faker 40.1.0, matplotlib 3.11.2** (pinned) | Evaluation corpus and figures only | Not part of the running app |
 
-Latest test counts recorded in `PROGRESS.md`: backend 1271 passed (30 deselected), contracts 44 passed, frontend 247 passed.
+Latest test counts recorded in `PROGRESS.md`: backend 1282 passed (30 deselected), contracts 44 passed (last run before the post-v1.0 work; contracts untouched since), frontend 303 passed.
 
 ---
 
@@ -100,7 +100,7 @@ flowchart LR
 
 What each piece does:
 
-- **Frontend.** Pages: Login, Register, Dashboard, New document, Document detail, Approvals queue, Verify, History. It talks only to the backend. In the Docker `app` profile the browser calls the backend directly on `127.0.0.1:8000`; there is no reverse proxy.
+- **Frontend.** Pages: Login, Register, Dashboard, New document, Document detail, New revision, Approvals queue, Verify, History, Verification detail. Loading states use skeleton placeholders, empty lists use an empty-state panel, and toasts confirm create, submit-revision, revoke and retry-anchor; motion is CSS only and switched off by `prefers-reduced-motion`. There is no sign-out button. It talks only to the backend. In the Docker `app` profile the browser calls the backend directly on `127.0.0.1:8000`; there is no reverse proxy.
 - **Routers.** Thin: check roles, parse input, call a service. Errors become one JSON envelope `{error: {code, message, details}}`.
 - **Services.** All business logic: registering, submitting, approving, anchoring, revoking, verifying.
 - **`proofchain_core`.** A pure library with no web, database or network imports. It turns PDF bytes into an *integrity tree* and compares two trees. It must give identical hashes on every machine, so it uses no randomness and no locale. A separate CI job runs its tests on Windows to check this.
@@ -585,6 +585,8 @@ Sepolia: 15 transactions, 2 confirmations, spent 0.001968517 ETH, matching the r
 
 ## 13. Demo walkthrough
 
+The full presenter script, with every button label, is in [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md); this section is the summary.
+
 `scripts/demo.ps1` builds and starts the stack, deploys the registry on a local Hardhat chain, seeds users, registers one lease, gets both versions approved and anchored, then verifies every file. Last recorded run: 7 of 7 verdicts correct. The Sepolia option of the script was **not exercised**.
 
 | File | What it is | Expected verdict | What the audience sees |
@@ -702,6 +704,7 @@ Honest list from `PROGRESS.md`, the ADRs and `02_ALGORITHMS.md` section 13.
 - The backend Docker image is about 4.4 GB, and its build is fragile: any source change invalidates the large dependency layers (follow-up recorded).
 - PDF highlights assume unrotated pages with a zero-origin crop box.
 - Frontend token stored in `localStorage`.
+- **Not yet verified live:** the Sepolia path of `demo.ps1` (reviewed and hardened, never run) and the *Retry anchor* button (the endpoint it calls was run live on the local stack). The `nlp` extra is not split from the image, so the default image carries torch although embeddings are off. Anchoring assumes a single backend worker.
 - The web page for submitting a new revision (`/documents/:id/revisions/new`) exists (ISSUER and document owner only, change note required, redirects to the document page showing the PENDING revision); `demo.ps1` still uses the API. Revoke (APPROVER, approved and anchored revisions, reason required, inline confirmation) and Retry anchor (ADMIN, failed anchors) are buttons on each revision card of the document page (`RevisionActions`).
 
 **Future work already on record:** an `ADMIN` abandon-anchor and cancel-approval tool; verdict handling for unanchored approvals; proxy-aware rate limiting and shared storage for limits; page rotation and crop-box support in the viewer; reducing the image build cost; revisiting the MINOR_EDIT gate (token-level or character-level similarity instead of embeddings); a canon-version migration plan.

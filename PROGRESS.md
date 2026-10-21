@@ -4,11 +4,19 @@
 > Keep entries short. Older entries may be condensed into the "History summary" once this file exceeds ~300 lines.
 
 ## Current status
-- Phase: P9 complete (P9-01 to P9-05 `[x]`); P10-02 `[x]`. P0-P8 all `[x]` and reviewed; tags through `v0.1-P8` exist. P9 phase review done (tag `v0.1-P9` suggested). P10-01 `[x]`; P10-03 `[x]`; P10-04 `[x]`.
-- Next task: none; the backlog is complete. P10-05 `[x]` (tag `v1.0`, local until pushed). P10-04 `[x]`: run `.\scripts\demo.ps1`.
+- Phase: all of P0-P10 `[x]`; tags `v1.0`, `v1.1`, `v1.2` exist (v1.2 at `7286751`, on origin). After v1.0 the work was gap closing, all pushed to origin/main (CI green on `a6d7a40`): revision-submit page, `GET /chain/status`, revoke and retry-anchor UI, Sepolia path of `demo.ps1` reviewed and hardened, ADR-023 accepted (embeddings off by default), frontend polish (motion, skeletons, empty states, toasts), and the demo runbook (`docs/DEMO_RUNBOOK.md`).
+- Next task: none; the backlog is complete.
 - Blockers: none
-- Deployed contract (localhost): —
+- Deployed contract (localhost): not recorded here (printed by each `demo.ps1` run and stored in `demo/state.json`)
 - Deployed contract (sepolia): 0xFe9757cc0087c60AeF116F03768eDb0404A55551 (chain 11155111; see contracts/deployments/sepolia.json)
+
+### Remaining limitations (open at a glance; details in Known issues below)
+1. The Sepolia path of `demo.ps1` has been reviewed and hardened but never run live.
+2. The *Retry anchor* button has not been clicked against a real failure (the endpoint behind it was run live: FAILED then ANCHORED).
+3. The `nlp` extra is not split from the image, so the default image still carries torch (about 4.4 GB) although embeddings are off by default.
+4. Scanned (image-only) PDFs are unsupported by design; they are rejected.
+5. Anchoring assumes a single backend worker.
+6. Also still open: the 12 MB tree-to-S3 fallback is not implemented; the header has no sign-out button; `demo.ps1 -Reset -Build` has not been run since ADR-023 and the UI changes, so the running demo stack may predate them.
 
 ## Known issues / tech debt
 - **P10-04 tech debt: the backend image build is fragile, which is why `demo.ps1 -Build` is opt-in (found 2026-10-07).** `backend/Dockerfile` copies `pyproject.toml`, `proofchain_core` and `app` (lines 21-23) BEFORE the multi-GB installs (torch CPU, `.[nlp]`, model fetch, lines 27-31), and the base is the floating tag `python:3.11-slim`. So (a) any source edit, and (b) any new digest of the base tag, invalidates every layer above and re-downloads ~4 GB of NLP dependencies. The first live demo attempt hit (b): `docker compose up -d --build` pulled a new base, restarted the whole build, and after ~2 h failed on a pip connection error while fetching torch (73 kB/s on this link, `Retry(total=0)` exhausted; the previous 4.37 GB image survived because the failed build never retagged it). `demo.ps1` therefore only builds when the image is missing or when `-Build` is passed; on a fresh clone the first run is a ~25 min to 2 h build and may need a retry on a slow link. Fix, not done (scope of P10-04): (1) pin `FROM python:3.11-slim@sha256:...` (the digest is already printed in the build log) and bump it deliberately; (2) install dependencies from a `COPY pyproject.toml` + stub package layer first, `COPY app` last, so source edits reuse the torch/transformers layers; (3) optionally `pip install --retries 10 --timeout 60` for the torch layer. Until (1) and (2) are done, rebuild only when the backend code actually changed.
@@ -971,3 +979,10 @@
 - Tests: 280 -> 303 (Collapse/Toast/reduced-motion, dropzone, alert/empty/skeleton/tx copy, upload progress hook, Verify working state and early validation, RevisionNew and revoke toasts, Dashboard empty vs filtered). lint 0 errors / 1 existing warning, tsc and prettier clean.
 - Live check: frontend container rebuilt alone, headless Chrome (playwright-core in scratch dir), dark+light at 1280 and 1920: Login, Dashboard, document, Verify (invalid file, tampered, authentic), Approvals, History; no console or HTTP errors. CDP screencast filmstrips of banner entrance, route change, revoke collapse, copy confirmation. The demo DB is still in the post-retry-anchor state (Lease anchors point at a reset chain, so approved_v2 vs the Lease reads "Record mismatch"); tampered/authentic were shown on the "Retry anchor test" document. Side effect: ~16 extra verifications in the approver's history. `demo.ps1 -Reset` not run.
 - Cut / not done: toast live-check (needs a real approve/revoke; covered by tests), Approvals row exit animation, hover-lift cards (no card is clickable; lift is on buttons only), keyboard row navigation beyond the existing link tab stops, real video (frame filmstrips instead), Login/Register input restyle.
+
+## Docs sync, demo runbook and verification (2026-10-21; docs only)
+- Added `docs/DEMO_RUNBOOK.md` (opening-to-closing script; every demo file with expected banner and verdict; labels taken from `frontend/src`, not guessed). Findings while doing it: the header has **no sign-out button** (logout is only reachable through the 401 handler), so the runbook uses a second private window for the approver; the seed users each hold one role, so maker-not-checker can only be shown by explanation or the API; Provenance cards show raw event names.
+- Fixed stale text: USER_GUIDE said retry-anchor is API only (now a button) and gained notes on toasts/placeholders, no sign-out and a link to the runbook; README lists the runbook, says embeddings are off in every image by default (ADR-023), and lists nlp-extra, single-worker and the two not-run-live items; PROJECT_EXPLAINED page list (New revision, Verification detail), polish description, limitations, test counts (backend 1282, frontend 303) and a pointer to the runbook. PROGRESS status header and TASKS status block rewritten to match reality.
+- Verification (no fixes needed, no code touched): backend `pytest` 1282 passed / 30 deselected (373 s); `ruff check` and `ruff format --check` clean; `mypy proofchain_core app` clean (96 files); frontend `vitest --maxWorkers=4` 303 passed (42 files); `npm run lint` 0 errors / 1 existing warning, prettier clean; `npm run typecheck` clean; `scripts/secret_scan.py` clean. Contracts tests not rerun (contracts untouched).
+- Workflows: `ci.yml` and `eval-nlp.yml` use `ubuntu-24.04` and full action tags (checkout 4.4.0, setup-python 5.6.0, setup-node 4.4.0, cache 4.3.0, upload-artifact 4.6.2). One floating runner remains: the Windows determinism job uses `windows-latest`. Last CI on `a6d7a40`: success; scheduled eval-nlp 2026-10-19: success.
+- Not done: Docker Desktop was not running, so no live stack check; `demo.ps1 -Reset -Build` still to be run by the user.

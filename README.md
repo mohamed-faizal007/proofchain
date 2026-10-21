@@ -56,7 +56,8 @@ rerun to retry). Later runs reuse the image. Ports 27017, 8000, 8080, 8545, 9000
 - `.\scripts\demo.ps1 -Build` rebuilds the images after code changes (opt-in on purpose).
 - `.\scripts\demo.ps1 -Reset` wipes the demo database and object store (use it after the chain container is recreated).
 - `docker build --build-arg WITH_NLP=0 ...` gives a slim, rule-only image (no `PARTY_CHANGE`
-  detection, no embeddings).
+  detection). Sentence embeddings are off by default in every image (`NLP_EMBEDDINGS_ENABLED=false`,
+  ADR-023: they lowered macro-F1 in the evaluation); the model is still baked into the default image.
 - `.\scripts\demo.ps1 -Network sepolia` targets the Sepolia testnet (not exercised by the project tests). Dry-run checklist:
   1. Needs, from your shell only (never a file): `$env:ANCHOR_PRIVATE_KEY` (a Sepolia key with test ETH that holds
      `ANCHOR_ROLE`; the deployer in `contracts\deployments\sepolia.json` does) and `$env:CHAIN_RPC_URL` (a Sepolia RPC URL).
@@ -72,6 +73,7 @@ rerun to retry). Later runs reuse the image. Ports 27017, 8000, 8080, 8545, 9000
 ## Using it
 
 - [User guide](docs/USER_GUIDE.md): issuer, approver and verifier workflows and how to read a verdict.
+- [Demo runbook](docs/DEMO_RUNBOOK.md): the presenter script with every demo file and expected verdict.
 - [API examples](docs/API_EXAMPLES.md): request and response samples captured from a running stack.
 - [Project explained](docs/PROJECT_EXPLAINED.md): how the hashing, Merkle tree, contract, NLP layer and evaluation work.
 
@@ -113,9 +115,11 @@ Full list in [docs/PROJECT_EXPLAINED.md](docs/PROJECT_EXPLAINED.md) section 15 a
 - **Pagination is part of the text root:** re-paginating the same text counts as a change.
 - **Classification:** CLAUSE_MODIFIED recall is 0.571 and the evaluation corpus is synthetic.
 - **Operations:** rate limits are per client address, in memory and keyed on the TCP peer (not
-  proxy-aware); no account lockout; one backend anchor wallet; the JWT is kept in `localStorage`.
+  proxy-aware); no account lockout; one backend anchor wallet and the backend assumes a single worker for anchoring; the JWT is kept in `localStorage`.
+- **Packaging:** the `nlp` extra is not split from the image, so the default image still carries torch (4.4 GB).
 - **Not implemented:** the 12 MB tree-to-S3 fallback. Revoking (approver) and retrying a failed anchor (admin) are buttons on the document page, and new revisions are submitted from the same page (*Submit new revision*, document owner only); all three are also available through the API.
-- **Demo caveats:** the Sepolia path of `demo.ps1` was not exercised by the tests; the `app` Docker
+- **Demo caveats:** the Sepolia path of `demo.ps1` has been reviewed but not run live, and the *Retry anchor* button has
+  not been clicked against a real failure (the API call behind it was tested live); the `app` Docker
   profile has no reverse proxy, and `/health` reports `nlp` as a static `not_configured`.
 
 Team: Ekanath (23MIA1023) · Mohamed Faizal (23MIA1133) · Rohan Julius Preetan (23MIA1160)

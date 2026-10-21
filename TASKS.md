@@ -5,6 +5,18 @@ Rule: take the first `[ ]` task whose **Deps** are all `[x]`. One task = one Cla
 Every task's implicit acceptance: tests/lint/types for the touched area pass, PROGRESS.md updated.
 
 ---
+## Status (2026-10-21)
+All tasks P0-P10 are `[x]`; there is no open backlog item. Post-v1.0 gap work (revision-submit page, `GET /chain/status`,
+revoke and retry-anchor UI, Sepolia path review, ADR-023, frontend polish, `docs/DEMO_RUNBOOK.md`) is recorded in PROGRESS.md.
+
+Known limitations still open (not tasks; ideas live under Follow-ups in PROGRESS.md):
+- Sepolia path of `demo.ps1` never run live.
+- *Retry anchor* button not clicked against a real failure (endpoint tested live).
+- `nlp` extra not split from the image (default image still carries torch).
+- Scanned PDFs unsupported (rejected by design).
+- Single-worker anchoring.
+
+---
 ## P0 — Scaffold & tooling
 ### [x] P0-01 Repo skeleton
 Deps: — · Refs: CLAUDE.md, 01 §2

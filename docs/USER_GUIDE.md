@@ -7,7 +7,9 @@ A short guide for the people who use the web app. For how it works inside, see
 Start the app with `.\scripts\demo.ps1` (see the [README](../README.md)), then open
 http://127.0.0.1:8080. The demo logins are `issuer@proofchain.local`, `approver@proofchain.local` and
 `admin@proofchain.local`; the password is printed by the script. The app opens in dark theme; the
-toggle in the header switches to light.
+toggle in the header switches to light. Lists and pages show grey placeholders while they load, and short
+notifications (toasts) confirm creating a document, submitting a revision, revoking and retrying an
+anchor. There is no sign-out button; to switch user use a second browser window or profile.
 
 ## Roles
 
@@ -15,7 +17,7 @@ toggle in the header switches to light.
 |---|---|
 | **Issuer** | Register documents, submit new revisions, view their own history |
 | **Approver** | Approve or reject pending revisions submitted by someone else; revoke an anchored revision (document page) |
-| **Admin** | Retry a failed anchor (API only) |
+| **Admin** | Retry a failed anchor (*Retry anchor* button on the document page) |
 | **Anyone, signed in or not** | Verify a PDF (anonymous reports are redacted) |
 
 The person who submitted a revision can never approve it (maker is not checker).
@@ -87,6 +89,9 @@ reported as tampering.
 - An approver can revoke an approved, anchored revision with the *Revoke* button on its card on the document page. A confirmation step asks for a reason (required, up to 500 characters; it is written to the blockchain, so it is public) and the action cannot be undone. The API equivalent is `POST /revisions/{id}/revoke`. After that, the revision's file is reported `UNAUTHORIZED_VERSION` with the reason.
 
 ## Try it with the demo files
+
+For a full presenter script, with every button label and expected result, see
+[DEMO_RUNBOOK.md](DEMO_RUNBOOK.md).
 
 `demo.ps1` writes sample PDFs to `demo/data`. Walkthrough with the expected result for each file:
 [PROJECT_EXPLAINED.md section 13](PROJECT_EXPLAINED.md#13-demo-walkthrough). In short: `original_v1.pdf`
