@@ -1,6 +1,10 @@
 import type { ReactElement } from "react";
 import { truncateHash } from "../lib/format";
 import { CopyButton } from "./CopyButton";
+import { Icon } from "./icons";
+
+const CHIP =
+  "inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2 py-1 font-mono text-xs dark:bg-gray-800/80";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const HTTP_URL_RE = /^https?:\/\//;
@@ -25,21 +29,22 @@ export function TxLink({
   const copy = <CopyButton value={txHash} label="Copy transaction hash" />;
   if (!hasValidBase || !hasValidHash) {
     return (
-      <span className="inline-flex items-center gap-1 font-mono text-xs" title={txHash}>
+      <span className={CHIP} title={txHash}>
         {truncateHash(txHash)}
         {copy}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className={CHIP}>
       <a
         href={`${explorerBaseUrl}${txHash}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-mono text-xs text-blue-600 hover:underline dark:text-blue-400"
+        className="inline-flex items-center gap-1 text-blue-600 hover:underline dark:text-blue-300"
       >
         {truncateHash(txHash)}
+        <Icon name="external" className="h-3 w-3" />
       </a>
       {copy}
     </span>

@@ -2,10 +2,10 @@ import type { ReactElement } from "react";
 import type { AnalysisItem, ChangeRegion, DiffOp, EntityChange } from "../api/types";
 
 const SEVERITY_CLASSES: Record<string, string> = {
-  LOW: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
-  MEDIUM: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200",
-  HIGH: "bg-orange-200 text-orange-950 dark:bg-orange-900 dark:text-orange-100",
-  CRITICAL: "bg-red-200 text-red-950 dark:bg-red-900 dark:text-red-100",
+  LOW: "badge-grey",
+  MEDIUM: "badge-amber",
+  HIGH: "bg-orange-50 text-orange-800 ring-orange-600/25 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/30",
+  CRITICAL: "badge-red",
 };
 
 const pretty = (s: string): string => s.replace(/_/g, " ").toLowerCase();
@@ -68,7 +68,7 @@ export function ChangeCard({
   return (
     <li
       data-testid={`change-${region.id}`}
-      className={`rounded-xl border bg-gray-50 p-4 text-sm transition-colors dark:bg-gray-800/60 ${selected ? "border-blue-500 ring-2 ring-blue-400/50" : ""}`}
+      className={`rounded-xl border bg-gray-50/80 p-4 text-sm transition-all dark:bg-gray-800/50 ${selected ? "border-blue-500 shadow-glow ring-2 ring-blue-400/50" : "hover:border-gray-300 dark:hover:border-gray-600"}`}
     >
       <button
         type="button"
@@ -80,12 +80,8 @@ export function ChangeCard({
         {page != null && <span className="text-gray-600 dark:text-gray-300">page {page + 1}</span>}
         {analysis && (
           <>
-            <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-900">
-              {pretty(analysis.primary_category)}
-            </span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${SEVERITY_CLASSES[analysis.severity] ?? ""}`}
-            >
+            <span className="badge badge-accent">{pretty(analysis.primary_category)}</span>
+            <span className={`badge ${SEVERITY_CLASSES[analysis.severity] ?? "badge-grey"}`}>
               {analysis.severity.toLowerCase()} severity
             </span>
           </>

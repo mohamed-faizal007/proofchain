@@ -287,3 +287,12 @@ export interface RevisionDiff {
   /** null until NLP has run for the comparison. */
   analysis: AnalysisItem[] | null;
 }
+
+/** GET /chain/status (04_API_SPEC): always 200; an outage is `healthy: false`. */
+export interface ChainStatus {
+  configured: boolean;
+  healthy: boolean;
+  chain_id: number | null;
+  contract: string | null;
+  latest_block: number | null;
+}

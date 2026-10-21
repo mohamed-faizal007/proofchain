@@ -10,6 +10,7 @@ import type { DocType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { FileDropzone } from "../components/FileDropzone";
+import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
 import { useToast } from "../components/useToast";
 import { validatePdfFile } from "../lib/pdfFile";
@@ -65,9 +66,9 @@ export function DocumentNew(): ReactElement {
 
   if (!user?.roles.includes("ISSUER")) {
     return (
-      <main className="p-6">
-        <h1 className="page-title">New document</h1>
-        <Alert className="mt-4">This page requires the ISSUER role.</Alert>
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <PageHeader icon="plus" title="New document" />
+        <Alert className="mt-6">This page requires the ISSUER role.</Alert>
       </main>
     );
   }
@@ -103,9 +104,11 @@ export function DocumentNew(): ReactElement {
   }
 
   return (
-    <main className="mx-auto mt-10 max-w-lg p-6">
-      <h1 className="page-title">New document</h1>
-      <form className="mt-6 space-y-4" onSubmit={handleFormSubmit} noValidate>
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <PageHeader icon="plus" title="New document">
+        Register a PDF. Its fingerprint is anchored on-chain once an approver signs it off.
+      </PageHeader>
+      <form className="card mt-6 space-y-5 p-6 sm:p-8" onSubmit={handleFormSubmit} noValidate>
         <div>
           <label htmlFor="title" className="block text-sm font-medium">
             Title
@@ -113,7 +116,7 @@ export function DocumentNew(): ReactElement {
           <input
             id="title"
             type="text"
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1.5 w-full px-3.5 py-2.5"
             {...register("title")}
           />
           {errors.title && (
@@ -125,11 +128,7 @@ export function DocumentNew(): ReactElement {
           <label htmlFor="doc_type" className="block text-sm font-medium">
             Document type
           </label>
-          <select
-            id="doc_type"
-            className="mt-1 w-full rounded border px-3 py-2"
-            {...register("doc_type")}
-          >
+          <select id="doc_type" className="mt-1.5 w-full px-3.5 py-2.5" {...register("doc_type")}>
             {DOC_TYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -144,7 +143,7 @@ export function DocumentNew(): ReactElement {
           </label>
           <textarea
             id="change_note"
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1.5 w-full px-3.5 py-2.5"
             {...register("change_note")}
           />
         </div>
@@ -174,7 +173,7 @@ export function DocumentNew(): ReactElement {
 
         {formError && <Alert>{formError}</Alert>}
 
-        <button type="submit" disabled={busy} className="btn-primary w-full">
+        <button type="submit" disabled={busy} className="btn-primary w-full py-3">
           {busy && <Spinner />}
           {busy ? "Uploading…" : "Create document"}
         </button>

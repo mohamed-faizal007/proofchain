@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { StepStatus, VerificationStep } from "../api/types";
+import { Icon, type IconName } from "./icons";
 
 const STEP_LABELS: Record<string, string> = {
   FILE_HASH: "File hash",
@@ -10,52 +11,87 @@ const STEP_LABELS: Record<string, string> = {
   SEMANTIC_ANALYSIS: "Semantic analysis",
 };
 
-const STATUS_STYLES: Record<StepStatus, { text: string; symbol: string; cls: string }> = {
+const STATUS_STYLES: Record<
+  StepStatus,
+  { text: string; icon: IconName; node: string; chip: string; line: string }
+> = {
   PASS: {
     text: "Pass",
-    symbol: "✓",
-    cls: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-200",
+    icon: "check",
+    node: "bg-green-500 text-white shadow-[0_0_14px_rgb(34_197_94/0.45)]",
+    chip: "badge-green",
+    line: "bg-green-500/60",
   },
   FAIL: {
     text: "Fail",
-    symbol: "✗",
-    cls: "bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-200",
+    icon: "x",
+    node: "bg-red-500 text-white shadow-[0_0_14px_rgb(239_68_68/0.5)]",
+    chip: "badge-red",
+    line: "bg-red-500/60",
   },
   WARN: {
     text: "Warning",
-    symbol: "!",
-    cls: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200",
+    icon: "alert",
+    node: "bg-amber-500 text-white shadow-[0_0_14px_rgb(245_158_11/0.45)]",
+    chip: "badge-amber",
+    line: "bg-amber-500/60",
   },
   DONE: {
     text: "Done",
-    symbol: "•",
-    cls: "bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100",
+    icon: "check",
+    node: "bg-blue-500 text-white",
+    chip: "badge-accent",
+    line: "bg-blue-500/50",
   },
   SKIPPED: {
     text: "Skipped",
-    symbol: "–",
-    cls: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    icon: "chevronRight",
+    node: "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-300",
+    chip: "badge-grey",
+    line: "bg-gray-300 dark:bg-gray-700",
   },
 };
 
-/** The server's step order is the pipeline order (file hash → … → semantic); shown as sent. */
+/** The server's step order is the pipeline order (file hash → … → semantic); shown as sent.
+ * A horizontal stepper from `lg` up, a vertical one below. */
 export function PipelineSteps({ steps }: { steps: VerificationStep[] }): ReactElement {
   return (
-    <ol aria-label="Verification pipeline" className="stagger space-y-2">
-      {steps.map((step) => {
+    <ol
+      aria-label="Verification pipeline"
+      className="stagger lg:grid lg:auto-cols-fr lg:grid-flow-col lg:gap-4"
+    >
+      {steps.map((step, i) => {
         const style = STATUS_STYLES[step.status] ?? STATUS_STYLES.SKIPPED;
+        const last = i === steps.length - 1;
         return (
-          <li key={step.name} data-step={step.name} className="flex items-start gap-3 text-sm">
-            <span className={`mt-0.5 rounded px-2 py-0.5 text-xs font-semibold ${style.cls}`}>
-              <span aria-hidden="true">{style.symbol} </span>
-              {style.text}
+          <li
+            key={step.name}
+            data-step={step.name}
+            className="relative flex gap-3.5 pb-5 text-sm last:pb-0 lg:block lg:pb-0"
+          >
+            {!last && (
+              <span
+                aria-hidden="true"
+                className={`absolute bottom-0 left-[0.95rem] top-9 w-px lg:bottom-auto lg:left-11 lg:right-[-1rem] lg:top-[0.95rem] lg:h-px lg:w-auto ${style.line}`}
+              />
+            )}
+            <span
+              aria-hidden="true"
+              className={`relative z-[1] flex h-[1.9rem] w-[1.9rem] shrink-0 items-center justify-center rounded-full ${style.node}`}
+            >
+              <Icon name={style.icon} className="h-4 w-4" strokeWidth={2.6} />
             </span>
-            <span>
-              <span className="font-medium">{STEP_LABELS[step.name] ?? step.name}</span>
+            <div className="min-w-0 lg:mt-3">
+              <p className="font-semibold">{STEP_LABELS[step.name] ?? step.name}</p>
+              <span className={`badge ${style.chip} mt-1 !px-2 !py-px !text-[11px]`}>
+                {style.text}
+              </span>
               {step.detail && (
-                <span className="block text-gray-600 dark:text-gray-300">{step.detail}</span>
+                <span className="mt-1.5 block text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                  {step.detail}
+                </span>
               )}
-            </span>
+            </div>
           </li>
         );
       })}

@@ -1,54 +1,22 @@
-import type { MouseEvent, ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useDocuments } from "../api/hooks/documents";
 import { useRecentVerifications } from "../api/hooks/verifications";
 import type { DocType, RevisionStatus } from "../api/types";
+import { useAuth } from "../auth/AuthContext";
 import { RoleGate } from "../auth/RoleGate";
 import { Alert } from "../components/Alert";
+import { ChainStatusCard } from "../components/dashboard/ChainStatusCard";
+import { DashboardHero } from "../components/dashboard/DashboardHero";
+import { DocumentsTable } from "../components/dashboard/DocumentsTable";
+import { RECENT_COUNT, RecentVerifications } from "../components/dashboard/RecentVerifications";
+import { StatTile, StatValue } from "../components/dashboard/StatTile";
 import { EmptyState } from "../components/EmptyState";
+import { Icon } from "../components/icons";
 import { LoadingRegion, RowsSkeleton, Skeleton } from "../components/Skeleton";
-import { formatDate } from "../lib/format";
-
-const ICON_DOCS = "M7 3h7l5 5v13H7z M14 3v5h5";
-const ICON_PENDING = "M12 7v5l3 2 M12 21a9 9 0 100-18 9 9 0 000 18z";
-const ICON_SHIELD = "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4";
-
-function StatTile({
-  icon,
-  label,
-  children,
-}: {
-  icon: string;
-  label: string;
-  children: ReactNode;
-}): ReactElement {
-  return (
-    <div className="card bg-gradient-to-br from-white to-gray-50 p-6 dark:from-gray-800/80 dark:to-gray-900">
-      <div className="flex items-center justify-between">
-        <p className="eyebrow">{label}</p>
-        <span
-          aria-hidden="true"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/25 dark:text-blue-300"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d={icon} />
-          </svg>
-        </span>
-      </div>
-      {children}
-    </div>
-  );
-}
+import { verdictInfo } from "../lib/verdict";
 
 const DOC_TYPES: DocType[] = ["CONTRACT", "CERTIFICATE", "INVOICE", "LEGAL", "OTHER"];
 const STATUSES: RevisionStatus[] = ["PENDING", "APPROVED", "REJECTED", "REVOKED"];
@@ -60,6 +28,7 @@ function errorMessage(err: unknown): string {
 }
 
 export function Dashboard(): ReactElement {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get("q") ?? "";
   const docType = (searchParams.get("doc_type") as DocType | null) ?? "";
@@ -104,7 +73,8 @@ export function Dashboard(): ReactElement {
 
   const totalQuery = useDocuments({ page: 1, page_size: 1 });
   const pendingQuery = useDocuments({ page: 1, page_size: 1, status: "PENDING" });
-  const verificationsQuery = useRecentVerifications(5);
+  const approvedQuery = useDocuments({ page: 1, page_size: 1, status: "APPROVED" });
+  const verificationsQuery = useRecentVerifications(RECENT_COUNT);
   const listQuery = useDocuments({
     q: q || undefined,
     doc_type: docType || undefined,
@@ -113,127 +83,149 @@ export function Dashboard(): ReactElement {
     page_size: PAGE_SIZE,
   });
 
-  const navigate = useNavigate();
   const filtered = !!(q || docType || status);
-
-  // Whole-row click is a pointer convenience; the title link stays the keyboard/AT target.
-  function openRow(e: MouseEvent<HTMLElement>, to: string): void {
-    if ((e.target as HTMLElement).closest("a,button,input,select,textarea")) return;
-    navigate(to);
-  }
-
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
 
-  return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex items-end justify-between">
-        <h1 className="page-title">Dashboard</h1>
-        <RoleGate roles={["ISSUER"]}>
-          <Link to="/documents/new" className="btn-primary">
-            New document
-          </Link>
-        </RoleGate>
-      </div>
+  const total = totalQuery.data?.total ?? 0;
+  const pending = pendingQuery.data?.total ?? 0;
+  const recent = verificationsQuery.data?.items ?? [];
+  const tones = recent.map((v) => verdictInfo(v.verdict).tone);
+  const authentic = tones.filter((t) => t === "green").length;
+  const flagged = tones.filter((t) => t === "red").length;
 
-      <section className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <StatTile icon={ICON_DOCS} label="Documents">
+  return (
+    <main className="mx-auto max-w-[88rem] space-y-8 px-4 py-8 sm:px-6">
+      {user ? (
+        <DashboardHero
+          user={user}
+          summary={
+            totalQuery.isSuccess && pendingQuery.isSuccess
+              ? `${total} ${total === 1 ? "document" : "documents"} tracked, ${pending} awaiting approval.`
+              : "Everything ProofChain is tracking for you, at a glance."
+          }
+        />
+      ) : null}
+      {/* The hero carries the visible greeting; this keeps one stable page heading. */}
+      <h1 className="sr-only">Dashboard</h1>
+
+      <section
+        aria-label="Key figures"
+        className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
+      >
+        <StatTile
+          icon="document"
+          label="Documents"
+          hint={
+            approvedQuery.isSuccess
+              ? `${approvedQuery.data.total} with an approved version`
+              : "Registered documents across all issuers"
+          }
+        >
           {totalQuery.isLoading ? (
             <LoadingRegion label="Loading document count…">
-              <Skeleton className="mt-4 h-12 w-20" />
+              <Skeleton className="h-10 w-20" />
             </LoadingRegion>
           ) : totalQuery.isError ? (
-            <Alert className="mt-4">{errorMessage(totalQuery.error)}</Alert>
+            <Alert>{errorMessage(totalQuery.error)}</Alert>
           ) : (
-            <p className="mt-4 font-display text-5xl font-bold tabular-nums">
-              {totalQuery.data?.total ?? 0}
-            </p>
+            <StatValue>{total}</StatValue>
           )}
         </StatTile>
 
-        <StatTile icon={ICON_PENDING} label="Pending revision">
+        <StatTile
+          icon="clock"
+          label="Pending revision"
+          tone="amber"
+          hint={pending > 0 ? "Waiting for an approver to review" : "Nothing is waiting for review"}
+        >
           {pendingQuery.isLoading ? (
             <LoadingRegion label="Loading pending count…">
-              <Skeleton className="mt-4 h-12 w-20" />
+              <Skeleton className="h-10 w-20" />
             </LoadingRegion>
           ) : pendingQuery.isError ? (
-            <Alert className="mt-4">{errorMessage(pendingQuery.error)}</Alert>
+            <Alert>{errorMessage(pendingQuery.error)}</Alert>
           ) : (
-            <p className="mt-4 font-display text-5xl font-bold tabular-nums">
-              {pendingQuery.data?.total ?? 0}
-            </p>
+            <StatValue>{pending}</StatValue>
           )}
         </StatTile>
 
-        <StatTile icon={ICON_SHIELD} label="Recent verifications">
+        <StatTile
+          icon="shield"
+          label="Verifications"
+          tone="accent"
+          hint={
+            recent.length > 0
+              ? `${authentic} authentic, ${flagged} flagged in the latest ${recent.length}`
+              : "Your checks will be counted here"
+          }
+        >
           {verificationsQuery.isLoading ? (
             <LoadingRegion label="Loading recent verifications…">
-              <Skeleton className="mt-4 h-12 w-20" />
+              <Skeleton className="h-10 w-20" />
             </LoadingRegion>
           ) : verificationsQuery.isError ? (
-            <Alert className="mt-4">{errorMessage(verificationsQuery.error)}</Alert>
-          ) : verificationsQuery.data && verificationsQuery.data.items.length > 0 ? (
-            <ul className="stagger mt-4 max-h-[6.125rem] space-y-1.5 overflow-y-auto pr-1 text-xs leading-5">
-              {verificationsQuery.data.items.map((v) => (
-                <li key={v.id}>
-                  <Link
-                    to={`/verifications/${v.id}`}
-                    className="block truncate text-gray-700 hover:text-blue-600 dark:text-gray-200 dark:hover:text-blue-300"
-                  >
-                    {v.verdict} — {formatDate(v.at)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <Alert>{errorMessage(verificationsQuery.error)}</Alert>
           ) : (
-            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              No verifications yet.{" "}
-              <Link to="/verify" className="link">
-                Verify a document
-              </Link>
-            </p>
+            <StatValue>{verificationsQuery.data?.total ?? 0}</StatValue>
           )}
         </StatTile>
       </section>
 
-      <section className="mt-12">
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="search"
-            placeholder="Search by title…"
-            aria-label="Search documents"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="px-3 py-2 text-sm"
-          />
-          <select
-            aria-label="Filter by document type"
-            value={docType}
-            onChange={(e) => setFilter("doc_type", e.target.value)}
-            className="px-3 py-2 text-sm"
-          >
-            <option value="">All types</option>
-            {DOC_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Filter by status"
-            value={status}
-            onChange={(e) => setFilter("status", e.target.value)}
-            className="px-3 py-2 text-sm"
-          >
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <RecentVerifications />
+        </div>
+        <ChainStatusCard />
+      </div>
+
+      <section aria-label="Documents">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="section-title">Documents</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon
+                name="search"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="search"
+                placeholder="Search by title…"
+                aria-label="Search documents"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-56 py-2 pl-9 pr-3 text-sm"
+              />
+            </div>
+            <select
+              aria-label="Filter by document type"
+              value={docType}
+              onChange={(e) => setFilter("doc_type", e.target.value)}
+              className="px-3 py-2 text-sm"
+            >
+              <option value="">All types</option>
+              {DOC_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Filter by status"
+              value={status}
+              onChange={(e) => setFilter("status", e.target.value)}
+              className="px-3 py-2 text-sm"
+            >
+              <option value="">All statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="card mt-5 overflow-x-auto">
+        <div className="card scroll-thin mt-4 overflow-x-auto">
           {listQuery.isLoading ? (
             <RowsSkeleton label="Loading documents…" rows={5} />
           ) : listQuery.isError ? (
@@ -273,49 +265,7 @@ export function Dashboard(): ReactElement {
               </EmptyState>
             )
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-800/40">
-                  <th className="eyebrow px-5 py-3.5">Title</th>
-                  <th className="eyebrow px-5 py-3.5">Type</th>
-                  <th className="eyebrow px-5 py-3.5">Latest version</th>
-                  <th className="eyebrow px-5 py-3.5">Revisions</th>
-                  <th className="eyebrow px-5 py-3.5">Updated</th>
-                </tr>
-              </thead>
-              <tbody className="stagger">
-                {listQuery.data?.items.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    onClick={(e) => openRow(e, `/documents/${doc.id}`)}
-                    className="cursor-pointer border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 focus-within:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-500/10 dark:focus-within:bg-blue-500/10"
-                  >
-                    <td className="px-5 py-4">
-                      <Link
-                        to={`/documents/${doc.id}`}
-                        className="font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
-                      >
-                        {doc.title}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-semibold tracking-wide text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        {doc.doc_type}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 tabular-nums text-gray-600 dark:text-gray-300">
-                      {doc.latest_approved_version_no ?? "—"}
-                    </td>
-                    <td className="px-5 py-4 tabular-nums text-gray-600 dark:text-gray-300">
-                      {doc.revision_count}
-                    </td>
-                    <td className="px-5 py-4 tabular-nums text-gray-600 dark:text-gray-300">
-                      {formatDate(doc.updated_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DocumentsTable items={listQuery.data?.items ?? []} />
           )}
         </div>
 
@@ -329,7 +279,7 @@ export function Dashboard(): ReactElement {
             >
               Previous
             </button>
-            <span>
+            <span className="num">
               Page {page} of {totalPages}
             </span>
             <button

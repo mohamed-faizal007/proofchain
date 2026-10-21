@@ -4,17 +4,17 @@ import type { Config } from "tailwindcss";
 // 700 borders); `blue` is remapped to the single brand accent so every existing blue-* utility
 // (primary buttons, links, focus rings) follows it. Verdict colours (green/amber/red) are untouched.
 const ink = {
-  50: "#f7f7fb",
-  100: "#eeeef6",
-  200: "#dcdcea",
-  300: "#bdbdd1",
-  400: "#9696b0",
-  500: "#71718c",
-  600: "#50506b",
-  700: "#34344d",
-  800: "#1f1f31",
-  900: "#141420",
-  950: "#0b0b13",
+  50: "#f6f6fb",
+  100: "#ececf5",
+  200: "#dadae8",
+  300: "#bbbbd0",
+  400: "#9494af",
+  500: "#6f6f8b",
+  600: "#4e4e69",
+  700: "#2c2c43",
+  800: "#1a1a2b",
+  900: "#11111c",
+  950: "#08080f",
 };
 
 const accent = {
@@ -42,6 +42,8 @@ export default {
         display: ['"Space Grotesk"', '"Inter"', "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
+        soft: "0 1px 2px rgb(20 20 40 / 0.04), 0 8px 24px -12px rgb(20 20 60 / 0.12)",
+        lifted: "0 2px 4px rgb(20 20 40 / 0.04), 0 18px 40px -16px rgb(40 30 120 / 0.28)",
         glow: "0 0 0 1px rgb(125 104 251 / 0.35), 0 8px 24px -8px rgb(106 80 242 / 0.55)",
       },
     },

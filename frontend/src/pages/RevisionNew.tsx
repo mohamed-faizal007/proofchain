@@ -6,6 +6,7 @@ import { useDocument, useSubmitRevision } from "../api/hooks/documents";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { FileDropzone } from "../components/FileDropzone";
+import { PageHeader } from "../components/PageHeader";
 import { LoadingRegion, Skeleton } from "../components/Skeleton";
 import { Spinner } from "../components/Spinner";
 import { useToast } from "../components/useToast";
@@ -37,9 +38,9 @@ function mapSubmitError(err: unknown): string {
 
 function Notice({ children }: { children: string }): ReactElement {
   return (
-    <main className="p-6">
-      <h1 className="page-title">New revision</h1>
-      <Alert className="mt-4">{children}</Alert>
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <PageHeader icon="upload" title="New revision" />
+      <Alert className="mt-6">{children}</Alert>
     </main>
   );
 }
@@ -118,11 +119,12 @@ export function RevisionNew(): ReactElement {
   }
 
   return (
-    <main className="mx-auto mt-10 max-w-lg p-6">
-      <h1 className="page-title">New revision</h1>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{document.title}</p>
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <PageHeader icon="upload" title="New revision">
+        {document.title}
+      </PageHeader>
       <form
-        className="mt-6 space-y-4"
+        className="card mt-6 space-y-5 p-6 sm:p-8"
         onSubmit={(e) => {
           void handleSubmit(e);
         }}
@@ -134,7 +136,7 @@ export function RevisionNew(): ReactElement {
           </label>
           <textarea
             id="change_note"
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1.5 w-full px-3.5 py-2.5"
             maxLength={2000}
             value={note}
             onChange={(e) => {
@@ -170,7 +172,11 @@ export function RevisionNew(): ReactElement {
 
         {formError && <Alert>{formError}</Alert>}
 
-        <button type="submit" disabled={submitRevision.isPending} className="btn-primary w-full">
+        <button
+          type="submit"
+          disabled={submitRevision.isPending}
+          className="btn-primary w-full py-3"
+        >
           {submitRevision.isPending && <Spinner />}
           {submitRevision.isPending ? "Uploading…" : "Submit revision"}
         </button>

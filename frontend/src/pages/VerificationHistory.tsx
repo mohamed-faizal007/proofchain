@@ -3,11 +3,14 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useVerificationsPage } from "../api/hooks/verifications";
 import { Alert } from "../components/Alert";
+import { IconTile } from "../components/Badges";
 import { EmptyState } from "../components/EmptyState";
+import { Icon } from "../components/icons";
+import { PageHeader } from "../components/PageHeader";
 import { HashBadge } from "../components/HashBadge";
 import { RowsSkeleton } from "../components/Skeleton";
 import { VerdictPill } from "../components/VerdictPill";
-import { formatDate } from "../lib/format";
+import { formatDate, relativeTime } from "../lib/format";
 
 const PAGE_SIZE = 20;
 
@@ -34,13 +37,23 @@ export function VerificationHistory(): ReactElement {
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <h1 className="page-title">Verification history</h1>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <PageHeader
+        icon="history"
+        title="Verification history"
+        actions={
+          query.data && query.data.items.length > 0 ? (
+            <Link to="/verify" className="btn-primary">
+              <Icon name="shield" className="h-4 w-4" />
+              Verify a document
+            </Link>
+          ) : undefined
+        }
+      >
         Your past verifications, newest first.
-      </p>
+      </PageHeader>
 
-      <section className="mt-4">
+      <section className="mt-6">
         {query.isLoading ? (
           <div className="card">
             <RowsSkeleton label="Loading verifications…" rows={5} />
@@ -53,7 +66,7 @@ export function VerificationHistory(): ReactElement {
           <ul
             // keepPreviousData shows the old page while the next one loads; make that visible
             aria-busy={query.isPlaceholderData}
-            className={`stagger card divide-y overflow-hidden transition-opacity duration-200 dark:divide-gray-700/70 ${
+            className={`stagger card divide-y divide-gray-100 overflow-hidden transition-opacity duration-200 dark:divide-gray-700/70 ${
               query.isPlaceholderData ? "opacity-60" : ""
             }`}
           >
@@ -61,23 +74,36 @@ export function VerificationHistory(): ReactElement {
               <li
                 key={v.id}
                 onClick={(e) => openRow(e, `/verifications/${v.id}`)}
-                className="cursor-pointer space-y-1.5 p-4 text-sm transition-colors hover:bg-blue-50/60 focus-within:bg-blue-50/60 dark:hover:bg-blue-500/10 dark:focus-within:bg-blue-500/10"
+                className="group flex cursor-pointer items-start gap-4 px-5 py-4 text-sm transition-colors hover:bg-blue-50/60 focus-within:bg-blue-50/60 dark:hover:bg-blue-500/[0.07] dark:focus-within:bg-blue-500/[0.07]"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <VerdictPill verdict={v.verdict} />
-                  <Link
-                    to={`/verifications/${v.id}`}
-                    className="text-base font-semibold hover:underline"
-                  >
-                    {v.filename}
-                  </Link>
-                  <span className="text-gray-500 dark:text-gray-400">{formatDate(v.at)}</span>
+                <IconTile name="file" className="mt-0.5 hidden h-10 w-10 sm:flex" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <Link
+                      to={`/verifications/${v.id}`}
+                      className="text-base font-semibold hover:text-blue-600 dark:hover:text-blue-300"
+                    >
+                      {v.filename}
+                    </Link>
+                    <VerdictPill verdict={v.verdict} />
+                  </div>
+                  <p className="text-gray-700 dark:text-gray-300">{v.summary}</p>
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    {v.document && <span>Document: {v.document.title ?? v.document.id}</span>}
+                    <HashBadge hash={v.file_hash} label="file hash" />
+                  </p>
                 </div>
-                <p className="text-gray-700 dark:text-gray-300">{v.summary}</p>
-                <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  {v.document && <span>Document: {v.document.title ?? v.document.id}</span>}
-                  <HashBadge hash={v.file_hash} label="file hash" />
-                </p>
+                <time
+                  dateTime={v.at}
+                  title={formatDate(v.at)}
+                  className="shrink-0 pt-1 text-xs text-gray-500 dark:text-gray-400"
+                >
+                  {relativeTime(v.at)}
+                </time>
+                <Icon
+                  name="chevronRight"
+                  className="mt-1 hidden h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500 sm:block dark:text-gray-600"
+                />
               </li>
             ))}
           </ul>
@@ -106,7 +132,7 @@ export function VerificationHistory(): ReactElement {
             >
               Previous
             </button>
-            <span>
+            <span className="num">
               Page {page} of {totalPages}
             </span>
             <button

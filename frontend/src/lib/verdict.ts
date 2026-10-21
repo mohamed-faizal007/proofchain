@@ -17,20 +17,19 @@ export function verdictInfo(verdict: string): { label: string; tone: VerdictTone
   return VERDICT_INFO[verdict as Verdict] ?? { label: verdict, tone: "grey" };
 }
 
+/** Banner surface per tone: a tinted gradient with a coloured edge, readable in both themes. */
 export const TONE_CLASSES: Record<VerdictTone, string> = {
   green:
-    "border-green-600 bg-green-100 text-green-950 dark:border-green-500 dark:bg-gray-900 dark:bg-gradient-to-r dark:from-green-500/20 dark:to-green-950/60 dark:text-green-50",
+    "border-green-600/40 bg-gradient-to-br from-green-50 via-white to-green-100/60 text-green-950 dark:border-green-500/40 dark:from-green-500/20 dark:via-gray-900 dark:to-gray-900 dark:text-green-50",
   amber:
-    "border-amber-500 bg-amber-100 text-amber-950 dark:border-amber-400 dark:bg-gray-900 dark:bg-gradient-to-r dark:from-amber-500/20 dark:to-amber-950/60 dark:text-amber-50",
-  red: "border-red-600 bg-red-100 text-red-950 dark:border-red-500 dark:bg-gray-900 dark:bg-gradient-to-r dark:from-red-500/20 dark:to-red-950/60 dark:text-red-50",
-  grey: "border-gray-400 bg-gray-100 text-gray-900 dark:border-gray-500 dark:bg-gray-900 dark:bg-gradient-to-r dark:from-gray-700/60 dark:to-gray-900 dark:text-gray-100",
+    "border-amber-500/50 bg-gradient-to-br from-amber-50 via-white to-amber-100/60 text-amber-950 dark:border-amber-400/40 dark:from-amber-500/20 dark:via-gray-900 dark:to-gray-900 dark:text-amber-50",
+  red: "border-red-600/40 bg-gradient-to-br from-red-50 via-white to-red-100/60 text-red-950 dark:border-red-500/40 dark:from-red-500/20 dark:via-gray-900 dark:to-gray-900 dark:text-red-50",
+  grey: "border-gray-400/50 bg-gradient-to-br from-gray-100 via-white to-gray-100 text-gray-900 dark:border-gray-500/40 dark:from-gray-700/50 dark:via-gray-900 dark:to-gray-900 dark:text-gray-100",
 };
 
 export const PILL_CLASSES: Record<VerdictTone, string> = {
-  green:
-    "bg-green-100 text-green-900 dark:bg-green-500/15 dark:text-green-300 dark:ring-1 dark:ring-inset dark:ring-green-500/30",
-  amber:
-    "bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-1 dark:ring-inset dark:ring-amber-500/30",
-  red: "bg-red-100 text-red-900 dark:bg-red-500/15 dark:text-red-300 dark:ring-1 dark:ring-inset dark:ring-red-500/30",
-  grey: "bg-gray-100 text-gray-800 dark:bg-gray-700/60 dark:text-gray-200 dark:ring-1 dark:ring-inset dark:ring-gray-600",
+  green: "badge badge-green",
+  amber: "badge badge-amber",
+  red: "badge badge-red",
+  grey: "badge badge-grey",
 };

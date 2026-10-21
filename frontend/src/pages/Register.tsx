@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
+import { BrandMark } from "../components/icons";
 import { Spinner } from "../components/Spinner";
 
 const schema = z.object({
@@ -45,11 +46,12 @@ export function Register(): ReactElement {
 
   if (success) {
     return (
-      <main className="mx-auto mt-16 max-w-sm p-6">
+      <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-16">
+        <BrandMark className="mb-6 h-11 w-11" />
         <h1 className="page-title">Register</h1>
         <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
           Account created.{" "}
-          <Link to="/login" className="underline">
+          <Link to="/login" className="link">
             Sign in
           </Link>
           .
@@ -59,9 +61,14 @@ export function Register(): ReactElement {
   }
 
   return (
-    <main className="mx-auto mt-16 max-w-sm p-6">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-16">
+      <BrandMark className="mb-6 h-11 w-11" />
       <h1 className="page-title">Register</h1>
-      <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate>
+      <form
+        className="card mt-6 space-y-4 p-6 sm:p-8"
+        onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        noValidate
+      >
         <div>
           <label htmlFor="full_name" className="block text-sm font-medium">
             Full name
@@ -70,7 +77,7 @@ export function Register(): ReactElement {
             id="full_name"
             type="text"
             autoComplete="name"
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1.5 w-full px-3.5 py-2.5"
             {...register("full_name")}
           />
           {errors.full_name && (
@@ -87,7 +94,7 @@ export function Register(): ReactElement {
             id="email"
             type="email"
             autoComplete="username"
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1.5 w-full px-3.5 py-2.5"
             {...register("email")}
           />
           {errors.email && (
@@ -102,7 +109,7 @@ export function Register(): ReactElement {
             id="password"
             type="password"
             autoComplete="new-password"
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1.5 w-full px-3.5 py-2.5"
             {...register("password")}
           />
           {errors.password && (
@@ -110,14 +117,14 @@ export function Register(): ReactElement {
           )}
         </div>
         {formError && <Alert>{formError}</Alert>}
-        <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+        <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">
           {isSubmitting && <Spinner />}
           {isSubmitting ? "Creating…" : "Create account"}
         </button>
       </form>
       <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
         Already have an account?{" "}
-        <Link to="/login" className="underline">
+        <Link to="/login" className="link">
           Sign in
         </Link>
       </p>
