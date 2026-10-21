@@ -70,7 +70,7 @@ Versions are exact only where the repository pins them. Elsewhere the repository
 | **ruff, mypy, eslint, prettier** | Lint, format, types | Backend and frontend gates |
 | **reportlab 5.0.1, Faker 40.1.0, matplotlib 3.11.2** (pinned) | Evaluation corpus and figures only | Not part of the running app |
 
-Latest test counts recorded in `PROGRESS.md`: backend 1282 passed (30 deselected), contracts 44 passed (last run before the post-v1.0 work; contracts untouched since), frontend 303 passed.
+Latest test counts recorded in `PROGRESS.md`: backend 1286 passed (30 deselected), contracts 44 passed (last run before the post-v1.0 work; contracts untouched since), frontend 303 passed.
 
 ---
 

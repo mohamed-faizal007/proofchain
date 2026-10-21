@@ -11,20 +11,36 @@ from app.deps import (
     get_optional_user,
     get_verification_service,
 )
-from app.errors import UnauthorizedError
+from app.errors import UnauthorizedError, ValidationFailed
 from app.models.user import User
 from app.schemas.verification import VerificationListOut, VerificationReportOut
 from app.services.verification import VerificationService
 
 router = APIRouter(tags=["verification"])
 MAX_PAGE_SIZE = 100
+_TRUE = frozenset({"true", "1", "yes", "on"})
+_FALSE = frozenset({"false", "0", "no", "off"})
+
+
+def _parse_include_nlp(raw: str | None) -> bool:
+    """`include_nlp` defaults to true when omitted (04_API_SPEC). It is parsed here, not declared
+    as a `bool` Form field: newer FastAPI/Starlette read an absent bool form field as False
+    whatever its default, which silently turned NLP off for clients that omit it."""
+    if raw is None or not raw.strip():
+        return True
+    value = raw.strip().lower()
+    if value in _TRUE:
+        return True
+    if value in _FALSE:
+        return False
+    raise ValidationFailed("include_nlp must be true or false", {"field": "include_nlp"})
 
 
 @router.post("/verify", response_model=VerificationReportOut)
 async def verify(
     file: Annotated[UploadFile, File()],
     document_id: Annotated[str | None, Form(max_length=64)] = None,
-    include_nlp: Annotated[bool, Form()] = True,
+    include_nlp: Annotated[str | None, Form()] = None,
     user: User | None = Depends(get_optional_user),
     service: VerificationService = Depends(get_verification_service),
     settings: Settings = Depends(get_app_settings),
@@ -38,7 +54,7 @@ async def verify(
         data=data,
         filename=file.filename,
         document_id=document_id or None,
-        include_nlp=include_nlp,
+        include_nlp=_parse_include_nlp(include_nlp),
     )
     return VerificationReportOut.from_verification(record)
 

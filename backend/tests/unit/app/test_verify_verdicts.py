@@ -277,3 +277,28 @@ def test_include_nlp_flag_never_changes_the_verdict(env: Env, v2: bytes) -> None
         "status": "SKIPPED",
         "detail": "Not available for anonymous requests",
     }
+
+
+@pytest.mark.parametrize(
+    ("form", "requested"),
+    [({}, True), ({"include_nlp": "true"}, True), ({"include_nlp": "false"}, False)],
+)
+def test_include_nlp_omitted_means_requested(
+    env: Env, v2: bytes, form: dict[str, str], requested: bool
+) -> None:
+    """04_API_SPEC: `include_nlp` defaults to true. Newer FastAPI/Starlette read an absent bool
+    form field as False (checkbox semantics), which silently switched NLP off for clients that
+    omit the field; the route parses it itself instead."""
+    doc_id = register_approved(env)[2]
+    body = verify(env, v2, document_id=doc_id, **form).json()
+
+    skipped_as_not_requested = step(body, "SEMANTIC_ANALYSIS").get("detail") == "Not requested"
+    assert skipped_as_not_requested is (not requested)
+
+
+def test_include_nlp_rejects_a_value_that_is_not_a_boolean(env: Env, v2: bytes) -> None:
+    doc_id = register_approved(env)[2]
+    r = verify(env, v2, document_id=doc_id, include_nlp="maybe")
+
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "VALIDATION_ERROR"
